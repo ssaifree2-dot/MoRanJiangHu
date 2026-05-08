@@ -385,6 +385,7 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
                                         type="button"
                                         onClick={() => setSelectedItem(null)}
                                         className="absolute right-4 top-4 rounded-full border border-gray-800 bg-black/40 p-1.5 text-gray-500 transition-all hover:rotate-90 hover:text-white"
+                                        title="关闭详情"
                                     >
                                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -428,15 +429,19 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
                                             <div className="mt-2 truncate text-[10px] text-amber-200/80">{actionMessage}</div>
                                         ) : null}
                                     </div>
-                                ) : null}
+                                ) : (
+                                    <div className="flex items-center justify-center rounded-xl border border-white/5 bg-black/20 py-4 text-xs text-gray-500">
+                                        此物品不可装备
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-2 gap-3 rounded-xl border border-white/5 bg-black/25 p-4">
-                                    <div className="flex justify-between"><span className="text-gray-500">类型</span><span>{getSafeText(selectedItem?.类型, '未知')}</span></div>
-                                    <div className="flex justify-between"><span className="text-gray-500">品质</span><span>{getSafeText(selectedItem?.品质, '未知')}</span></div>
-                                    <div className="flex justify-between"><span className="text-gray-500">单件重量</span><span className="font-mono">{getSafeNumber(selectedItem?.重量)}</span></div>
-                                    <div className="flex justify-between"><span className="text-gray-500">持有数量</span><span className="font-mono">{getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
-                                    <div className="flex justify-between"><span className="text-gray-500">总价值</span><span className="font-mono text-amber-400">{getSafeNumber(selectedItem?.价值) * getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
-                                    <div className="flex justify-between"><span className="text-gray-500">耐久度</span><span className="font-mono">{getSafeNumber(selectedItem?.当前耐久)}/{getSafeNumber(selectedItem?.最大耐久)}</span></div>
+                                    <div className="flex justify-between gap-3"><span className="text-gray-500">类型</span><span>{getSafeText(selectedItem?.类型, '未知')}</span></div>
+                                    <div className="flex justify-between gap-3"><span className="text-gray-500">品质</span><span>{getSafeText(selectedItem?.品质, '未知')}</span></div>
+                                    <div className="flex justify-between gap-3"><span className="text-gray-500">单件重量</span><span className="font-mono">{getSafeNumber(selectedItem?.重量)}</span></div>
+                                    <div className="flex justify-between gap-3"><span className="text-gray-500">持有数量</span><span className="font-mono">{getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
+                                    <div className="flex justify-between gap-3"><span className="text-gray-500">总价值</span><span className="font-mono text-amber-400">{getSafeNumber(selectedItem?.价值) * getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
+                                    <div className="flex justify-between gap-3"><span className="text-gray-500">耐久度</span><span className="font-mono">{getSafeNumber(selectedItem?.当前耐久)}/{getSafeNumber(selectedItem?.最大耐久)}</span></div>
                                 </div>
                             </div>
                         </div>
