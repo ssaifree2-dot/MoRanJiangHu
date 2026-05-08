@@ -2328,6 +2328,10 @@ const App: React.FC = () => {
                         <懒加载边界>
                             <EquipmentModal 
                                 character={state.角色} 
+                                onCharacterChange={(nextCharacter: any) => {
+                                    setters.setCharacter(nextCharacter);
+                                    void actions.performAutoSave?.({ role: nextCharacter, force: true });
+                                }}
                                 onClose={() => setters.setShowEquipment(false)} 
                             />
                         </懒加载边界>

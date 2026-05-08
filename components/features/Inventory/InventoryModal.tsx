@@ -38,6 +38,47 @@ const getSafeText = (value: unknown, fallback = '') => (
     typeof value === 'string' ? value.trim() : fallback
 );
 
+const cloneData = <T,>(data: T): T => JSON.parse(JSON.stringify(data)) as T;
+
+const recalculateWeight = (items: any[]) => items.reduce((sum, item) => (
+    sum + getSafeNumber(item?.重量) * getSafeNumber(item?.堆叠数量, 1)
+), 0);
+
+const applyConsumableEffect = (character: any, selectedItem: any) => {
+    const nextCharacter = cloneData(character);
+    nextCharacter.物品列表 = Array.isArray(nextCharacter?.物品列表) ? nextCharacter.物品列表 : [];
+    const itemRef = getSafeText(selectedItem?.ID) || getSafeText(selectedItem?.名称);
+    const itemIndex = nextCharacter.物品列表.findIndex((item: any) => item?.ID === itemRef || item?.名称 === itemRef);
+    const item = itemIndex >= 0 ? nextCharacter.物品列表[itemIndex] : null;
+    if (!item || getSafeText(item?.类型) !== '消耗品') {
+        return { nextCharacter, message: '此物品不可使用', consumed: false };
+    }
+
+    const effects = Array.isArray(item?.使用效果) ? item.使用效果 : [];
+    effects.forEach((effect: any) => {
+        const target = getSafeText(effect?.目标属性);
+        const value = getSafeNumber(effect?.数值);
+        if (!target || !Number.isFinite(value)) return;
+        const current = getSafeNumber(nextCharacter[target], Number.NaN);
+        if (!Number.isFinite(current)) return;
+        const maxKey = target.startsWith('当前') ? target.replace(/^当前/, '最大') : '';
+        const maxValue = maxKey ? getSafeNumber(nextCharacter[maxKey], Number.NaN) : Number.NaN;
+        const nextValue = current + value;
+        nextCharacter[target] = Number.isFinite(maxValue)
+            ? Math.min(maxValue, Math.max(0, nextValue))
+            : nextValue;
+    });
+
+    const count = getSafeNumber(item?.堆叠数量, 1);
+    if (count > 1) {
+        item.堆叠数量 = count - 1;
+    } else {
+        nextCharacter.物品列表.splice(itemIndex, 1);
+    }
+    nextCharacter.当前负重 = recalculateWeight(nextCharacter.物品列表);
+    return { nextCharacter, message: `已使用${getSafeText(item?.名称, '消耗品')}`, consumed: true };
+};
+
 const getCategoryCount = (items: any[], category: ItemCategory) => {
     if (category === '全部') return items.length;
     if (category === '装备') return items.filter((item) => ['武器', '防具', '饰品'].includes(getSafeText(item?.类型))).length;
@@ -143,6 +184,7 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
     ), 0);
     const selectedEquipSlots = selectedItem ? 获取物品可装备槽位(selectedItem) : [];
     const selectedCanEquip = selectedItem ? 是否可装备物品(selectedItem) : false;
+    const selectedCanUse = getSafeText(selectedItem?.类型) === '消耗品';
 
     const applyCharacterChange = (nextCharacter: any, selectedItemRef?: string) => {
         onCharacterChange?.(nextCharacter);
@@ -175,6 +217,20 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
         const nextCharacter = 自动装备最佳装备(character);
         applyCharacterChange(nextCharacter, getSafeText(selectedItem?.ID) || getSafeText(selectedItem?.名称));
         setActionMessage('已自动换上当前最优装备');
+    };
+
+    const handleUseSelected = () => {
+        if (!selectedItem || !onCharacterChange) return;
+        const result = applyConsumableEffect(character, selectedItem);
+        onCharacterChange(result.nextCharacter);
+        if (result.consumed) {
+            const itemRef = getSafeText(selectedItem?.ID) || getSafeText(selectedItem?.名称);
+            const nextItem = Array.isArray(result.nextCharacter?.物品列表)
+                ? result.nextCharacter.物品列表.find((item: any) => item?.ID === itemRef || item?.名称 === itemRef)
+                : null;
+            setSelectedItem(nextItem || null);
+        }
+        setActionMessage(result.message);
     };
 
     return (
@@ -294,158 +350,176 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
                         </div>
                     </div>
 
-                    <div className="relative z-10 flex-1 overflow-y-auto p-6 custom-scrollbar">
-                        {displayItems.length > 0 ? (
-                            <div className="grid grid-cols-5 gap-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9">
-                                {displayItems.map((item, index) => {
-                                    const count = getSafeNumber(item?.堆叠数量, 1);
-                                    const styles = getRarityStyles(getSafeText(item?.品质));
-                                    const name = getSafeText(item?.名称, '未命名物品');
-                                    const isEquipped = Boolean(item?.当前装备部位);
-                                    const isSelected = selectedItem?.ID === item?.ID;
-                                    const key = String(item?.ID ?? `${name}-${index}`);
+                    <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden">
+                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                            {displayItems.length > 0 ? (
+                                <div className="grid grid-cols-5 gap-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9">
+                                    {displayItems.map((item, index) => {
+                                        const count = getSafeNumber(item?.堆叠数量, 1);
+                                        const styles = getRarityStyles(getSafeText(item?.品质));
+                                        const name = getSafeText(item?.名称, '未命名物品');
+                                        const isEquipped = Boolean(item?.当前装备部位);
+                                        const isSelected = selectedItem?.ID === item?.ID;
+                                        const key = String(item?.ID ?? `${name}-${index}`);
 
-                                    return (
-                                        <button
-                                            key={key}
-                                            type="button"
-                                            onClick={() => setSelectedItem(item)}
-                                            className={`group relative aspect-square cursor-pointer rounded-xl text-left transition-all active:scale-95 ${
-                                                isSelected
-                                                    ? 'scale-[1.02] ring-2 ring-wuxia-gold/60 shadow-[0_0_15px_rgba(212,175,55,0.3)]'
-                                                    : 'hover:scale-[1.02]'
-                                            }`}
-                                        >
-                                            <div className="absolute inset-0 rounded-xl border border-white/5 bg-gradient-to-br from-black/80 to-black opacity-80 transition-opacity group-hover:opacity-100" />
-                                            <div className={`absolute inset-0 rounded-xl border ${styles.border} ${styles.bg} ${
-                                                isSelected ? 'border-opacity-80 bg-opacity-30' : 'border-opacity-30 bg-opacity-10'
-                                            } shadow-inner transition-all group-hover:border-opacity-50 group-hover:bg-opacity-20`} />
+                                        return (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                onClick={() => setSelectedItem(item)}
+                                                className={`group relative aspect-square cursor-pointer rounded-xl text-left transition-all active:scale-95 ${
+                                                    isSelected
+                                                        ? 'scale-[1.02] ring-2 ring-wuxia-gold/60 shadow-[0_0_15px_rgba(212,175,55,0.3)]'
+                                                        : 'hover:scale-[1.02]'
+                                                }`}
+                                            >
+                                                <div className="absolute inset-0 rounded-xl border border-white/5 bg-gradient-to-br from-black/80 to-black opacity-80 transition-opacity group-hover:opacity-100" />
+                                                <div className={`absolute inset-0 rounded-xl border ${styles.border} ${styles.bg} ${
+                                                    isSelected ? 'border-opacity-80 bg-opacity-30' : 'border-opacity-30 bg-opacity-10'
+                                                } shadow-inner transition-all group-hover:border-opacity-50 group-hover:bg-opacity-20`} />
 
-                                            {isEquipped ? (
-                                                <div className="absolute -right-1.5 -top-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-sky-400 to-blue-600 shadow-[0_0_8px_rgba(56,189,248,0.5)]">
-                                                    <span className="text-[9px] font-bold text-white drop-shadow-md">装</span>
+                                                {isEquipped ? (
+                                                    <div className="absolute -right-1.5 -top-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-sky-400 to-blue-600 shadow-[0_0_8px_rgba(56,189,248,0.5)]">
+                                                        <span className="text-[9px] font-bold text-white drop-shadow-md">装</span>
+                                                    </div>
+                                                ) : null}
+
+                                                <div className="absolute inset-0 flex items-center justify-center pb-4 transition-transform duration-300 group-hover:-translate-y-1">
+                                                    <div className={`flex h-10 w-10 items-center justify-center rounded-full border border-white/5 bg-black/40 shadow-inner ${styles.text}`}>
+                                                        {renderItemIcon(getSafeText(item?.类型), 'h-6 w-6 opacity-90 drop-shadow-md group-hover:opacity-100')}
+                                                    </div>
                                                 </div>
-                                            ) : null}
 
-                                            <div className="absolute inset-0 flex items-center justify-center pb-4 transition-transform duration-300 group-hover:-translate-y-1">
-                                                <div className={`flex h-10 w-10 items-center justify-center rounded-full border border-white/5 bg-black/40 shadow-inner ${styles.text}`}>
-                                                    {renderItemIcon(getSafeText(item?.类型), 'h-6 w-6 opacity-90 drop-shadow-md group-hover:opacity-100')}
+                                                <div className="absolute bottom-1.5 left-0 right-0 px-1 text-center">
+                                                    <div className={`truncate text-[10px] font-medium tracking-wide drop-shadow-sm ${getRarityNameClass(getSafeText(item?.品质))}`}>
+                                                        {name}
+                                                    </div>
+                                                    {count > 1 ? (
+                                                        <div className="mt-0.5 font-mono text-[10px] text-gray-400">x{count}</div>
+                                                    ) : null}
                                                 </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-500 opacity-30">
+                                    <span className="text-4xl">空</span>
+                                    <span className="text-xl tracking-widest">空空如也</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {selectedItem ? (
+                            <div className="shrink-0 border-t border-wuxia-gold/20 bg-gradient-to-r from-black/95 via-[#08090b]/95 to-black/95 p-4 shadow-[0_-18px_45px_rgba(0,0,0,0.65)] backdrop-blur-md animate-fadeIn">
+                                <div className="grid gap-4 lg:grid-cols-[minmax(220px,0.85fr)_minmax(260px,1fr)_minmax(220px,0.8fr)_minmax(300px,1fr)]">
+                                    <div className="relative flex min-w-0 gap-4 overflow-hidden rounded-xl border border-white/5 bg-black/25 p-3">
+                                        <div className={`absolute right-0 top-0 h-24 w-24 rounded-full opacity-20 blur-3xl ${getRarityStyles(getSafeText(selectedItem?.品质)).bg}`} />
+                                        <div className={`relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border bg-opacity-20 shadow-lg ${
+                                            getRarityStyles(getSafeText(selectedItem?.品质)).border
+                                        } ${getRarityStyles(getSafeText(selectedItem?.品质)).bg}`}>
+                                            {renderItemIcon(getSafeText(selectedItem?.类型), `h-7 w-7 drop-shadow-md ${getRarityStyles(getSafeText(selectedItem?.品质)).text}`)}
+                                        </div>
+                                        <div className="relative z-10 min-w-0 flex-1">
+                                            <div className={`truncate text-lg font-semibold ${getRarityNameClass(getSafeText(selectedItem?.品质))}`}>
+                                                {getSafeText(selectedItem?.名称, '未命名物品')}
                                             </div>
-
-                                            <div className="absolute bottom-1.5 left-0 right-0 px-1 text-center">
-                                                <div className={`truncate text-[10px] font-medium tracking-wide drop-shadow-sm ${getRarityNameClass(getSafeText(item?.品质))}`}>
-                                                    {name}
-                                                </div>
-                                                {count > 1 ? (
-                                                    <div className="mt-0.5 font-mono text-[10px] text-gray-400">x{count}</div>
+                                            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                                <span className="rounded-full border border-white/10 bg-black/30 px-2 py-1 text-gray-300">
+                                                    {getSafeText(selectedItem?.类型, '未知')}
+                                                </span>
+                                                <span className="rounded-full border border-white/10 bg-black/30 px-2 py-1 text-gray-300">
+                                                    {getSafeText(selectedItem?.品质, '未知')}
+                                                </span>
+                                                {selectedItem?.当前装备部位 ? (
+                                                    <span className="rounded-full border border-blue-400/20 bg-blue-500/10 px-2 py-1 text-blue-300">
+                                                        已装备：{selectedItem.当前装备部位}
+                                                    </span>
                                                 ) : null}
                                             </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-500 opacity-30">
-                                <span className="text-4xl">空</span>
-                                <span className="text-xl tracking-widest">空空如也</span>
-                            </div>
-                        )}
-                    </div>
-
-                    {selectedItem ? (
-                        <div className="absolute inset-y-0 right-0 z-20 flex w-[400px] flex-col border-l border-wuxia-gold/20 bg-gradient-to-b from-black/95 to-[#0c0d0f]/95 shadow-[-20px_0_50px_rgba(0,0,0,0.8)] backdrop-blur-md animate-slideInRight">
-                            <div className="relative overflow-hidden border-b border-wuxia-gold/10 bg-black/60 p-5">
-                                <div className={`absolute right-0 top-0 h-32 w-32 rounded-full opacity-20 blur-3xl ${getRarityStyles(getSafeText(selectedItem?.品质)).bg}`} />
-                                <div className="relative z-10 flex gap-4">
-                                    <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border bg-opacity-20 shadow-lg ${
-                                        getRarityStyles(getSafeText(selectedItem?.品质)).border
-                                    } ${getRarityStyles(getSafeText(selectedItem?.品质)).bg}`}>
-                                        {renderItemIcon(getSafeText(selectedItem?.类型), `h-8 w-8 drop-shadow-md ${getRarityStyles(getSafeText(selectedItem?.品质)).text}`)}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className={`truncate text-xl ${getRarityNameClass(getSafeText(selectedItem?.品质))}`}>
-                                            {getSafeText(selectedItem?.名称, '未命名物品')}
                                         </div>
-                                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                                            <span className="rounded-full border border-white/10 bg-black/30 px-2 py-1 text-gray-300">
-                                                {getSafeText(selectedItem?.类型, '未知')}
-                                            </span>
-                                            <span className="rounded-full border border-white/10 bg-black/30 px-2 py-1 text-gray-300">
-                                                {getSafeText(selectedItem?.品质, '未知')}
-                                            </span>
-                                            {selectedItem?.当前装备部位 ? (
-                                                <span className="rounded-full border border-blue-400/20 bg-blue-500/10 px-2 py-1 text-blue-300">
-                                                    已装备：{selectedItem.当前装备部位}
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedItem(null)}
+                                            className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-800 bg-black/40 text-gray-500 transition-all hover:rotate-90 hover:text-white"
+                                            title="关闭详情"
+                                        >
+                                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    <div className="min-h-[96px] max-h-40 overflow-y-auto rounded-xl border border-white/5 bg-black/25 p-3 text-sm leading-relaxed text-gray-200/85 custom-scrollbar">
+                                        {getSafeText(selectedItem?.描述, '暂无描述')}
+                                    </div>
+
+                                    {selectedCanEquip ? (
+                                        <div className="rounded-xl border border-amber-400/15 bg-amber-500/5 p-3">
+                                            <div className="mb-3 flex items-center justify-between gap-3">
+                                                <span className="text-xs font-semibold tracking-[0.16em] text-amber-200">装备操作</span>
+                                                <span className="truncate text-[10px] text-gray-500">
+                                                    {selectedItem?.当前装备部位 ? `当前：${selectedItem.当前装备部位}` : `可装备：${selectedEquipSlots.map(获取装备槽位标签).join(' / ')}`}
                                                 </span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleEquipSelected}
+                                                    disabled={!onCharacterChange}
+                                                    className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:border-emerald-300/60 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                                >
+                                                    装备
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleUnequipSelected}
+                                                    disabled={!onCharacterChange || !selectedItem?.当前装备部位}
+                                                    className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-100 transition hover:border-sky-300/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                                >
+                                                    卸下
+                                                </button>
+                                            </div>
+                                            {actionMessage ? (
+                                                <div className="mt-2 truncate text-[10px] text-amber-200/80">{actionMessage}</div>
                                             ) : null}
                                         </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedItem(null)}
-                                        className="absolute right-4 top-4 rounded-full border border-gray-800 bg-black/40 p-1.5 text-gray-500 transition-all hover:rotate-90 hover:text-white"
-                                        title="关闭详情"
-                                    >
-                                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex-1 space-y-4 overflow-y-auto p-5 text-sm text-gray-300 custom-scrollbar">
-                                <div className="rounded-xl border border-white/5 bg-black/25 p-4 leading-relaxed text-gray-200/85">
-                                    {getSafeText(selectedItem?.描述, '暂无描述')}
-                                </div>
-
-                                {selectedCanEquip ? (
-                                    <div className="rounded-xl border border-amber-400/15 bg-amber-500/5 p-4">
-                                        <div className="mb-3 flex items-center justify-between gap-3">
-                                            <span className="text-xs font-semibold tracking-[0.16em] text-amber-200">装备操作</span>
-                                            <span className="truncate text-[10px] text-gray-500">
-                                                {selectedItem?.当前装备部位 ? `当前：${selectedItem.当前装备部位}` : `可装备：${selectedEquipSlots.map(获取装备槽位标签).join(' / ')}`}
-                                            </span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2">
+                                    ) : selectedCanUse ? (
+                                        <div className="rounded-xl border border-emerald-400/15 bg-emerald-500/5 p-3">
+                                            <div className="mb-3 flex items-center justify-between gap-3">
+                                                <span className="text-xs font-semibold tracking-[0.16em] text-emerald-200">消耗操作</span>
+                                                <span className="truncate text-[10px] text-gray-500">持有：{getSafeNumber(selectedItem?.堆叠数量, 1)}</span>
+                                            </div>
                                             <button
                                                 type="button"
-                                                onClick={handleEquipSelected}
+                                                onClick={handleUseSelected}
                                                 disabled={!onCharacterChange}
-                                                className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:border-emerald-300/60 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                                className="w-full rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:border-emerald-300/60 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
                                             >
-                                                装备
+                                                使用
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleUnequipSelected}
-                                                disabled={!onCharacterChange || !selectedItem?.当前装备部位}
-                                                className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-100 transition hover:border-sky-300/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                            >
-                                                卸下
-                                            </button>
+                                            {actionMessage ? (
+                                                <div className="mt-2 truncate text-[10px] text-emerald-200/80">{actionMessage}</div>
+                                            ) : null}
                                         </div>
-                                        {actionMessage ? (
-                                            <div className="mt-2 truncate text-[10px] text-amber-200/80">{actionMessage}</div>
-                                        ) : null}
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center justify-center rounded-xl border border-white/5 bg-black/20 py-4 text-xs text-gray-500">
-                                        此物品不可装备
-                                    </div>
-                                )}
+                                    ) : (
+                                        <div className="flex items-center justify-center rounded-xl border border-white/5 bg-black/20 text-xs text-gray-500">
+                                            此物品不可操作
+                                        </div>
+                                    )}
 
-                                <div className="grid grid-cols-2 gap-3 rounded-xl border border-white/5 bg-black/25 p-4">
-                                    <div className="flex justify-between gap-3"><span className="text-gray-500">类型</span><span>{getSafeText(selectedItem?.类型, '未知')}</span></div>
-                                    <div className="flex justify-between gap-3"><span className="text-gray-500">品质</span><span>{getSafeText(selectedItem?.品质, '未知')}</span></div>
-                                    <div className="flex justify-between gap-3"><span className="text-gray-500">单件重量</span><span className="font-mono">{getSafeNumber(selectedItem?.重量)}</span></div>
-                                    <div className="flex justify-between gap-3"><span className="text-gray-500">持有数量</span><span className="font-mono">{getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
-                                    <div className="flex justify-between gap-3"><span className="text-gray-500">总价值</span><span className="font-mono text-amber-400">{getSafeNumber(selectedItem?.价值) * getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
-                                    <div className="flex justify-between gap-3"><span className="text-gray-500">耐久度</span><span className="font-mono">{getSafeNumber(selectedItem?.当前耐久)}/{getSafeNumber(selectedItem?.最大耐久)}</span></div>
+                                    <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/5 bg-black/25 p-3 text-xs text-gray-300">
+                                        <div className="flex justify-between gap-3"><span className="text-gray-500">类型</span><span>{getSafeText(selectedItem?.类型, '未知')}</span></div>
+                                        <div className="flex justify-between gap-3"><span className="text-gray-500">品质</span><span>{getSafeText(selectedItem?.品质, '未知')}</span></div>
+                                        <div className="flex justify-between gap-3"><span className="text-gray-500">单件重量</span><span className="font-mono">{getSafeNumber(selectedItem?.重量)}</span></div>
+                                        <div className="flex justify-between gap-3"><span className="text-gray-500">持有数量</span><span className="font-mono">{getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
+                                        <div className="flex justify-between gap-3"><span className="text-gray-500">总价值</span><span className="font-mono text-amber-400">{getSafeNumber(selectedItem?.价值) * getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
+                                        <div className="flex justify-between gap-3"><span className="text-gray-500">耐久度</span><span className="font-mono">{getSafeNumber(selectedItem?.当前耐久)}/{getSafeNumber(selectedItem?.最大耐久)}</span></div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ) : null}
+                        ) : null}
+                    </div>
                 </div>
             </div>
         </div>

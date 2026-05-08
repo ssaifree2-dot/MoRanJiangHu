@@ -4,14 +4,17 @@ import { 游戏物品 } from '../../../models/item';
 import { getRarityNameClass, getRarityStyles } from '../../ui/rarityStyles';
 import { 获取图片展示地址 } from '../../../utils/imageAssets';
 import { IconSwords, IconDagger, IconShield, IconArmor, IconBackpack, IconRing, IconBelt, IconHelmet, IconBoot, IconPants, IconGlove, IconHorse, ItemTypeIcon } from '../../ui/Icons';
+import { 获取物品可装备槽位, 计算装备评分, 装备物品到角色, 卸下角色装备 } from '../../../utils/equipmentActions';
 
 interface Props {
     character: 角色数据结构;
     onClose: () => void;
+    onCharacterChange?: (nextCharacter: 角色数据结构) => void;
 }
 
-const EquipmentModal: React.FC<Props> = ({ character, onClose }) => {
+const EquipmentModal: React.FC<Props> = ({ character, onClose, onCharacterChange }) => {
     const [selectedItem, setSelectedItem] = useState<游戏物品 | null>(null);
+    const [actionMessage, setActionMessage] = useState('');
     const playerImageHistory = Array.isArray(character?.图片档案?.生图历史) ? character.图片档案!.生图历史 : [];
     const selectedPortraitId = typeof character?.图片档案?.已选立绘图片ID === 'string'
         ? character.图片档案.已选立绘图片ID.trim()
@@ -23,6 +26,48 @@ const EquipmentModal: React.FC<Props> = ({ character, onClose }) => {
     const getItem = (idOrName: string): 游戏物品 | null => {
         if (!idOrName || idOrName === '无') return null;
         return character.物品列表.find(i => i.ID === idOrName || i.名称 === idOrName) || null;
+    };
+
+    const getItemRef = (item: any): string => {
+        if (!item) return '';
+        return typeof item.ID === 'string' && item.ID.trim() ? item.ID.trim() : item.名称;
+    };
+
+    const selectedSlot = selectedItem?.当前装备部位;
+    const switchTarget = selectedItem && selectedSlot
+        ? [...(Array.isArray(character?.物品列表) ? character.物品列表 : [])]
+            .filter((item: any) => {
+                if (!item || getItemRef(item) === getItemRef(selectedItem)) return false;
+                return 获取物品可装备槽位(item).includes(selectedSlot);
+            })
+            .sort((a: any, b: any) => 计算装备评分(b) - 计算装备评分(a))[0] || null
+        : null;
+
+    const applyCharacterChange = (nextCharacter: 角色数据结构, nextSelectedRef?: string) => {
+        onCharacterChange?.(nextCharacter);
+        if (!nextSelectedRef) {
+            setSelectedItem(null);
+            return;
+        }
+        const nextItem = Array.isArray(nextCharacter?.物品列表)
+            ? nextCharacter.物品列表.find((item: any) => item?.ID === nextSelectedRef || item?.名称 === nextSelectedRef)
+            : null;
+        setSelectedItem(nextItem || null);
+    };
+
+    const handleUnequipSelected = () => {
+        if (!selectedItem || !onCharacterChange) return;
+        const nextCharacter = 卸下角色装备(character, getItemRef(selectedItem));
+        applyCharacterChange(nextCharacter, getItemRef(selectedItem));
+        setActionMessage('已卸下');
+    };
+
+    const handleSwitchSelected = () => {
+        if (!selectedItem || !switchTarget || !selectedSlot || !onCharacterChange) return;
+        const switchRef = getItemRef(switchTarget);
+        const nextCharacter = 装备物品到角色(character, switchRef, selectedSlot);
+        applyCharacterChange(nextCharacter, switchRef);
+        setActionMessage(`已切换为${switchTarget.名称}`);
     };
 
 
@@ -262,6 +307,36 @@ const EquipmentModal: React.FC<Props> = ({ character, onClose }) => {
                                     <p className="text-gray-300 text-[13px] md:text-[15px] font-serif italic leading-7 md:leading-loose tracking-wide overflow-wrap-break-word">
                                         “ {selectedItem.描述 || '此神兵来历不明，似有天道之力缠绕。'} ”
                                     </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-wuxia-gold/15 bg-wuxia-gold/5 p-4">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                        <span className="text-xs font-bold tracking-[0.18em] text-wuxia-gold/90">装备操作</span>
+                                        <span className="truncate text-[10px] text-gray-500">
+                                            {selectedSlot ? `当前：${selectedSlot}` : '未装备'}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleUnequipSelected}
+                                            disabled={!onCharacterChange || !selectedSlot}
+                                            className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-100 transition hover:border-sky-300/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            卸下
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleSwitchSelected}
+                                            disabled={!onCharacterChange || !switchTarget}
+                                            className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:border-emerald-300/60 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            切换
+                                        </button>
+                                    </div>
+                                    <div className="mt-2 truncate text-[10px] text-wuxia-gold/70">
+                                        {actionMessage || (switchTarget ? `可切换：${switchTarget.名称}` : '无可切换装备')}
+                                    </div>
                                 </div>
 
                                 <div>
