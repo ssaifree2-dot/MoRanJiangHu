@@ -687,60 +687,7 @@ export const 执行主剧情发送工作流 = async (
         const socialBeforeMainCommands = deps.深拷贝(currentState.社交);
         const rawAiText = deps.获取原始AI消息(aiResult.rawText);
 
-        if (deps.文章优化功能已开启()) {
-            const polishStage = await 执行可重试独立阶段({
-                stageId: 'polish',
-                stageLabel: '文章优化',
-                beforeAttempt: (attempt) => {
-                    options?.onPolishProgress?.({
-                        phase: 'start',
-                        text: attempt > 1
-                            ? `正在重新提取并润色<正文>内容...（第 ${attempt} 次手动重试）`
-                            : '正在提取并润色<正文>内容...'
-                    });
-                },
-                onAutoRetry: (attempt, maxAttempts, reason) => {
-                    options?.onPolishProgress?.({
-                        phase: 'start',
-                        text: `正文优化请求失败，正在自动重试（${attempt}/${maxAttempts}）${reason ? `：${reason}` : ''}`
-                    });
-                },
-                run: () => deps.执行正文润色(
-                    aiData,
-                    rawAiText,
-                    { playerInput: sendInput }
-                ),
-                onError: (errorText) => {
-                    options?.onPolishProgress?.({
-                        phase: 'error',
-                        text: `${errorText || '正文优化失败，已保留原文。'}\n等待选择：重试当前阶段，或跳过继续。`
-                    });
-                },
-                onSkip: (errorText) => {
-                    options?.onPolishProgress?.({
-                        phase: 'skipped',
-                        text: `正文优化失败，已按用户选择跳过。${errorText ? `\n${errorText}` : ''}`
-                    });
-                }
-            });
-            const polished = polishStage.result;
-            if (polishStage.completed && polished) {
-                if (polished.applied) {
-                    displayAiData = polished.response;
-                    options?.onPolishProgress?.({
-                        phase: 'done',
-                        text: `已应用优化结果（模型：${polished.response.body_optimized_model || '未知'}）`,
-                        rawText: polished.rawText
-                    });
-                } else {
-                    options?.onPolishProgress?.({
-                        phase: 'done',
-                        text: polished.error || '优化未生效，已保留原文。',
-                        rawText: polished.rawText
-                    });
-                }
-            }
-        } else {
+        if (!deps.文章优化功能已开启()) {
             options?.onPolishProgress?.({
                 phase: 'skipped',
                 text: '正文优化功能未开启，已跳过。'
@@ -824,16 +771,24 @@ export const 执行主剧情发送工作流 = async (
             outputTokens: deps.估算AI输出Token(rawAiText, activeApi?.model)
         };
         if (isStreaming) {
-            deps.设置历史记录(prev => prev.map(item => {
-                if (
+            deps.设置历史记录(prev => {
+                const streamIndex = prev.findIndex(item => (
                     item.timestamp === streamMarker
                     && item.role === "assistant"
                     && !item.structuredResponse
-                ) {
-                    return { ...newAiMsg };
-                }
-                return item;
-            }));
+                ));
+                const fallbackIndex = streamIndex >= 0
+                    ? streamIndex
+                    : (() => {
+                        for (let index = prev.length - 1; index >= 0; index -= 1) {
+                            const item = prev[index];
+                            if (item?.role === "assistant" && !item.structuredResponse) return index;
+                        }
+                        return -1;
+                    })();
+                if (fallbackIndex < 0) return [...prev, { ...newAiMsg }];
+                return prev.map((item, index) => index === fallbackIndex ? { ...newAiMsg } : item);
+            });
         } else {
             deps.设置历史记录([...updatedDisplayHistory, newAiMsg]);
         }
@@ -848,7 +803,9 @@ export const 执行主剧情发送工作流 = async (
             .filter((line) => line.trim().length > 0)
             .join("\n");
         if (latestBodyText.trim()) {
-            await deps.应用常驻壁纸为背景();
+            void Promise.resolve(deps.应用常驻壁纸为背景()).catch((error) => {
+                console.error("应用常驻壁纸失败", error);
+            });
             deps.触发场景自动生图({
                 response: finalDisplayResponse,
                 bodyText: latestBodyText,
@@ -882,6 +839,90 @@ export const 执行主剧情发送工作流 = async (
         deps.set后台队列处理中(true);
         void (async () => {
             try {
+                if (deps.文章优化功能已开启()) {
+                    const polishStage = await 执行可重试独立阶段({
+                        stageId: "polish",
+                        stageLabel: "文章优化",
+                        beforeAttempt: (attempt) => {
+                            options?.onPolishProgress?.({
+                                phase: "start",
+                                text: attempt > 1
+                                    ? `正在重新提取并润色<正文>内容...（第 ${attempt} 次手动重试）`
+                                    : "正在后台提取并润色<正文>内容..."
+                            });
+                        },
+                        onAutoRetry: (attempt, maxAttempts, reason) => {
+                            options?.onPolishProgress?.({
+                                phase: "start",
+                                text: `正文优化请求失败，正在自动重试（${attempt}/${maxAttempts}）${reason ? `：${reason}` : ""}`
+                            });
+                        },
+                        run: () => deps.执行正文润色(
+                            aiData,
+                            rawAiText,
+                            { playerInput: sendInput }
+                        ),
+                        onError: (errorText) => {
+                            options?.onPolishProgress?.({
+                                phase: "error",
+                                text: `${errorText || "正文优化失败，已保留原文。"}\n等待选择：重试当前阶段，或跳过继续。`
+                            });
+                        },
+                        onSkip: (errorText) => {
+                            options?.onPolishProgress?.({
+                                phase: "skipped",
+                                text: `正文优化失败，已按用户选择跳过。${errorText ? `\n${errorText}` : ""}`
+                            });
+                        }
+                    });
+                    const polished = polishStage.result;
+                    if (polishStage.completed && polished) {
+                        if (polished.applied) {
+                            displayAiData = polished.response;
+                            finalDisplayResponse = {
+                                ...displayAiData,
+                                tavern_commands: Array.isArray(responseForExecution.tavern_commands) ? [...responseForExecution.tavern_commands] : []
+                            };
+                            options?.onPolishProgress?.({
+                                phase: "done",
+                                text: `已应用优化结果（模型：${polished.response.body_optimized_model || "未知"}）`,
+                                rawText: polished.rawText
+                            });
+                            const polishedAiMsg: 聊天记录结构 = {
+                                ...newAiMsg,
+                                structuredResponse: finalDisplayResponse
+                            };
+                            deps.设置历史记录(prev => {
+                                const targetIndex = prev.findIndex(item => item.timestamp === aiTurnTimestamp && item.role === "assistant");
+                                const fallbackIndex = targetIndex >= 0
+                                    ? targetIndex
+                                    : (() => {
+                                        for (let index = prev.length - 1; index >= 0; index -= 1) {
+                                            const item = prev[index];
+                                            if (item?.role === "assistant" && !item.structuredResponse) return index;
+                                        }
+                                        return -1;
+                                    })();
+                                if (fallbackIndex < 0) return [...prev, { ...polishedAiMsg, autoScrollToTurnIcon: false }];
+                                return prev.map((item, index) => {
+                                    if (index !== fallbackIndex) return item;
+                                    return {
+                                        ...item,
+                                        ...polishedAiMsg,
+                                        autoScrollToTurnIcon: false
+                                    };
+                                });
+                            });
+                        } else {
+                            options?.onPolishProgress?.({
+                                phase: "done",
+                                text: polished.error || "优化未生效，已保留原文。",
+                                rawText: polished.rawText
+                            });
+                        }
+                    }
+                }
+
                 let variableGenerationResult: Awaited<ReturnType<typeof deps.执行变量生成并合并响应>> = null;
                 const 变量生成前命令数 = Array.isArray(responseForExecution.tavern_commands) ? responseForExecution.tavern_commands.length : 0;
                 const variableStage = await 执行可重试独立阶段({
@@ -1131,25 +1172,36 @@ export const 执行主剧情发送工作流 = async (
                     ...newAiMsg,
                     structuredResponse: finalDisplayResponse
                 };
-                deps.设置历史记录(prev => prev.map(item => {
-                    if (item.timestamp !== aiTurnTimestamp || item.role !== "assistant") {
-                        return item;
-                    }
+                deps.设置历史记录(prev => {
+                    const targetIndex = prev.findIndex(item => item.timestamp === aiTurnTimestamp && item.role === "assistant");
+                    const fallbackIndex = targetIndex >= 0
+                        ? targetIndex
+                        : (() => {
+                            for (let index = prev.length - 1; index >= 0; index -= 1) {
+                                const item = prev[index];
+                                if (item?.role === "assistant" && !item.structuredResponse) return index;
+                            }
+                            return -1;
+                        })();
+                    if (fallbackIndex < 0) return [...prev, { ...queuedAiMsg, autoScrollToTurnIcon: false }];
+                    return prev.map((item, index) => {
+                        if (index !== fallbackIndex) return item;
 
-                    const prevStructured = item.structuredResponse ?? null;
-                    const nextStructured = queuedAiMsg.structuredResponse ?? null;
-                    const structuredChanged = JSON.stringify(prevStructured) !== JSON.stringify(nextStructured);
+                        const prevStructured = item.structuredResponse ?? null;
+                        const nextStructured = queuedAiMsg.structuredResponse ?? null;
+                        const structuredChanged = JSON.stringify(prevStructured) !== JSON.stringify(nextStructured);
 
-                    if (!structuredChanged) {
-                        return item;
-                    }
+                        if (!structuredChanged && item.structuredResponse) {
+                            return item;
+                        }
 
-                    return {
-                        ...item,
-                        ...queuedAiMsg,
-                        autoScrollToTurnIcon: false
-                    };
-                }));
+                        return {
+                            ...item,
+                            ...queuedAiMsg,
+                            autoScrollToTurnIcon: false
+                        };
+                    });
+                });
 
                 const queuedNpcList = deps.提取新增NPC列表(socialBeforeMainCommands, finalState.社交);
                 if (queuedNpcList.length > 0) {

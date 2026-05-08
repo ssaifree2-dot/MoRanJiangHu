@@ -180,3 +180,263 @@
 .animate-sweep {
   animation: sweep 3s infinite;
 }
+
+@media (min-width: 768px) {
+  :root {
+    --desktop-game-top: 75px;
+    --desktop-game-bottom: 57px;
+    --desktop-side-menu-width: clamp(132px, 9vw, 164px);
+    --desktop-right-detail-width: clamp(460px, 34vw, 560px);
+  }
+
+  .desktop-detail-expand-toggle {
+    position: fixed;
+    right: 5.25rem;
+    top: calc(var(--desktop-game-top) + 0.55rem);
+    z-index: 520;
+    display: inline-flex;
+    height: 2rem;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(230, 200, 110, 0.42);
+    background: rgba(4, 4, 4, 0.72);
+    padding: 0 0.65rem;
+    color: rgb(var(--c-wuxia-gold));
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(12px);
+    font-size: 0.75rem;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+  }
+
+  .desktop-detail-expand-toggle:hover {
+    border-color: rgba(230, 200, 110, 0.72);
+    background: rgba(20, 15, 8, 0.88);
+    transform: translateY(-1px);
+  }
+
+  .desktop-right-detail-modal {
+    pointer-events: none;
+  }
+
+  .desktop-right-detail-modal .fixed {
+    inset: var(--desktop-game-top) 12px var(--desktop-game-bottom) auto !important;
+    width: var(--desktop-right-detail-width) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100vh - var(--desktop-game-top) - var(--desktop-game-bottom)) !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    pointer-events: none;
+  }
+
+  .desktop-right-detail-modal .fixed > div {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
+    max-height: none !important;
+    border-radius: 14px !important;
+    border-right-width: 0 !important;
+    pointer-events: auto;
+    box-shadow: -18px 0 36px rgba(0, 0, 0, 0.58) !important;
+    container-type: inline-size;
+  }
+
+  .desktop-right-detail-modal .fixed > div .w-\[340px\] {
+    width: min(220px, 36%) !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div .w-56 {
+    width: 10.5rem !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div .w-\[400px\],
+  .desktop-right-detail-modal .fixed > div .md\:w-\[450px\] {
+    width: min(100%, 18rem) !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div .p-8 {
+    padding: 1rem !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div .p-6 {
+    padding: 0.875rem !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div [class*="tracking-[0.4em]"],
+  .desktop-right-detail-modal .fixed > div [class*="tracking-[0.3em]"],
+  .desktop-right-detail-modal .fixed > div [class*="tracking-[0.22em]"] {
+    letter-spacing: 0.08em !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div h3,
+  .desktop-right-detail-modal .fixed > div h4 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.35 !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div [class*="text-3xl"],
+  .desktop-right-detail-modal .fixed > div [class*="text-2xl"] {
+    font-size: 1.125rem !important;
+    line-height: 1.45rem !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div [class*="text-xl"] {
+    font-size: 1rem !important;
+    line-height: 1.35rem !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div [class*="w-12"][class*="h-12"],
+  .desktop-right-detail-modal .fixed > div [class*="md:w-12"][class*="md:h-12"] {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div [class*="grid-cols-5"],
+  .desktop-right-detail-modal .fixed > div [class*="md:grid-cols-6"],
+  .desktop-right-detail-modal .fixed > div [class*="lg:grid-cols-8"],
+  .desktop-right-detail-modal .fixed > div [class*="xl:grid-cols-9"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div [class*="md:grid-cols-[1fr_auto_1fr]"] {
+    grid-template-columns: minmax(0, 1fr) 108px minmax(0, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div [class*="md:max-w-[19rem]"] {
+    max-width: 8.5rem !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div [class*="md:w-56"] {
+    width: 6.75rem !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div [class*="md:h-[450px]"] {
+    height: 13.5rem !important;
+  }
+
+  .desktop-right-detail-modal .fixed > div [class*="md:w-20"][class*="md:h-20"] {
+    width: 3rem !important;
+    height: 3rem !important;
+  }
+
+  .desktop-right-detail-modal .right-detail-map-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  .desktop-right-detail-modal .right-detail-map-list {
+    min-height: 0 !important;
+    max-height: 8.5rem !important;
+    border-right-width: 0 !important;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.1) !important;
+  }
+
+  .desktop-right-detail-modal .right-detail-map-list-items {
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding-right: 0 !important;
+    padding-bottom: 0.25rem !important;
+  }
+
+  .desktop-right-detail-modal .right-detail-map-list-items > button {
+    width: 10rem !important;
+    flex: 0 0 10rem !important;
+  }
+
+  .desktop-right-detail-modal .right-detail-map-modal main {
+    min-width: 0 !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed {
+    inset: 1.25rem !important;
+    z-index: 260 !important;
+    width: auto !important;
+    max-height: none !important;
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    background: rgba(0, 0, 0, 0.68) !important;
+    backdrop-filter: blur(10px) !important;
+    pointer-events: auto !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed > div {
+    width: min(1480px, calc(100vw - 3rem)) !important;
+    max-width: min(1480px, calc(100vw - 3rem)) !important;
+    height: calc(100vh - 2.5rem) !important;
+    max-height: calc(100vh - 2.5rem) !important;
+    border-radius: 18px !important;
+    border-right-width: 1px !important;
+    box-shadow: 0 22px 80px rgba(0, 0, 0, 0.72) !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed > div .w-\[340px\] {
+    width: 340px !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed > div .w-56 {
+    width: 14rem !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed > div .w-\[400px\],
+  .desktop-right-detail-modal--fullscreen .fixed > div .md\:w-\[450px\] {
+    width: min(100%, 28rem) !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed > div .p-8 {
+    padding: 2rem !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed > div .p-6 {
+    padding: 1.5rem !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed > div [class*="grid-cols-5"] {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed > div [class*="md:grid-cols-6"] {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed > div [class*="lg:grid-cols-8"] {
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .fixed > div [class*="xl:grid-cols-9"] {
+    grid-template-columns: repeat(9, minmax(0, 1fr)) !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .right-detail-map-body {
+    grid-template-columns: 18rem minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .right-detail-map-list {
+    max-height: none !important;
+    border-right: 1px solid rgba(212, 175, 55, 0.1) !important;
+    border-bottom-width: 0 !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .right-detail-map-list-items {
+    flex-direction: column !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding-right: 0.25rem !important;
+  }
+
+  .desktop-right-detail-modal--fullscreen .right-detail-map-list-items > button {
+    width: 100% !important;
+    flex: 0 0 auto !important;
+  }
+}

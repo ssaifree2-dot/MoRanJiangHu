@@ -321,6 +321,24 @@ const 提取候选正文文本 = (text: string): string => {
     return lines.join('\n').trim();
 };
 
+const 清理正文残留协议内容 = (body: string): string => {
+    let stripped = (body || '').replace(/\r\n/g, '\n');
+    for (const tag of ['剧情规划', '变量规划', '短期记忆', '命令', '行动选项', '动态世界']) {
+        const escapedTag = 转义正则片段(tag);
+        stripped = stripped.replace(new RegExp(`<\\s*${escapedTag}\\s*>[\\s\\S]*?<\\s*/\\s*${escapedTag}\\s*>`, 'gi'), '\n');
+    }
+    const lines: string[] = [];
+    for (const rawLine of stripped.split('\n')) {
+        const line = rawLine.trim();
+        const isNonBodyProtocolHeader = (Object.keys(协议标题匹配规则) as 可标题恢复标签[])
+            .filter((tag) => tag !== '正文')
+            .some((tag) => 协议标题匹配规则[tag].test(line));
+        if (isNonBodyProtocolHeader) break;
+        lines.push(rawLine);
+    }
+    return lines.join('\n').trim();
+};
+
 const 写入协议标签段 = (
     source: string,
     tag: 可标题恢复标签,
@@ -1048,14 +1066,14 @@ const 解析标签协议响应 = (content: string): GameResponse | null => {
     const textWithoutThinking = thinkingSegment.textWithoutThinking;
     const titleSections = 提取标题区块内容(textWithoutThinking);
     const thinkingParts = 提取标签内容列表(text, 'thinking', { 兼容错误闭合: true });
-    const bodyBlock = 提取首个标签内容(textWithoutThinking, '正文');
+    const bodyBlock = 提取首个标签内容(textWithoutThinking, '正文') || titleSections.正文 || '';
     const storyPlanBlock = 提取首个标签内容(textWithoutThinking, '剧情规划', { 兼容错误闭合: true }) || titleSections.剧情规划 || '';
     const variablePlanBlock = 提取首个标签内容(textWithoutThinking, '变量规划', { 兼容错误闭合: true }) || titleSections.变量规划 || '';
     const shortTerm = 提取首个标签内容(textWithoutThinking, '短期记忆', { 兼容错误闭合: true }) || titleSections.短期记忆 || '';
     const commandBlock = 提取首个标签内容(textWithoutThinking, '命令') || titleSections.命令 || '';
     const actionOptionsBlock = 提取首个标签内容(textWithoutThinking, '行动选项') || titleSections.行动选项 || '';
     const dynamicWorldBlock = 提取首个标签内容(textWithoutThinking, '动态世界') || titleSections.动态世界 || '';
-    const bodyJudgeExtraction = 提取正文中的Judge区块(bodyBlock || '');
+    const bodyJudgeExtraction = 提取正文中的Judge区块(清理正文残留协议内容(bodyBlock || ''));
     const fallbackJudgeBlocks = 提取标签内容列表(textWithoutThinking, 'judge', { 兼容错误闭合: true })
         .map(item => item.replace(/\r\n/g, '\n').trim())
         .filter(Boolean)
@@ -1075,7 +1093,8 @@ const 解析标签协议响应 = (content: string): GameResponse | null => {
 
     let logs = 解析正文日志(bodyJudgeExtraction.cleanBody);
     if (logs.length === 0) {
-        const stripped = 提取正文中的Judge区块(textWithoutThinking).cleanBody
+        const fallbackBody = titleSections.正文 || 提取候选正文文本(textWithoutThinking);
+        const stripped = 提取正文中的Judge区块(fallbackBody).cleanBody
             .replace(/<[^>]+>/g, '\n');
         if (/【[^】]+】/.test(stripped)) {
             logs = 解析正文日志(stripped);

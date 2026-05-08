@@ -110,7 +110,7 @@ const MiniBodyPart: React.FC<{ name: string; current: number; max: number; statu
 };
 
 const LeftPanel: React.FC<Props> = ({ 角色, onOpenCharacter, onUploadAvatar, visualConfig, gameConfig }) => {
-    use图片资源回源预取(角色?.头像图片URL);
+    use图片资源回源预取(角色);
     const 金钱 = 角色.金钱 || { 金元宝: 0, 银子: 0, 铜钱: 0 };
     const 玩家BUFF列表 = Array.isArray(角色.玩家BUFF) ? 角色.玩家BUFF : [];
     const 启用饱腹口渴系统 = gameConfig?.启用饱腹口渴系统 !== false;

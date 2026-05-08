@@ -178,6 +178,7 @@ const App: React.FC = () => {
     const [suppressReleaseNotesForToday, setSuppressReleaseNotesForToday] = React.useState(false);
     const [appUpdateProgress, setAppUpdateProgress] = React.useState<AppUpdateProgressState | null>(null);
     const [selectedSocialNpcId, setSelectedSocialNpcId] = React.useState<string | null>(null);
+    const [desktopDetailFullscreen, setDesktopDetailFullscreen] = React.useState(false);
     const [isMobile, setIsMobile] = React.useState<boolean>(() => {
         if (typeof window === 'undefined') return false;
         return window.matchMedia('(max-width: 767px)').matches;
@@ -826,7 +827,35 @@ const App: React.FC = () => {
         showMobileMusic ? 'music' :
         null;
 
+    const desktopRightDetailPanelOpen = state.view === 'game' && !isMobile && (
+        showCharacter
+        || state.showBattle
+        || state.showEquipment
+        || state.showInventory
+        || state.showSocial
+        || state.showTeam
+        || (启用修炼体系 && state.showKungfu)
+        || state.showWorld
+        || state.showMap
+        || state.showSect
+        || state.showTask
+        || state.showAgreement
+        || state.showStory
+        || state.showHeroinePlan
+        || state.showMemory
+        || showNovelExport
+        || showAuctionHouse
+        || showImageManager
+        || showNovelDecompositionWorkbench
+        || safeShowSaveLoad.show
+        || state.showSettings
+    );
+    const desktopRightDetailClass = state.view === 'game' && !isMobile
+        ? `desktop-right-detail-modal${desktopDetailFullscreen ? ' desktop-right-detail-modal--fullscreen' : ''}`
+        : undefined;
+
     const closeAllPanels = React.useCallback(() => {
+        setDesktopDetailFullscreen(false);
         setShowCharacter(false);
         setters.setShowBattle(false);
         setters.setShowInventory(false);
@@ -851,34 +880,93 @@ const App: React.FC = () => {
         setShowMobileMusic(false);
     }, [setters]);
 
-    const openCharacter = React.useCallback(() => setShowCharacter(true), []);
-    const openSettings = React.useCallback(() => setters.setShowSettings(true), [setters]);
-    const openInventory = React.useCallback(() => setters.setShowInventory(true), [setters]);
-    const openEquipment = React.useCallback(() => setters.setShowEquipment(true), [setters]);
-    const openBattle = React.useCallback(() => setters.setShowBattle(true), [setters]);
-    const openTeam = React.useCallback(() => setters.setShowTeam(true), [setters]);
-    const openSocial = React.useCallback(() => setters.setShowSocial(true), [setters]);
+    const openCharacter = React.useCallback(() => {
+        closeAllPanels();
+        setShowCharacter(true);
+    }, [closeAllPanels]);
+    const openSettings = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowSettings(true);
+    }, [closeAllPanels, setters]);
+    const openInventory = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowInventory(true);
+    }, [closeAllPanels, setters]);
+    const openEquipment = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowEquipment(true);
+    }, [closeAllPanels, setters]);
+    const openBattle = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowBattle(true);
+    }, [closeAllPanels, setters]);
+    const openTeam = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowTeam(true);
+    }, [closeAllPanels, setters]);
+    const openSocial = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowSocial(true);
+    }, [closeAllPanels, setters]);
     const openNpcDetailFromChat = React.useCallback((npcId: string) => {
         if (!npcId) return;
+        closeAllPanels();
         setSelectedSocialNpcId(npcId);
         setters.setShowSocial(true);
-    }, [setters]);
+    }, [closeAllPanels, setters]);
     const openKungfu = React.useCallback(() => {
         if (!启用修炼体系) return;
+        closeAllPanels();
         setters.setShowKungfu(true);
-    }, [setters, 启用修炼体系]);
-    const openWorld = React.useCallback(() => setters.setShowWorld(true), [setters]);
-    const openMap = React.useCallback(() => setters.setShowMap(true), [setters]);
-    const openSect = React.useCallback(() => setters.setShowSect(true), [setters]);
-    const openTask = React.useCallback(() => setters.setShowTask(true), [setters]);
-    const openAgreement = React.useCallback(() => setters.setShowAgreement(true), [setters]);
-    const openStory = React.useCallback(() => setters.setShowStory(true), [setters]);
-    const openHeroinePlan = React.useCallback(() => setters.setShowHeroinePlan(true), [setters]);
-    const openMemory = React.useCallback(() => setters.setShowMemory(true), [setters]);
-    const openAuctionHouse = React.useCallback(() => setShowAuctionHouse(true), []);
-    const openNovelExport = React.useCallback(() => setShowNovelExport(true), []);
-    const openSave = React.useCallback(() => setters.setShowSaveLoad({ show: true, mode: 'save' }), [setters]);
-    const openLoad = React.useCallback(() => setters.setShowSaveLoad({ show: true, mode: 'load' }), [setters]);
+    }, [closeAllPanels, setters, 启用修炼体系]);
+    const openWorld = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowWorld(true);
+    }, [closeAllPanels, setters]);
+    const openMap = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowMap(true);
+    }, [closeAllPanels, setters]);
+    const openSect = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowSect(true);
+    }, [closeAllPanels, setters]);
+    const openTask = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowTask(true);
+    }, [closeAllPanels, setters]);
+    const openAgreement = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowAgreement(true);
+    }, [closeAllPanels, setters]);
+    const openStory = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowStory(true);
+    }, [closeAllPanels, setters]);
+    const openHeroinePlan = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowHeroinePlan(true);
+    }, [closeAllPanels, setters]);
+    const openMemory = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowMemory(true);
+    }, [closeAllPanels, setters]);
+    const openAuctionHouse = React.useCallback(() => {
+        closeAllPanels();
+        setShowAuctionHouse(true);
+    }, [closeAllPanels]);
+    const openNovelExport = React.useCallback(() => {
+        closeAllPanels();
+        setShowNovelExport(true);
+    }, [closeAllPanels]);
+    const openSave = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowSaveLoad({ show: true, mode: 'save' });
+    }, [closeAllPanels, setters]);
+    const openLoad = React.useCallback(() => {
+        closeAllPanels();
+        setters.setShowSaveLoad({ show: true, mode: 'load' });
+    }, [closeAllPanels, setters]);
     const closeSettings = React.useCallback(() => setters.setShowSettings(false), [setters]);
     const closeNovelDecompositionWorkbench = React.useCallback(() => setShowNovelDecompositionWorkbench(false), []);
     const closeNovelExport = React.useCallback(() => setShowNovelExport(false), []);
@@ -911,6 +999,7 @@ const App: React.FC = () => {
             return;
         }
 
+        closeAllPanels();
         setShowNovelDecompositionWorkbench(true);
     }, [closeAllPanels, requestConfirm, setters, state.apiConfig]);
     const handleStartFromLanding = React.useCallback(() => actions.handleStartNewGameWizard(), [actions]);
@@ -1003,6 +1092,7 @@ const App: React.FC = () => {
             }
         }
 
+        closeAllPanels();
         setShowImageManager(true);
     }, [closeAllPanels, requestConfirm, setters, state.apiConfig]);
 
@@ -1456,6 +1546,7 @@ const App: React.FC = () => {
                                     renderCount={effectiveVisualConfig.渲染层数}
                                     suppressAutoScrollToken={meta.chatScrollSuppressToken}
                                     forceScrollToken={meta.chatForceScrollToken}
+                                    variableGenerationRunning={meta.variableGenerationRunning}
                                 />
                                 <InputArea 
                                     onSend={actions.handleSend} 
@@ -1491,7 +1582,7 @@ const App: React.FC = () => {
                         </div>
 
                         {/* 右侧栏 */}
-                        <div className="hidden md:block w-[14.285714%] h-full relative z-20 bg-ink-black/95 border-l border-wuxia-gold/20 flex flex-col shadow-[-10px_0_20px_rgba(0,0,0,0.5)]">
+                        <div className="hidden md:block h-full w-[var(--desktop-side-menu-width)] shrink-0 relative z-20 bg-ink-black/95 border-l border-wuxia-gold/20 flex flex-col shadow-[-10px_0_20px_rgba(0,0,0,0.5)]">
                             <RightPanel 
                                 onOpenSettings={openSettings} 
                                 onOpenInventory={openInventory}
@@ -1521,6 +1612,14 @@ const App: React.FC = () => {
                                 visualConfig={effectiveVisualConfig}
                             />
                         </div>
+
+                        {desktopRightDetailPanelOpen && (
+                            <div
+                                className="hidden md:block h-full shrink-0 border-l border-wuxia-gold/20 bg-black/40"
+                                style={{ width: 'var(--desktop-right-detail-width)' }}
+                                aria-hidden="true"
+                            />
+                        )}
                     </div>
 
                     {meta.notifications && meta.notifications.length > 0 && (
@@ -1671,6 +1770,7 @@ const App: React.FC = () => {
 
             {/* Save/Load Modal */}
             {safeShowSaveLoad.show && (
+                <div className={desktopRightDetailClass}>
                 <懒加载边界>
                     <SaveLoadModal 
                         onClose={closeSaveLoad}
@@ -1680,10 +1780,12 @@ const App: React.FC = () => {
                         requestConfirm={requestConfirm}
                     />
                 </懒加载边界>
+                </div>
             )}
 
             {/* Settings Modal */}
             {state.showSettings && (
+                <div className={desktopRightDetailClass}>
                 <懒加载边界>
                     {isMobile ? (
                         <MobileSettingsModal
@@ -1761,6 +1863,7 @@ const App: React.FC = () => {
                         />
                     )}
                 </懒加载边界>
+                </div>
             )}
 
             {showWorldbookManager && (
@@ -1779,6 +1882,7 @@ const App: React.FC = () => {
             )}
 
             {showNovelDecompositionWorkbench && (
+                <div className={desktopRightDetailClass}>
                 <懒加载边界>
                     <NovelDecompositionWorkbenchModal
                         open={showNovelDecompositionWorkbench}
@@ -1789,6 +1893,7 @@ const App: React.FC = () => {
                         onNotify={actions.pushNotification}
                     />
                 </懒加载边界>
+                </div>
             )}
 
             {appUpdateProgress?.visible && (
@@ -1927,11 +2032,13 @@ const App: React.FC = () => {
             )}
 
             {showImageManager && (
+                <div className={desktopRightDetailClass}>
                 <懒加载边界>
                     {isMobile ? (
                         <ModalErrorBoundary title="图册打开失败" onClose={() => setShowImageManager(false)}>
                         <MobileImageManagerModal
                             socialList={state.社交}
+                            playerCharacter={state.角色}
                             cultivationSystemEnabled={启用修炼体系}
                             queue={meta.imageGenerationQueue || []}
                             sceneArchive={meta.sceneImageArchive || {}}
@@ -1956,6 +2063,11 @@ const App: React.FC = () => {
                             onDeleteQueueTask={actions.removeNpcImageQueueTask}
                             onClearQueue={actions.clearNpcImageQueue}
                             onSaveImageLocally={actions.saveNpcImageLocally}
+                            onSelectPlayerAvatarImage={actions.selectPlayerAvatarImage}
+                            onClearPlayerAvatarImage={actions.clearPlayerAvatarImage}
+                            onSelectPlayerPortraitImage={actions.selectPlayerPortraitImage}
+                            onClearPlayerPortraitImage={actions.clearPlayerPortraitImage}
+                            onRemovePlayerImageRecord={actions.removePlayerImageRecord}
                             onApplySceneWallpaper={actions.applySceneImageWallpaper}
                             onClearSceneWallpaper={actions.clearSceneWallpaper}
                             onDeleteSceneImage={actions.removeSceneImageRecord}
@@ -1989,6 +2101,7 @@ const App: React.FC = () => {
                     ) : (
                         <ImageManagerModal
                             socialList={state.社交}
+                            playerCharacter={state.角色}
                             cultivationSystemEnabled={启用修炼体系}
                             queue={meta.imageGenerationQueue || []}
                             sceneArchive={meta.sceneImageArchive || {}}
@@ -2013,6 +2126,11 @@ const App: React.FC = () => {
                             onDeleteQueueTask={actions.removeNpcImageQueueTask}
                             onClearQueue={actions.clearNpcImageQueue}
                             onSaveImageLocally={actions.saveNpcImageLocally}
+                            onSelectPlayerAvatarImage={actions.selectPlayerAvatarImage}
+                            onClearPlayerAvatarImage={actions.clearPlayerAvatarImage}
+                            onSelectPlayerPortraitImage={actions.selectPlayerPortraitImage}
+                            onClearPlayerPortraitImage={actions.clearPlayerPortraitImage}
+                            onRemovePlayerImageRecord={actions.removePlayerImageRecord}
                             onApplySceneWallpaper={actions.applySceneImageWallpaper}
                             onClearSceneWallpaper={actions.clearSceneWallpaper}
                             onDeleteSceneImage={actions.removeSceneImageRecord}
@@ -2035,11 +2153,12 @@ const App: React.FC = () => {
                         />
                     )}
                 </懒加载边界>
+                </div>
             )}
 
             {/* In-Game Modals */}
             {state.view === 'game' && (
-                <>
+                <div className={desktopRightDetailClass}>
                     {state.showInventory && (
                         <懒加载边界>
                             {isMobile ? (
@@ -2382,7 +2501,35 @@ const App: React.FC = () => {
                             )}
                         </懒加载边界>
                     )}
-                </>
+                </div>
+            )}
+            {desktopRightDetailPanelOpen && (
+                <button
+                    type="button"
+                    onClick={() => setDesktopDetailFullscreen(prev => !prev)}
+                    className="desktop-detail-expand-toggle"
+                    aria-label={desktopDetailFullscreen ? '退出详情全屏' : '展开详情全屏'}
+                    title={desktopDetailFullscreen ? '退出详情全屏' : '展开详情全屏'}
+                >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                        {desktopDetailFullscreen ? (
+                            <>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v6H3" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 3v6h6" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 21v-6H3" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 21v-6h6" />
+                            </>
+                        ) : (
+                            <>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 3H3v5" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16 3h5v5" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 21H3v-5" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16 21h5v-5" />
+                            </>
+                        )}
+                    </svg>
+                    <span>{desktopDetailFullscreen ? '收起' : '展开'}</span>
+                </button>
             )}
         </div>
     </MusicProvider>

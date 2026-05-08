@@ -1013,6 +1013,44 @@ const NewGameWizard: React.FC<Props> = ({ onComplete, onCancel, loading, request
                                 <h3 className="text-xl font-serif font-bold text-wuxia-gold border-b border-wuxia-gold/30 pb-3 mb-6">世界法则设定</h3>
                                 
                                 <div className="space-y-6">
+                                    {自定义开局预设列表.length > 0 && (
+                                        <div className="rounded-2xl border border-wuxia-gold/25 bg-wuxia-gold/5 p-4 space-y-3">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <div className="text-sm text-wuxia-gold font-bold">以自定义方案开局</div>
+                                                    <div className="text-[11px] text-gray-500 mt-1">保存后的方案会出现在这里，可直接套用，或跳过表单步骤直接开局。</div>
+                                                </div>
+                                                <span className="text-[10px] text-wuxia-cyan font-mono tracking-[0.18em]">CUSTOM</span>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {自定义开局预设列表.slice(0, 4).map((preset) => (
+                                                    <div key={preset.id} className="rounded-xl border border-gray-700/80 bg-black/35 p-4 space-y-3">
+                                                        <div>
+                                                            <div className="text-base font-serif text-wuxia-gold">{preset.名称}</div>
+                                                            <div className="text-xs text-gray-400 mt-1 leading-5 line-clamp-2">{preset.简介 || '自定义开局方案'}</div>
+                                                        </div>
+                                                        <div className="text-[11px] text-gray-500 leading-5">
+                                                            {preset.character.姓名 || '未命名主角'} / {preset.character.性别 || '未设性别'} / {preset.character.背景名称 || '未设背景'}
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <GameButton onClick={() => 应用预设到表单(preset)} variant="secondary" className="py-2 text-xs">套用查看</GameButton>
+                                                            <GameButton onClick={() => { void handleGenerate(preset); }} variant="primary" className="py-2 text-xs">以此方案开局</GameButton>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {自定义开局预设列表.length > 4 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setStep(0)}
+                                                    className="text-[11px] text-gray-500"
+                                                >
+                                                    共 {自定义开局预设列表.length} 个方案，完整管理列表在本页下方“开局预设方案”区域。
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
                                             <label className="text-sm text-wuxia-cyan font-bold">世界名称</label>
@@ -1212,7 +1250,7 @@ const NewGameWizard: React.FC<Props> = ({ onComplete, onCancel, loading, request
                                                             </div>
                                                             <div className="grid grid-cols-2 gap-2">
                                                                 <GameButton onClick={() => 应用预设到表单(preset)} variant="secondary" className="py-2 text-xs">套用方案</GameButton>
-                                                                <GameButton onClick={() => { void handleGenerate(preset); }} variant="primary" className="py-2 text-xs">快速生成</GameButton>
+                                                                <GameButton onClick={() => { void handleGenerate(preset); }} variant="primary" className="py-2 text-xs">以此方案开局</GameButton>
                                                             </div>
                                                             <div className="grid grid-cols-3 gap-2">
                                                                 <button type="button" onClick={() => 编辑自定义开局方案信息(preset)} className="text-[11px] text-wuxia-cyan hover:text-white">编辑信息</button>

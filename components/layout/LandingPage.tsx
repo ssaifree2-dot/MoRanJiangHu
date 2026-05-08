@@ -170,6 +170,15 @@ const LandingPage: React.FC<Props> = ({
                     </h2>
                     <div className="h-px w-16 bg-gradient-to-l from-transparent to-wuxia-red" />
                 </div>
+
+                <div className="mt-8 w-full max-w-2xl border-2 border-amber-400/70 bg-amber-950/35 px-4 py-4 text-center shadow-[0_0_28px_rgba(251,191,36,0.16)]">
+                    <div className="text-sm font-bold tracking-[0.24em] text-amber-200 md:text-base">
+                        bacon159 二创版本
+                    </div>
+                    <div className="mt-2 text-xs leading-6 text-amber-50/90 md:text-sm">
+                        本版本的部分功能、设置项和本地数据结构可能与原版或其他二创版本不同，跨版本导入存档/设置前请务必备份；不同版本之间可能不兼容。
+                    </div>
+                </div>
             </div>
 
             <div className="relative z-10 flex w-64 flex-col gap-6 animate-slide-in delay-100">

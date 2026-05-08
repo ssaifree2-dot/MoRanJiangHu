@@ -34,6 +34,7 @@ const StorageManager: React.FC<Props> = ({ requestConfirm }) => {
     const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const settingsTemplateInputRef = useRef<HTMLInputElement | null>(null);
+    const settingsBackupInputRef = useRef<HTMLInputElement | null>(null);
 
     const pushNotice = (type: 'success' | 'error', text: string) => {
         setNotice({ type, text });
@@ -408,6 +409,69 @@ const StorageManager: React.FC<Props> = ({ requestConfirm }) => {
         }
     };
 
+    const handleExportSettingsBackup = async () => {
+        if (runningAction) return;
+        try {
+            setRunningAction('export_settings_backup');
+            const payload = await dbService.导出全部设置备份({ 保留APIKey: true });
+            const json = JSON.stringify(payload, null, 2);
+            const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `moranjianghu-settings-backup-${stamp}.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+            pushNotice('success', '全部设置备份已导出。');
+        } catch (error: any) {
+            pushNotice('error', `导出失败：${error?.message || '未知错误'}`);
+        } finally {
+            setRunningAction(null);
+        }
+    };
+
+    const handleTriggerImportSettingsBackup = async () => {
+        if (runningAction) return;
+        const ok = requestConfirm
+            ? await requestConfirm({
+                title: '导入全部设置备份',
+                message: protectApiKey
+                    ? '将导入设置备份，但保留当前 API 配置不被覆盖。是否继续？'
+                    : '将用备份文件覆盖当前本地设置，可能影响 API、文生图、提示词、界面与玩法开关。是否继续？',
+                confirmText: '继续导入',
+                danger: !protectApiKey
+            })
+            : true;
+        if (!ok) return;
+        settingsBackupInputRef.current?.click();
+    };
+
+    const handleImportSettingsBackupChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.currentTarget.value = '';
+        if (!file || runningAction) return;
+
+        try {
+            setRunningAction('import_settings_backup');
+            const fileText = await file.text();
+            const parsed = parseJsonWithRepair<any>(fileText);
+            if (!parsed.value) {
+                throw new Error(parsed.error || 'JSON 解析失败');
+            }
+            const result = await dbService.导入全部设置备份(parsed.value, { 保留现有APIKey: protectApiKey });
+            const repairedTip = parsed.usedRepair ? '（文件有格式问题，已自动修复）' : '';
+            await refreshStorageView();
+            pushNotice('success', `导入完成：已应用 ${result.appliedKeys.length} 项设置，跳过 ${result.skippedKeys.length} 项${repairedTip}`);
+        } catch (error: any) {
+            pushNotice('error', `导入失败：${error?.message || '未知错误'}`);
+        } finally {
+            setRunningAction(null);
+        }
+    };
+
     const getPercent = (val: number) => Math.min((val / (info.usage || 1)) * 100, 100);
     const renderNotice = () => notice ? (
         <div className={`text-xs px-3 py-2 border rounded ${
@@ -695,6 +759,38 @@ const StorageManager: React.FC<Props> = ({ requestConfirm }) => {
                     accept=".json,application/json,text/plain"
                     className="hidden"
                     onChange={(e) => { void handleImportDevSettingsTemplateChange(e); }}
+                />
+            </div>
+
+            <div className="bg-black/30 p-5 border border-gray-700/50 rounded-lg space-y-3">
+                <h4 className="text-wuxia-gold font-serif font-bold">全部设置备份</h4>
+                <div className="text-xs text-gray-400">
+                    导出/导入当前设备的完整设置记录，适合迁移界面、提示词、玩法开关、文生图配置等本地设置。开启“清理时保留 API 配置”后，导入时也会保留当前 API Key 不被覆盖。
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <GameButton
+                        onClick={() => { void handleExportSettingsBackup(); }}
+                        variant="secondary"
+                        className="w-full py-2 text-sm disabled:opacity-50"
+                        disabled={Boolean(runningAction)}
+                    >
+                        {runningAction === 'export_settings_backup' ? '导出中...' : '导出全部设置'}
+                    </GameButton>
+                    <GameButton
+                        onClick={() => { void handleTriggerImportSettingsBackup(); }}
+                        variant="secondary"
+                        className="w-full py-2 text-sm disabled:opacity-50"
+                        disabled={Boolean(runningAction)}
+                    >
+                        {runningAction === 'import_settings_backup' ? '导入中...' : '导入全部设置'}
+                    </GameButton>
+                </div>
+                <input
+                    ref={settingsBackupInputRef}
+                    type="file"
+                    accept=".json,application/json,text/plain"
+                    className="hidden"
+                    onChange={(e) => { void handleImportSettingsBackupChange(e); }}
                 />
             </div>
 

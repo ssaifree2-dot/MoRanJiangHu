@@ -24,6 +24,7 @@ export interface 活跃NPC结构 {
     姓名: string;
     所属势力: string;
     当前位置: string;
+    位置路径?: string;
     当前状态: string;
     当前行动: string;
     行动开始时间: 游戏时间格式;

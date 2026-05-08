@@ -95,12 +95,13 @@ const DetailCard: React.FC<{
     title: string;
     content: React.ReactNode;
     onClose?: () => void;
+    onExpand?: () => void;
     visualConfig?: 视觉设置结构;
     className?: string; // Add className prop for custom positioning
     panelClassName?: string;
     onMouseEnter?: () => void;
     onMouseLeave?: () => void;
-}> = ({ title, content, onClose, visualConfig, className, panelClassName, onMouseEnter, onMouseLeave }) => {
+}> = ({ title, content, onClose, onExpand, visualConfig, className, panelClassName, onMouseEnter, onMouseLeave }) => {
     const areaStyle = 构建区域文字样式(visualConfig, '顶部栏');
     return (
         <div 
@@ -121,31 +122,63 @@ const DetailCard: React.FC<{
                 <div className="pointer-events-none absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-wuxia-gold/40 to-transparent"></div>
                 <div className="pointer-events-none absolute -right-16 -top-16 w-32 h-32 bg-wuxia-gold/5 rounded-full blur-3xl group-hover:bg-wuxia-gold/10 transition-colors duration-500"></div>
                 
-                <h3 className="text-wuxia-gold font-bold text-lg mb-3 border-b border-wuxia-gold/10 pb-1 flex justify-between items-center" style={areaStyle}>
+                <h3 className="text-wuxia-gold font-bold text-lg mb-3 border-b border-wuxia-gold/10 pb-1 flex justify-between items-center gap-3" style={areaStyle}>
                     {title}
-                    {onClose && (
-                        <button
-                            type="button"
-                            onClick={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                onClose();
-                            }}
-                            onTouchStart={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                            }}
-                            onTouchEnd={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                onClose();
-                            }}
-                            className="text-wuxia-gold/50 hover:text-wuxia-gold transition-colors text-xs p-1"
-                            aria-label="关闭详情"
-                        >
-                            ✕
-                        </button>
-                    )}
+                    <span className="flex shrink-0 items-center gap-1">
+                        {onExpand && (
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    onExpand();
+                                }}
+                                onTouchStart={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                }}
+                                onTouchEnd={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    onExpand();
+                                }}
+                                className="inline-flex h-6 items-center gap-1 rounded-full border border-wuxia-gold/20 px-2 text-[11px] text-wuxia-gold/70 transition-colors hover:border-wuxia-gold/45 hover:text-wuxia-gold"
+                                aria-label="展开详情"
+                                title="展开详情"
+                            >
+                                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 3H3v5" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 3h5v5" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 21H3v-5" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 21h5v-5" />
+                                </svg>
+                                展开
+                            </button>
+                        )}
+                        {onClose && (
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    onClose();
+                                }}
+                                onTouchStart={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                }}
+                                onTouchEnd={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    onClose();
+                                }}
+                                className="text-wuxia-gold/50 hover:text-wuxia-gold transition-colors text-xs p-1"
+                                aria-label="关闭详情"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </span>
                 </h3>
                 <div className="text-sm space-y-2 opacity-90 leading-relaxed" style={areaStyle}>
                     {content}
@@ -294,6 +327,7 @@ const MobileInfoButton: React.FC<{
 
 const TopBar: React.FC<Props> = ({ 环境, 游戏初始时间, timeFormat, festivals = [], visualConfig }) => {
     const [expandedType, setExpandedType] = useState<ExpandedType>(null);
+    const [fullscreenDetailType, setFullscreenDetailType] = useState<Exclude<ExpandedType, null> | null>(null);
     const [mobileCollapsed, setMobileCollapsed] = useState(false);
     const lastMobileDismissAtRef = useRef(0);
 
@@ -425,6 +459,11 @@ const TopBar: React.FC<Props> = ({ 环境, 游戏初始时间, timeFormat, festi
     const closeExpandedPanel = () => {
         lastMobileDismissAtRef.current = Date.now();
         setExpandedType(null);
+    };
+
+    const openFullscreenDetail = (type: Exclude<ExpandedType, null>) => {
+        setExpandedType(type);
+        setFullscreenDetailType(type);
     };
 
     const toggleExpanded = (type: Exclude<ExpandedType, null>) => {
@@ -592,6 +631,7 @@ const TopBar: React.FC<Props> = ({ 环境, 游戏初始时间, timeFormat, festi
                                 <DetailCard 
                                     title={detailConfigs.weather.title}
                                     className="left-0"
+                                    onExpand={() => openFullscreenDetail('weather')}
                                     onMouseEnter={() => setExpandedType('weather')}
                                     onMouseLeave={() => setExpandedType(null)}
                                     visualConfig={visualConfig}
@@ -626,6 +666,7 @@ const TopBar: React.FC<Props> = ({ 环境, 游戏初始时间, timeFormat, festi
                                 <DetailCard 
                                     title={detailConfigs.environment.title}
                                     className="left-0"
+                                    onExpand={() => openFullscreenDetail('environment')}
                                     onMouseEnter={() => setExpandedType('environment')}
                                     onMouseLeave={() => setExpandedType(null)}
                                     visualConfig={visualConfig}
@@ -678,6 +719,7 @@ const TopBar: React.FC<Props> = ({ 环境, 游戏初始时间, timeFormat, festi
                                 <DetailCard 
                                     title={detailConfigs.festival.title}
                                     className="right-0 origin-top-right"
+                                    onExpand={() => openFullscreenDetail('festival')}
                                     onMouseEnter={() => setExpandedType('festival')}
                                     onMouseLeave={() => setExpandedType(null)}
                                     visualConfig={visualConfig}
@@ -686,10 +728,58 @@ const TopBar: React.FC<Props> = ({ 环境, 游戏初始时间, timeFormat, festi
                             )}
                         </div>
                         <Divider />
-                        <TopItem label="历程" value={`第 ${derivedDayCount} 天`} visualConfig={visualConfig} />
+                        <div className="relative">
+                            <TopItem
+                                label="历程"
+                                value={`第 ${derivedDayCount} 天`}
+                                visualConfig={visualConfig}
+                                isExpanded={expandedType === 'journey'}
+                                onMouseEnter={() => setExpandedType('journey')}
+                                onMouseLeave={() => setExpandedType(null)}
+                            />
+                            {expandedType === 'journey' && (
+                                <DetailCard
+                                    title={detailConfigs.journey.title}
+                                    className="right-0 origin-top-right"
+                                    onExpand={() => openFullscreenDetail('journey')}
+                                    onMouseEnter={() => setExpandedType('journey')}
+                                    onMouseLeave={() => setExpandedType(null)}
+                                    visualConfig={visualConfig}
+                                    content={detailConfigs.journey.content}
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
+            {fullscreenDetailType && (
+                <div
+                    className="fixed inset-0 z-[260] hidden items-center justify-center bg-black/72 px-10 py-12 backdrop-blur-md md:flex"
+                    onClick={() => setFullscreenDetailType(null)}
+                >
+                    <div
+                        className="relative flex max-h-[min(760px,calc(100vh-6rem))] w-[min(860px,calc(100vw-5rem))] flex-col overflow-hidden rounded-2xl border border-wuxia-gold/35 bg-[#070604]/95 p-6 text-wuxia-gold shadow-[0_24px_90px_rgba(0,0,0,0.72)]"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="pointer-events-none absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-transparent via-wuxia-gold/50 to-transparent"></div>
+                        <div className="mb-5 flex items-center justify-between gap-4 border-b border-wuxia-gold/15 pb-3">
+                            <h2 className="font-bold tracking-[0.18em] text-wuxia-gold" style={{ ...topBarStyle, fontSize: 顶栏字号(1.35, 20), lineHeight: 1.25 }}>
+                                {detailConfigs[fullscreenDetailType].title}
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setFullscreenDetailType(null)}
+                                className="inline-flex h-8 items-center rounded-full border border-wuxia-gold/25 px-3 text-sm text-wuxia-gold/75 transition-colors hover:border-wuxia-gold/55 hover:text-wuxia-gold"
+                            >
+                                收起
+                            </button>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto pr-1 leading-8 text-wuxia-gold/90" style={{ ...topBarStyle, fontSize: 顶栏字号(1.08, 15) }}>
+                            {detailConfigs[fullscreenDetailType].content}
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="absolute bottom-0 w-full h-[1px] bg-gradient-to-r from-transparent via-wuxia-gold/50 to-transparent"></div>
         </div>
     );

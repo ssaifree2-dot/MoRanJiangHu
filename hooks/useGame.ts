@@ -1458,7 +1458,9 @@ export const useGame = () => {
 
     const 读取文生图功能配置 = () => {
         const feature = apiConfig?.功能模型占位 as any;
-        const 当前后端 = feature?.文生图后端类型 === 'novelai' ? 'novelai' : 'other';
+        const 当前后端 = feature?.文生图后端类型 === 'novelai' || feature?.文生图后端类型 === 'comfyui'
+            ? feature.文生图后端类型
+            : 'other';
         const 场景横竖屏 = feature?.自动场景生图横竖屏 === '竖屏' ? '竖屏' : '横屏';
         const 场景尺寸 = typeof feature?.自动场景生图分辨率 === 'string' && feature.自动场景生图分辨率.trim()
             ? feature.自动场景生图分辨率.trim()
@@ -1466,7 +1468,9 @@ export const useGame = () => {
         return {
             总开关: Boolean(feature?.文生图功能启用),
             NPC开关: Boolean(feature?.NPC生图启用),
-            使用词组转化器: 当前后端 === 'novelai' ? true : feature?.NPC生图使用词组转化器 !== false,
+            使用词组转化器: 当前后端 === 'novelai' || 当前后端 === 'comfyui'
+                ? true
+                : feature?.NPC生图使用词组转化器 !== false,
             性别筛选: feature?.NPC生图性别筛选 === '男' || feature?.NPC生图性别筛选 === '女' || feature?.NPC生图性别筛选 === '全部'
                 ? feature.NPC生图性别筛选
                 : '全部',

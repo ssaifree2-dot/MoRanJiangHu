@@ -94,6 +94,17 @@ const novelAiDevProxyPlugin = (): Plugin => ({
   }
 });
 
+const stripSameOriginAssetCrossoriginPlugin = (): Plugin => ({
+  name: 'strip-same-origin-asset-crossorigin',
+  apply: 'build',
+  transformIndexHtml(html) {
+    return html.replace(
+      /(<(?:script|link)\b(?=[^>]*(?:src|href)="\/assets\/)[^>]*)\s+crossorigin(?=[\s>])/g,
+      '$1'
+    );
+  }
+});
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   const productionBase = env.VITE_BASE_PATH || '/';
@@ -103,7 +114,7 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0'
     },
-    plugins: [react(), novelAiDevProxyPlugin()],
+    plugins: [react(), novelAiDevProxyPlugin(), stripSameOriginAssetCrossoriginPlugin()],
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)

@@ -1,4 +1,4 @@
-import {
+﻿import {
     接口设置结构,
     单接口配置结构,
     接口供应商类型,
@@ -15,6 +15,7 @@ import {
     角色锚点特征结构,
     图片词组序列化策略类型
 } from '../models/system';
+import { 默认ComfyUI工作流JSON } from '../data/defaultComfyWorkflow';
 import { 默认文章优化提示词 } from '../prompts/runtime/defaults';
 
 export const 供应商标签: Record<接口供应商类型, string> = {
@@ -369,6 +370,46 @@ const 默认词组转化器提示词预设列表: 词组转化器提示词预设
         ].join('\n'),
         createdAt: 10,
         updatedAt: 10
+    },
+    {
+        id: 'transformer_comfyui_scene',
+        名称: 'ComfyUI · 场景生成',
+        类型: 'scene',
+        提示词: [
+            '你是 ComfyUI 场景提示词整理器。请把正文场景整理成可直接进入常见 SDXL / Pony / Illustrious / 写实系 ComfyUI 工作流的英文提示词。',
+            '优先建立地点、空间层级、时间、天气、主体事件、人物站位、镜头景别、光影与环境材质，保持单帧稳定、画面可读。',
+            '纯场景时让环境作为第一主体，避免写入人物；故事快照时只保留当前镜头需要的人物动作、站位和少量外观识别。',
+            '不要使用 NovelAI 私有权重语法；优先输出清晰英文短语和必要 tags，避免解释、Markdown、中文翻译和长段散文。',
+            '武侠/仙侠场景可加入 courtyard, mountain path, mist, lantern light, robe fabric, sword glint, dust, wind, rim light 等可见元素，但不得堆砌互相冲突的镜头。'
+        ].join('\n'),
+        场景角色锚定模式提示词: [
+            '角色稳定外观来自锚点。场景提示词重点放在空间、站位、动作、视线、道具关系、镜头、天气和光影。',
+            '不要把每个角色扩写成完整立绘；角色段只补当前场景需要的最小外观识别和动作关系。'
+        ].join('\n'),
+        无锚点回退提示词: [
+            '没有锚点时，只给主要角色补少量辨识外观，继续保持环境和事件为主体。',
+            '多人场景优先保证空间关系和镜头清晰，降低单个角色的细节密度。'
+        ].join('\n'),
+        输出格式提示词: [
+            构建结构化词组输出格式提示词('flat', 'scene'),
+            '最终内容应能被整理成一条 ComfyUI 正向提示词；基础段负责环境和镜头，角色段只补当前镜头的人物关系。'
+        ].join('\n'),
+        createdAt: 14,
+        updatedAt: 14
+    },
+    {
+        id: 'transformer_comfyui_scene_judge',
+        名称: 'ComfyUI · 场景判定',
+        类型: 'scene_judge',
+        提示词: [
+            '判断当前文本更适合生成“风景场景”还是“故事快照”。',
+            '若文本能稳定对应单一地点、单一时刻、明确人物站位或动作、可见环境细节，则可判为故事快照。',
+            '若文本偏对话、心理、回忆、设定说明、多段连续动作或地点不清晰，则回退为风景场景。',
+            '判定以 ComfyUI 单帧可执行性为准，优先选择稳定、清晰、低冲突的画面类型。',
+            '只输出“风景场景”或“故事快照”其中之一。'
+        ].join('\n'),
+        createdAt: 15,
+        updatedAt: 15
     }
 ];
 
@@ -467,8 +508,8 @@ const 默认模型词组转化器预设列表: 模型词组转化器预设结构
         ].join('\n'),
         词组序列化策略: 'flat',
         NPC词组转化器提示词预设ID: 'transformer_comfyui_npc',
-        场景词组转化器提示词预设ID: 'transformer_banana_scene',
-        场景判定提示词预设ID: 'transformer_banana_scene_judge',
+        场景词组转化器提示词预设ID: 'transformer_comfyui_scene',
+        场景判定提示词预设ID: 'transformer_comfyui_scene_judge',
         createdAt: 13,
         updatedAt: 13
     }
@@ -529,13 +570,13 @@ export const 默认功能模型占位: 功能模型占位配置结构 = {
     小说拆分主剧情注入上限: 1200,
     小说拆分详细注入上限: 4000,
     文生图功能启用: false,
-    文生图后端类型: 'openai',
+    文生图后端类型: 'comfyui',
     文生图模型使用模型: '',
     文生图模型API地址: '',
     文生图模型API密钥: '',
     图片后端注册表地址: '',
     当前图片后端发现ID: '',
-    ComfyUI工作流JSON: '',
+    ComfyUI工作流JSON: 默认ComfyUI工作流JSON,
     场景生图独立接口启用: false,
     场景生图后端类型: 'openai',
     场景生图模型使用模型: '',
@@ -1068,6 +1109,22 @@ const 标准化功能模型占位 = (raw: any): 功能模型占位配置结构 =
             rawId
         ) || 'transformer_banana_scene_judge';
     })();
+    const hasImageBackendConfig = Boolean(
+        读取字符串(raw?.文生图模型使用模型)
+        || 读取字符串(raw?.文生图模型API地址)
+        || 读取字符串(raw?.文生图模型API密钥)
+        || 读取字符串(raw?.ComfyUI工作流JSON)
+        || raw?.文生图后端类型 === 'novelai'
+        || raw?.文生图后端类型 === 'sd_webui'
+        || raw?.文生图后端类型 === 'comfyui'
+    );
+    const resolvedImageBackend = raw?.文生图后端类型 === 'novelai'
+        || raw?.文生图后端类型 === 'sd_webui'
+        || raw?.文生图后端类型 === 'comfyui'
+        ? raw.文生图后端类型
+        : raw?.文生图后端类型 === 'openai' && hasImageBackendConfig
+            ? 'openai'
+            : 'comfyui';
     return {
         主剧情使用模型: 读取字符串(raw?.主剧情使用模型),
         剧情回忆独立模型开关: Boolean(raw?.剧情回忆独立模型开关),
@@ -1128,15 +1185,13 @@ const 标准化功能模型占位 = (raw: any): 功能模型占位配置结构 =
         ),
         小说拆分详细注入上限: Math.max(500, Number(raw?.小说拆分详细注入上限) || 4000),
         文生图功能启用: Boolean(raw?.文生图功能启用),
-        文生图后端类型: raw?.文生图后端类型 === 'novelai' || raw?.文生图后端类型 === 'sd_webui' || raw?.文生图后端类型 === 'comfyui'
-            ? raw.文生图后端类型
-            : 'openai',
+        文生图后端类型: resolvedImageBackend,
         文生图模型使用模型: 读取字符串(raw?.文生图模型使用模型),
         文生图模型API地址: 读取字符串(raw?.文生图模型API地址),
         文生图模型API密钥: 读取字符串(raw?.文生图模型API密钥),
         图片后端注册表地址: 读取字符串(raw?.图片后端注册表地址),
         当前图片后端发现ID: 读取字符串(raw?.当前图片后端发现ID),
-        ComfyUI工作流JSON: 读取字符串(raw?.ComfyUI工作流JSON),
+        ComfyUI工作流JSON: 读取字符串(raw?.ComfyUI工作流JSON) || 默认ComfyUI工作流JSON,
         场景生图独立接口启用: Boolean(raw?.场景生图独立接口启用),
         场景生图后端类型: raw?.场景生图后端类型 === 'novelai' || raw?.场景生图后端类型 === 'sd_webui' || raw?.场景生图后端类型 === 'comfyui'
             ? raw.场景生图后端类型
@@ -1340,11 +1395,35 @@ export const 获取生图画师串预设 = (
     return scopedList[0] || null;
 };
 
+const 获取后端自动模型词组转化器预设ID = (
+    settings: 接口设置结构,
+    scope?: 词组转化器提示词预设类型
+): string => {
+    const feature = settings?.功能模型占位;
+    const backend = scope === 'scene' || scope === 'scene_judge'
+        ? (feature?.场景生图后端类型 || feature?.文生图后端类型)
+        : feature?.文生图后端类型;
+    switch (backend) {
+        case 'novelai':
+            return 'transformer_model_bundle_nai';
+        case 'comfyui':
+        case 'sd_webui':
+            return 'transformer_model_bundle_comfyui';
+        default:
+            return '';
+    }
+};
 export const 获取命中模型词组转化器预设 = (
-    settings: 接口设置结构
+    settings: 接口设置结构,
+    scope?: 词组转化器提示词预设类型
 ): 模型词组转化器预设结构 | null => {
     const feature = settings?.功能模型占位;
     const list = Array.isArray(feature?.模型词组转化器预设列表) ? feature.模型词组转化器预设列表 : [];
+    const backendPresetId = 获取后端自动模型词组转化器预设ID(settings, scope);
+    if (backendPresetId) {
+        const matchedByBackend = list.find((item) => item?.id === backendPresetId);
+        if (matchedByBackend) return matchedByBackend;
+    }
     return list.find((item) => item?.是否启用 === true) || null;
 };
 
@@ -1356,7 +1435,7 @@ export const 获取词组转化器预设上下文 = (
 ): 词组转化器预设上下文结构 => {
     const feature = settings?.功能模型占位;
     const list = Array.isArray(feature?.词组转化器提示词预设列表) ? feature.词组转化器提示词预设列表 : [];
-    const matchedModelPreset = 获取命中模型词组转化器预设(settings);
+    const matchedModelPreset = 获取命中模型词组转化器预设(settings, scope);
     const targetId = scope === 'scene'
         ? (
             读取字符串(matchedModelPreset?.场景词组转化器提示词预设ID).trim()

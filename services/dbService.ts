@@ -531,6 +531,18 @@ export interface 研发设置模板导入结果 {
     appliedKeys: string[];
 }
 
+export interface 设置备份结构 {
+    version: 1;
+    type: 'moranjianghu_settings_backup';
+    exportedAt: number;
+    settings: Array<{ key: string; value: any; updatedAt?: number | null; category?: string }>;
+}
+
+export interface 设置备份导入结果 {
+    appliedKeys: string[];
+    skippedKeys: string[];
+}
+
 export const 导出存档数据 = async (): Promise<存档导出结构> => {
     const saves = await 读取存档列表();
     return {
@@ -1009,6 +1021,48 @@ const 清除存档图库字段 = (save: 存档结构): 存档结构 => {
         nextSave.社交 = save.社交.map((npc: any) => 清除NPC图库字段(npc));
     }
     return nextSave as 存档结构;
+};
+
+export const 导出全部设置备份 = async (options?: { 保留APIKey?: boolean }): Promise<设置备份结构> => {
+    const records = await 读取全部设置记录();
+    return {
+        version: 1,
+        type: 'moranjianghu_settings_backup',
+        exportedAt: Date.now(),
+        settings: records.map((item) => ({
+            key: item.key,
+            value: options?.保留APIKey && item.key === 设置键.API配置 ? 提取可保留接口配置(item.value) : item.value,
+            updatedAt: item.updatedAt ?? null,
+            category: item.category
+        }))
+    };
+};
+
+export const 导入全部设置备份 = async (
+    payload: unknown,
+    options?: { 保留现有APIKey?: boolean }
+): Promise<设置备份导入结果> => {
+    if (!payload || typeof payload !== 'object') {
+        throw new Error('导入失败：设置备份为空或格式不正确。');
+    }
+    const root = payload as Record<string, unknown>;
+    const rawSettings = Array.isArray(root.settings) ? root.settings : [];
+    if (root.type !== 'moranjianghu_settings_backup' || rawSettings.length === 0) {
+        throw new Error('导入失败：未找到有效的设置备份列表。');
+    }
+    const appliedKeys: string[] = [];
+    const skippedKeys: string[] = [];
+    for (const item of rawSettings) {
+        const key = typeof (item as any)?.key === 'string' ? (item as any).key.trim() : '';
+        if (!key) continue;
+        if (options?.保留现有APIKey && key === 设置键.API配置) {
+            skippedKeys.push(key);
+            continue;
+        }
+        await 保存设置(key, (item as any).value);
+        appliedKeys.push(key);
+    }
+    return { appliedKeys, skippedKeys };
 };
 
 export const 清空全部设置 = async (options?: { 保留APIKey?: boolean; 保留自定义背景天赋?: boolean }): Promise<void> => {

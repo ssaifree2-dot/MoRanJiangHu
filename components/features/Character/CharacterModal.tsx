@@ -11,6 +11,7 @@ import CharacterProfileCard from './CharacterProfileCard';
 import ToggleSwitch from '../../ui/ToggleSwitch';
 import { 规范化接口设置 } from '../../../utils/apiConfig';
 import { 获取图片展示地址 } from '../../../utils/imageAssets';
+import { use图片资源回源预取 } from '../../../hooks/useImageAssetPrefetch';
 
 type 主角生图选项 = {
     构图?: '头像' | '半身' | '立绘';
@@ -102,6 +103,7 @@ const CharacterModal: React.FC<Props> = ({
     onClearPlayerPortraitImage,
     onRemovePlayerImageRecord
 }) => {
+    use图片资源回源预取(character);
     const [activeTab, setActiveTab] = React.useState<页面标签>('image');
     const [busyAction, setBusyAction] = React.useState('');
     const [anchorExtractRequirement, setAnchorExtractRequirement] = React.useState('');

@@ -9,6 +9,89 @@
     <link rel="stylesheet" href="./styles/global.css" />
   <script>
     (function () {
+      var maxLogs = 200;
+      var logs = [];
+      var overlay = null;
+      window.__MORAN_PREBOOT_LOGS__ = logs;
+
+      function stringify(value) {
+        if (value instanceof Error) {
+          return value.name + ': ' + value.message + (value.stack ? '\n' + value.stack : '');
+        }
+        if (typeof value === 'string') return value;
+        try {
+          return JSON.stringify(value);
+        } catch (error) {
+          return String(value);
+        }
+      }
+
+      function push(level, values) {
+        logs.push({
+          level: level,
+          time: new Date().toISOString(),
+          values: Array.prototype.slice.call(values || []).map(stringify)
+        });
+        if (logs.length > maxLogs) logs.splice(0, logs.length - maxLogs);
+      }
+
+      function showOverlay() {
+        if (!document.body) return;
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'moran-preboot-error-overlay';
+          overlay.style.cssText = [
+            'position:fixed',
+            'inset:0',
+            'z-index:999999',
+            'overflow:auto',
+            'background:rgba(5,5,5,.96)',
+            'color:#ffe7b8',
+            'font-family:ui-monospace,SFMono-Regular,Consolas,monospace',
+            'font-size:12px',
+            'line-height:1.6',
+            'padding:16px',
+            'white-space:pre-wrap',
+            'word-break:break-word'
+          ].join(';');
+          document.body.appendChild(overlay);
+        }
+        overlay.textContent = [
+          '应用启动失败。请把下面的诊断信息发给维护人员：',
+          '',
+          logs.map(function (entry) {
+            return '[' + entry.time + '] [' + entry.level + '] ' + (entry.values || []).join('\n');
+          }).join('\n\n')
+        ].join('\n');
+      }
+
+      window.addEventListener('error', function (event) {
+        push('error', [
+          'preboot window.error',
+          event.message,
+          event.filename ? event.filename + ':' + event.lineno + ':' + event.colno : '',
+          event.error
+        ]);
+        showOverlay();
+      });
+
+      window.addEventListener('unhandledrejection', function (event) {
+        push('error', ['preboot unhandledrejection', event.reason]);
+        showOverlay();
+      });
+
+      ['error', 'warn'].forEach(function (level) {
+        var original = console[level];
+        if (typeof original !== 'function') return;
+        console[level] = function () {
+          push(level, arguments);
+          return original.apply(console, arguments);
+        };
+      });
+    })();
+  </script>
+  <script>
+    (function () {
       try {
         var params = new URLSearchParams(window.location.search);
         var state = (params.get('state') || '').trim();

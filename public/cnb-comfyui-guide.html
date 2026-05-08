@@ -165,7 +165,7 @@
     <section class="panel">
       <div class="badge">CNB COMFYUI GUIDE</div>
       <h1>如何构建属于自己的 CNB ComfyUI 后端</h1>
-      <p class="lead">客户侧操作其实很简单，不需要自己改脚本。注册并登录 CNB 后，Fork 指定仓库，然后点击红色按钮 <code>AI-创作启动</code> 就可以了。</p>
+      <p class="lead">客户侧操作其实很简单，不需要自己改脚本。注册并登录 CNB 后，Fork 指定仓库，点击红色按钮 <code>AI-创作启动</code>，再从 ComfyUI 导出 API workflow 上传到墨色江湖即可。</p>
 
       <ol class="steps">
         <li class="step">
@@ -193,8 +193,31 @@
         <li class="step">
           <div class="num">4</div>
           <div>
+            <h2>保持 CNB 工作区页面打开</h2>
+            <p>启动后会进入一个 CNB 的 VS Code / workspace 页面，请不要关闭这个页面，它需要一直开着用于保活。页面地址通常类似：</p>
+            <p><code>https://cnb-5n8-1jo108n4p-001.cnb.space/?folder=/workspace</code></p>
+            <p>如果这个页面被关闭、浏览器休眠或工作区断开，ComfyUI 后端可能会停掉，墨色江湖生图时就会连接失败。</p>
+          </div>
+        </li>
+        <li class="step">
+          <div class="num">5</div>
+          <div>
             <h2>回到墨色江湖自动发现后端</h2>
             <p>等 CNB 环境启动完成后，回到墨色江湖的“自动发现 ComfyUI 后端”，点击刷新列表，选择自己的在线后端即可自动回填 API 地址。</p>
+          </div>
+        </li>
+        <li class="step">
+          <div class="num">6</div>
+          <div>
+            <h2>导出 ComfyUI API 工作流</h2>
+            <p>在已经启动的 ComfyUI 中打开你要使用的工作流，点击左上角菜单，选择 <code>导出（API）</code>，保存得到的 <code>.json</code> 文件。注意要选 API 导出，不是普通导出。</p>
+          </div>
+        </li>
+        <li class="step">
+          <div class="num">7</div>
+          <div>
+            <h2>上传到墨色江湖</h2>
+            <p>回到墨色江湖的文生图设置，在 ComfyUI Workflow JSON 上方点击 <code>上传 API 文件</code>。系统会自动把常见提示词、负面提示词、尺寸和采样参数替换为占位符并填入配置。</p>
           </div>
         </li>
       </ol>
@@ -205,7 +228,7 @@
       </div>
 
       <div class="tip">
-        如果后端已经启动，但墨色江湖里还没出现在线地址，先点一次“刷新列表”。正常情况下，启动成功后系统会自动发现并展示在线的 <code>8188</code> ComfyUI 后端。
+        如果后端已经启动，但墨色江湖里还没出现在线地址，先点一次“刷新列表”。正常情况下，启动成功后系统会自动发现并展示在线的 <code>8188</code> ComfyUI 后端。使用期间请保持 CNB 的 VS Code / workspace 页面打开；如果页面关闭或休眠，生图可能提示连接不到服务器或跨域失败。上传 API workflow 后，生成时会把正文提示词、负面提示词和分辨率自动注入到工作流里。
       </div>
     </section>
   </main>

@@ -22,6 +22,7 @@ interface Props {
     playerProfile?: { 姓名?: string; 头像图片URL?: string };
     onOpenNpcDetail?: (npcId: string) => void;
     turnAnchorRef?: React.Ref<HTMLDivElement>;
+    variableGenerationPending?: boolean;
 }
 
 const TurnItem: React.FC<Props> = ({
@@ -41,7 +42,8 @@ const TurnItem: React.FC<Props> = ({
     socialList,
     playerProfile,
     onOpenNpcDetail,
-    turnAnchorRef
+    turnAnchorRef,
+    variableGenerationPending = false
 }) => {
     const formatRawJson = (raw?: string) => raw || '（该回合未记录原始文本）';
 
@@ -271,9 +273,9 @@ const TurnItem: React.FC<Props> = ({
     }
 
     const turnDisplay = turnNumber === 0 ? '开场剧情' : `第 ${turnNumber} 回合`;
-    const hasInputTokens = typeof inputTokens === 'number' && Number.isFinite(inputTokens) && inputTokens > 0;
-    const hasDuration = typeof responseDurationSec === 'number' && Number.isFinite(responseDurationSec) && responseDurationSec > 0;
-    const hasOutputTokens = typeof outputTokens === 'number' && Number.isFinite(outputTokens) && outputTokens > 0;
+    const hasInputTokens = !variableGenerationPending && typeof inputTokens === 'number' && Number.isFinite(inputTokens) && inputTokens > 0;
+    const hasDuration = !variableGenerationPending && typeof responseDurationSec === 'number' && Number.isFinite(responseDurationSec) && responseDurationSec > 0;
+    const hasOutputTokens = !variableGenerationPending && typeof outputTokens === 'number' && Number.isFinite(outputTokens) && outputTokens > 0;
     const 上传Token文本 = hasInputTokens ? Math.floor(inputTokens!).toLocaleString('en-US') : '0';
     const 输出Token文本 = hasOutputTokens ? Math.floor(outputTokens!).toLocaleString('en-US') : '0';
 
@@ -362,29 +364,41 @@ const TurnItem: React.FC<Props> = ({
                     </button>
                 </div>
                 </div>
-                {(hasInputTokens || hasDuration || hasOutputTokens) && (
+                {(variableGenerationPending || hasInputTokens || hasDuration || hasOutputTokens) && (
                     <div className="mt-1.5 flex justify-center">
                         <div className="inline-flex items-center gap-1.5 sm:gap-2.5 px-2 sm:px-2.5 py-1 rounded-full bg-black/40 border border-white/5 shadow-sm max-w-full">
-                            <div className="flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5 text-violet-300 opacity-60">
-                                    <path fillRule="evenodd" d="M10 18a.75.75 0 0 1-.75-.75V7.56L6.53 10.28a.75.75 0 1 1-1.06-1.06l4-4a.75.75 0 0 1 1.06 0l4 4a.75.75 0 1 1-1.06 1.06l-2.72-2.72v9.69A.75.75 0 0 1 10 18Z" clipRule="evenodd" />
-                                </svg>
-                                <span className="font-mono text-violet-200/85 font-bold" style={{ fontSize: 紧凑等宽字号 }}>{上传Token文本}</span>
-                            </div>
-                            <div className="w-px h-2 bg-white/5"></div>
-                            <div className="flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5 text-wuxia-cyan opacity-50">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
-                                </svg>
-                                <span className="font-mono text-wuxia-cyan/80 font-bold" style={{ fontSize: 紧凑等宽字号 }}>{hasDuration ? Math.floor(responseDurationSec!) : 0}s</span>
-                            </div>
-                            <div className="w-px h-2 bg-white/5"></div>
-                            <div className="flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5 text-amber-500 opacity-50">
-                                    <path fillRule="evenodd" d="M10 2a.75.75 0 0 1 .75.75v9.69l2.72-2.72a.75.75 0 1 1 1.06 1.06l-4 4a.75.75 0 0 1-1.06 0l-4-4a.75.75 0 1 1 1.06-1.06l2.72 2.72V2.75A.75.75 0 0 1 10 2Z" clipRule="evenodd" />
-                                </svg>
-                                <span className="font-mono text-amber-500/80 font-bold" style={{ fontSize: 紧凑等宽字号 }}>{hasOutputTokens ? 输出Token文本 : '0'}</span>
-                            </div>
+                            {variableGenerationPending ? (
+                                <div className="flex items-center gap-2 text-wuxia-cyan/80">
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="absolute inline-flex h-full w-full rounded-full bg-wuxia-cyan/40 animate-ping"></span>
+                                        <span className="relative inline-flex h-2 w-2 rounded-full bg-wuxia-cyan/80"></span>
+                                    </span>
+                                    <span className="font-mono font-bold tracking-[0.12em]" style={{ fontSize: 紧凑等宽字号 }}>变量生成中</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5 text-violet-300 opacity-60">
+                                            <path fillRule="evenodd" d="M10 18a.75.75 0 0 1-.75-.75V7.56L6.53 10.28a.75.75 0 1 1-1.06-1.06l4-4a.75.75 0 0 1 1.06 0l4 4a.75.75 0 1 1-1.06 1.06l-2.72-2.72v9.69A.75.75 0 0 1 10 18Z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="font-mono text-violet-200/85 font-bold" style={{ fontSize: 紧凑等宽字号 }}>{上传Token文本}</span>
+                                    </div>
+                                    <div className="w-px h-2 bg-white/5"></div>
+                                    <div className="flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5 text-wuxia-cyan opacity-50">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="font-mono text-wuxia-cyan/80 font-bold" style={{ fontSize: 紧凑等宽字号 }}>{hasDuration ? Math.floor(responseDurationSec!) : 0}s</span>
+                                    </div>
+                                    <div className="w-px h-2 bg-white/5"></div>
+                                    <div className="flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5 text-amber-500 opacity-50">
+                                            <path fillRule="evenodd" d="M10 2a.75.75 0 0 1 .75.75v9.69l2.72-2.72a.75.75 0 1 1 1.06 1.06l-4 4a.75.75 0 0 1-1.06 0l-4-4a.75.75 0 1 1 1.06-1.06l2.72 2.72V2.75A.75.75 0 0 1 10 2Z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="font-mono text-amber-500/80 font-bold" style={{ fontSize: 紧凑等宽字号 }}>{hasOutputTokens ? 输出Token文本 : '0'}</span>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

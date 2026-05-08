@@ -13,6 +13,7 @@ import type {
     图片管理设置结构,
     香闺秘档部位类型,
     画师串预设结构,
+    角色数据结构,
     角色锚点结构,
     模型词组转化器预设结构,
     词组转化器提示词预设结构,
@@ -26,6 +27,7 @@ import { 自动场景横屏尺寸选项, 自动场景竖屏尺寸选项 } from '
 
 interface Props {
     socialList: NPC结构[];
+    playerCharacter?: 角色数据结构 | null;
     cultivationSystemEnabled?: boolean;
     queue: NPC生图任务记录[];
     sceneArchive: 场景图片档案;
@@ -52,6 +54,11 @@ interface Props {
     onDeleteQueueTask?: (taskId: string) => Promise<void> | void;
     onClearQueue?: (mode?: 'all' | 'completed') => Promise<void> | void;
     onSaveImageLocally?: (npcId: string, imageId: string) => Promise<void> | void;
+    onSelectPlayerAvatarImage?: (imageId: string) => Promise<void> | void;
+    onClearPlayerAvatarImage?: () => Promise<void> | void;
+    onSelectPlayerPortraitImage?: (imageId: string) => Promise<void> | void;
+    onClearPlayerPortraitImage?: () => Promise<void> | void;
+    onRemovePlayerImageRecord?: (imageId: string) => Promise<void> | void;
     onApplySceneWallpaper?: (imageId: string) => Promise<void> | void;
     onClearSceneWallpaper?: () => Promise<void> | void;
     onDeleteSceneImage?: (imageId: string) => Promise<void> | void;

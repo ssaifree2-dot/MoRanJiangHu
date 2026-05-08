@@ -18,6 +18,8 @@ import { openExternalUrl } from '../../../services/appUpdate';
 import { 规范化接口设置 } from '../../../utils/apiConfig';
 import { 自动场景横屏尺寸选项, 自动场景竖屏尺寸选项 } from '../../../utils/imageSizeOptions';
 import { buildDiscoveredBackendLabel, fetchDiscoveredImageBackends } from '../../../services/ai/imageBackendRegistry';
+import { 规范化ComfyUI工作流JSON } from '../../../services/ai/comfyWorkflowTools';
+import { 构建ComfyUI精确连接失败提示, 翻译连接测试错误 } from '../../../services/ai/imageGenerationDiagnostics';
 
 interface Props {
     settings: 接口设置结构;
@@ -172,8 +174,11 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
     const [discoveredBackends, setDiscoveredBackends] = useState<发现图片后端记录结构[]>([]);
     const [discoveryLoading, setDiscoveryLoading] = useState(false);
     const [discoveryError, setDiscoveryError] = useState('');
+    const [testingImageConnection, setTestingImageConnection] = useState(false);
     const artistImportRef = React.useRef<HTMLInputElement | null>(null);
     const transformerImportRef = React.useRef<HTMLInputElement | null>(null);
+    const comfyWorkflowImportRef = React.useRef<HTMLInputElement | null>(null);
+    const sceneComfyWorkflowImportRef = React.useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         const normalized = 规范化接口设置(settings);
@@ -578,6 +583,25 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
         return JSON.parse(text);
     };
 
+    const handleImportComfyWorkflow = async (
+        event: React.ChangeEvent<HTMLInputElement>,
+        target: 'main' | 'scene'
+    ) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+        try {
+            const parsed = await 读取JSON文件(file);
+            const normalized = 规范化ComfyUI工作流JSON(parsed);
+            updatePlaceholder(target === 'scene' ? '场景ComfyUI工作流JSON' : 'ComfyUI工作流JSON', normalized);
+            setMessage(`已导入 ${file.name}，并自动写入 ComfyUI 占位符`);
+            setShowSuccess(true);
+        } catch (error: any) {
+            setMessage(error?.message || 'ComfyUI workflow 导入失败，请确认上传的是 API workflow JSON');
+            setShowSuccess(false);
+        }
+    };
+
     const handleBackendChange = (value: 功能模型占位配置结构['文生图后端类型']) => {
         const fallbackPreset = 预设路径选项映射[value][0]?.value || 'openai_images';
         setForm((prev) => ({
@@ -648,6 +672,63 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
                     : prev.功能模型占位.场景生图模型API密钥
             }
         }));
+    };
+
+    const handleTestImageConnection = async () => {
+        if (testingImageConnection) return;
+        const feature = form.功能模型占位;
+        const backend = feature.文生图后端类型;
+        const rawBaseUrl = (feature.文生图模型API地址 || '').trim() || (activeConfig?.baseUrl || '').trim();
+        const apiKey = (feature.文生图模型API密钥 || '').trim() || (activeConfig?.apiKey || '').trim();
+        if (!rawBaseUrl) {
+            setMessage('请先填写文生图 API 地址。');
+            return;
+        }
+        setTestingImageConnection(true);
+        setMessage('正在测试文生图连接...');
+        try {
+            const base = rawBaseUrl.replace(/\/+$/, '');
+            const headers = apiKey && 图片后端需要鉴权(backend) ? { Authorization: `Bearer ${apiKey}` } : undefined;
+            if (backend === 'comfyui') {
+                const response = await fetch(`${base}/system_stats`, { method: 'GET' });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status} ${await response.text().catch(() => '')}`.trim());
+                }
+                setMessage('ComfyUI 连接成功：后端在线，可以继续生图。');
+                return;
+            }
+            if (backend === 'sd_webui') {
+                const response = await fetch(`${base}/sdapi/v1/options`, { method: 'GET' });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status} ${await response.text().catch(() => '')}`.trim());
+                }
+                setMessage('Stable Diffusion WebUI 连接成功：API 已开启。');
+                return;
+            }
+            if (backend === 'novelai') {
+                const response = await fetch(`${base}/user/subscription`, { method: 'GET', headers });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status} ${await response.text().catch(() => '')}`.trim());
+                }
+                setMessage('NovelAI 连接成功：Token 可用。');
+                return;
+            }
+            const normalized = base.replace(/\/v1$/i, '');
+            const response = await fetch(`${normalized}/v1/models`, { method: 'GET', headers });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} ${await response.text().catch(() => '')}`.trim());
+            }
+            setMessage('OpenAI 兼容文生图接口连接成功：模型列表可访问。');
+        } catch (error: any) {
+            setMessage(backend === 'comfyui'
+                ? await 构建ComfyUI精确连接失败提示(rawBaseUrl, error)
+                : 翻译连接测试错误(error, {
+                    baseUrl: rawBaseUrl,
+                    backendLabel: 文生图后端选项.find((item) => item.value === backend)?.label || '文生图接口'
+                }));
+        } finally {
+            setTestingImageConnection(false);
+        }
     };
 
     const fetchModelsFromCurrentConfig = async (key: 生图模型字段): Promise<string[] | null> => {
@@ -880,6 +961,21 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
                             className="w-full rounded-md border-2 border-transparent bg-black/50 p-3 text-white outline-none transition-all focus:border-fuchsia-400"
                         />
                     </div>
+                </div>
+
+                <div className="flex flex-col gap-2 rounded-xl border border-sky-500/20 bg-sky-950/10 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <div className="text-sm font-bold text-sky-200">连接测试</div>
+                        <div className="mt-1 text-xs leading-5 text-sky-100/70">测试当前文生图后端是否在线，并把服务器、跨域、鉴权、模型路径等错误翻译成可处理的提示。</div>
+                    </div>
+                    <GameButton
+                        onClick={() => { void handleTestImageConnection(); }}
+                        variant="secondary"
+                        className="px-4 py-2 text-xs md:min-w-[120px]"
+                        disabled={testingImageConnection}
+                    >
+                        {testingImageConnection ? '测试中...' : '测试连接'}
+                    </GameButton>
                 </div>
 
                 {当前后端 === 'comfyui' && (
@@ -1129,7 +1225,34 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
             {当前后端 === 'comfyui' && (
                 <div className={卡片样式}>
                     <div className="space-y-2">
-                        <label className={标签样式}>ComfyUI Workflow JSON</label>
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <label className={标签样式}>ComfyUI Workflow JSON</label>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { void openExternalUrl(CNB_GUIDE_URL); }}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-fuchsia-400/30 bg-black/20 text-sm font-bold text-fuchsia-100 transition-colors hover:border-fuchsia-300 hover:text-white"
+                                    aria-label="查看 ComfyUI API 文件导出教程"
+                                    title="查看 ComfyUI API 文件导出教程"
+                                >
+                                    ?
+                                </button>
+                                <GameButton
+                                    onClick={() => comfyWorkflowImportRef.current?.click()}
+                                    variant="secondary"
+                                    className="px-4 py-2 text-xs"
+                                >
+                                    上传 API 文件
+                                </GameButton>
+                                <input
+                                    ref={comfyWorkflowImportRef}
+                                    type="file"
+                                    accept="application/json,.json"
+                                    onChange={(event) => void handleImportComfyWorkflow(event, 'main')}
+                                    className="hidden"
+                                />
+                            </div>
+                        </div>
                         <textarea
                             value={form.功能模型占位.ComfyUI工作流JSON}
                             onChange={(e) => updatePlaceholder('ComfyUI工作流JSON', e.target.value)}
@@ -1140,7 +1263,7 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
                     </div>
                     <div className="rounded-xl border border-sky-500/20 bg-sky-950/10 px-4 py-3 text-xs leading-6 text-sky-100">
                         纯原生 ComfyUI 需要 workflow JSON，提交到 <code>/prompt</code> 后再轮询 <code>/history/&#123;prompt_id&#125;</code>。
-                        支持占位符：{ComfyUI工作流占位提示}
+                        支持占位符：{ComfyUI工作流占位提示}。上传 API 文件会自动替换常见提示词、尺寸和采样参数字段。
                     </div>
                 </div>
             )}
@@ -1647,7 +1770,34 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
 
                                 {当前场景后端 === 'comfyui' && (
                                     <div className="space-y-2">
-                                        <label className="text-sm font-bold text-sky-200">场景 ComfyUI Workflow JSON</label>
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                            <label className="text-sm font-bold text-sky-200">场景 ComfyUI Workflow JSON</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { void openExternalUrl(CNB_GUIDE_URL); }}
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-sky-400/30 bg-black/20 text-sm font-bold text-sky-100 transition-colors hover:border-sky-300 hover:text-white"
+                                                    aria-label="查看 ComfyUI API 文件导出教程"
+                                                    title="查看 ComfyUI API 文件导出教程"
+                                                >
+                                                    ?
+                                                </button>
+                                                <GameButton
+                                                    onClick={() => sceneComfyWorkflowImportRef.current?.click()}
+                                                    variant="secondary"
+                                                    className="px-4 py-2 text-xs"
+                                                >
+                                                    上传 API 文件
+                                                </GameButton>
+                                                <input
+                                                    ref={sceneComfyWorkflowImportRef}
+                                                    type="file"
+                                                    accept="application/json,.json"
+                                                    onChange={(event) => void handleImportComfyWorkflow(event, 'scene')}
+                                                    className="hidden"
+                                                />
+                                            </div>
+                                        </div>
                                         <textarea
                                             value={form.功能模型占位.场景ComfyUI工作流JSON}
                                             onChange={(e) => updatePlaceholder('场景ComfyUI工作流JSON', e.target.value)}
@@ -1657,7 +1807,7 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
                                         />
                                         <div className="rounded-xl border border-sky-500/20 bg-sky-950/10 px-4 py-3 text-xs leading-6 text-sky-100">
                                             场景独立接口使用原生 ComfyUI workflow；留空时，如果与主文生图后端同为 ComfyUI，会自动沿用主 workflow。
-                                            支持占位符：{ComfyUI工作流占位提示}
+                                            支持占位符：{ComfyUI工作流占位提示}。上传 API 文件会自动替换常见提示词、尺寸和采样参数字段。
                                         </div>
                                     </div>
                                 )}

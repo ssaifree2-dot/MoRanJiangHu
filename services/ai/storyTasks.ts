@@ -1,5 +1,6 @@
 import { GameResponse, TavernCommand, 内置提示词条目结构 } from '../../types';
 import type { 当前可用接口结构 } from '../../utils/apiConfig';
+import { 翻译连接测试错误 } from './imageGenerationDiagnostics';
 import { parseJsonWithRepair } from '../../utils/jsonRepair';
 import { 获取世界观生成系统提示词, 构建世界观生成用户提示词 } from '../../prompts/runtime/worldGeneration';
 import { 同人境界体系生成系统提示词, 构建同人境界体系生成用户提示词 } from '../../prompts/runtime/fandomRealmGeneration';
@@ -1668,6 +1669,12 @@ export const testConnection = async (
     } catch (error: any) {
         const raw = error?.detail ?? error?.message ?? error ?? '未知错误';
         const detail = typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2);
-        return { ok: false, detail };
+        return {
+            ok: false,
+            detail: 翻译连接测试错误(detail, {
+                baseUrl: apiConfig.baseUrl,
+                backendLabel: '主接口'
+            })
+        };
     }
 };

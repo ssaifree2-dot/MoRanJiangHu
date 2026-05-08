@@ -9,6 +9,18 @@ export type DiagnosticLogEntry = {
 };
 
 type Listener = () => void;
+type PrebootLogEntry = {
+    level?: DiagnosticLogLevel;
+    time?: string;
+    values?: unknown[];
+};
+
+declare global {
+    interface Window {
+        __MORAN_PREBOOT_LOGS__?: PrebootLogEntry[];
+        __MORAN_PREBOOT_LOGS_CONSUMED__?: boolean;
+    }
+}
 
 const MAX_LOGS = 500;
 const logs: DiagnosticLogEntry[] = [];
@@ -54,6 +66,12 @@ export const recordDiagnosticLog = (level: DiagnosticLogLevel, values: unknown[]
     emit();
 };
 
+const normalizeLogLevel = (level: unknown): DiagnosticLogLevel => {
+    return level === 'log' || level === 'info' || level === 'warn' || level === 'error' || level === 'debug'
+        ? level
+        : 'debug';
+};
+
 export const getDiagnosticLogs = (): DiagnosticLogEntry[] => logs.slice();
 
 export const clearDiagnosticLogs = () => {
@@ -80,6 +98,14 @@ export const installDiagnosticLogCapture = () => {
     });
 
     if (typeof window !== 'undefined') {
+        if (!window.__MORAN_PREBOOT_LOGS_CONSUMED__ && Array.isArray(window.__MORAN_PREBOOT_LOGS__)) {
+            window.__MORAN_PREBOOT_LOGS_CONSUMED__ = true;
+            window.__MORAN_PREBOOT_LOGS__.forEach(entry => {
+                const values = Array.isArray(entry.values) ? entry.values : ['preboot log'];
+                recordDiagnosticLog(normalizeLogLevel(entry.level), values);
+            });
+        }
+
         window.addEventListener('error', event => {
             recordDiagnosticLog('error', [
                 'window.error',

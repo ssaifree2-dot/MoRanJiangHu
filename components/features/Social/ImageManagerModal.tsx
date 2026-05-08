@@ -11,6 +11,7 @@ import type {
     图片管理设置结构,
     香闺秘档部位类型,
     画师串预设结构,
+    角色数据结构,
     角色锚点结构,
     模型词组转化器预设结构,
     词组转化器提示词预设结构,
@@ -25,6 +26,7 @@ import { IconScroll } from '../../ui/Icons';
 
 interface Props {
     socialList: NPC结构[];
+    playerCharacter?: 角色数据结构 | null;
     cultivationSystemEnabled?: boolean;
     queue: NPC生图任务记录[];
     sceneArchive: 场景图片档案;
@@ -51,6 +53,11 @@ interface Props {
     onDeleteQueueTask?: (taskId: string) => Promise<void> | void;
     onClearQueue?: (mode?: 'all' | 'completed') => Promise<void> | void;
     onSaveImageLocally?: (npcId: string, imageId: string) => Promise<void> | void;
+    onSelectPlayerAvatarImage?: (imageId: string) => Promise<void> | void;
+    onClearPlayerAvatarImage?: () => Promise<void> | void;
+    onSelectPlayerPortraitImage?: (imageId: string) => Promise<void> | void;
+    onClearPlayerPortraitImage?: () => Promise<void> | void;
+    onRemovePlayerImageRecord?: (imageId: string) => Promise<void> | void;
     onApplySceneWallpaper?: (imageId: string) => Promise<void> | void;
     onClearSceneWallpaper?: () => Promise<void> | void;
     onDeleteSceneImage?: (imageId: string) => Promise<void> | void;
@@ -77,6 +84,8 @@ type NPC图库分组 = {
     npc: NPC结构;
     records: NPC图片记录[];
 };
+
+const 主角图库标识 = '__player__';
 
 type 合并队列记录 = {
     类型: 'npc' | 'scene';
@@ -281,6 +290,7 @@ const 空状态: React.FC<{ title: string; desc?: string }> = ({ title, desc }) 
 
 const ImageManagerModal: React.FC<Props> = ({
     socialList,
+    playerCharacter,
     cultivationSystemEnabled = true,
     queue,
     sceneArchive,
@@ -307,6 +317,11 @@ const ImageManagerModal: React.FC<Props> = ({
     onDeleteQueueTask,
     onClearQueue,
     onSaveImageLocally,
+    onSelectPlayerAvatarImage,
+    onClearPlayerAvatarImage,
+    onSelectPlayerPortraitImage,
+    onClearPlayerPortraitImage,
+    onRemovePlayerImageRecord,
     onApplySceneWallpaper,
     onClearSceneWallpaper,
     onDeleteSceneImage,
@@ -325,7 +340,7 @@ const ImageManagerModal: React.FC<Props> = ({
     onExtractCharacterAnchor,
     onClose
 }) => {
-    use图片资源回源预取(socialList, sceneArchive, currentPersistentWallpaper, apiConfig);
+    use图片资源回源预取(socialList, playerCharacter, sceneArchive, currentPersistentWallpaper, apiConfig);
     const 显示境界 = cultivationSystemEnabled !== false;
     const [filters, setFilters] = React.useState<图片管理筛选条件>({
         目标类型: '全部',
@@ -499,7 +514,7 @@ const ImageManagerModal: React.FC<Props> = ({
     }, [pngPresetEditorId, pngStylePresets]);
 
     const records = React.useMemo<NPC图片记录[]>(() => {
-        return (Array.isArray(socialList) ? socialList : [])
+        const npcRecords = (Array.isArray(socialList) ? socialList : [])
             .flatMap((npc) => {
                 const hasExplicitHistory = Array.isArray(npc?.图片档案?.生图历史);
                 const history = hasExplicitHistory ? npc.图片档案?.生图历史 : [];
@@ -507,17 +522,42 @@ const ImageManagerModal: React.FC<Props> = ({
                 const safeHistory = Array.isArray(history) ? history : [];
                 const resultList = (safeHistory.length > 0 ? safeHistory : fallbackRecent)
                     .filter((item) => item && typeof item === 'object');
-                return resultList.map((result) => ({
+                const npcGender: NPC图片记录['NPC性别'] = npc?.性别 === '男' || npc?.性别 === '女'
+                    ? npc.性别
+                    : undefined;
+                return resultList.map<NPC图片记录>((result) => ({
                     目标类型: 'npc' as const,
                     NPC标识: npc.id,
                     NPC姓名: npc.姓名,
-                    NPC性别: npc.性别,
+                    NPC性别: npcGender,
                     是否主要角色: npc.是否主要角色,
                     结果: result
                 }));
             })
             .sort((a, b) => (b.结果?.生成时间 || 0) - (a.结果?.生成时间 || 0));
-    }, [socialList]);
+        const playerArchive = playerCharacter?.图片档案 && typeof playerCharacter.图片档案 === 'object' ? playerCharacter.图片档案 : null;
+        const playerHistory = Array.isArray(playerArchive?.生图历史)
+            ? playerArchive.生图历史
+            : (playerCharacter?.最近生图结果 ? [playerCharacter.最近生图结果] : []);
+        const playerName = typeof playerCharacter?.姓名 === 'string' && playerCharacter.姓名.trim()
+            ? playerCharacter.姓名.trim()
+            : '主角';
+        const playerGender: NPC图片记录['NPC性别'] = playerCharacter?.性别 === '男' || playerCharacter?.性别 === '女'
+            ? playerCharacter.性别
+            : undefined;
+        const playerRecords = (Array.isArray(playerHistory) ? playerHistory : [])
+            .filter((item) => item && typeof item === 'object')
+            .map<NPC图片记录>((result) => ({
+                目标类型: 'npc' as const,
+                NPC标识: 主角图库标识,
+                NPC姓名: playerName,
+                NPC性别: playerGender,
+                是否主要角色: true,
+                结果: result
+            }));
+        return [...playerRecords, ...npcRecords]
+            .sort((a, b) => (b.结果?.生成时间 || 0) - (a.结果?.生成时间 || 0));
+    }, [playerCharacter, socialList]);
 
     const npcOptions = React.useMemo(() => {
         return (Array.isArray(socialList) ? socialList : [])
@@ -944,6 +984,19 @@ const ImageManagerModal: React.FC<Props> = ({
         return sceneHistory.find((item) => item?.id === 当前场景壁纸ID)
             || (sceneArchive?.最近生图结果?.id === 当前场景壁纸ID ? sceneArchive.最近生图结果 : null);
     }, [sceneArchive, sceneHistory, 当前场景壁纸ID]);
+    const playerLibraryNpc = React.useMemo<NPC结构 | null>(() => {
+        if (!playerCharacter) return null;
+        const playerName = typeof playerCharacter?.姓名 === 'string' && playerCharacter.姓名.trim()
+            ? playerCharacter.姓名.trim()
+            : '主角';
+        return {
+            ...(playerCharacter as any),
+            id: 主角图库标识,
+            姓名: playerName,
+            身份: playerCharacter?.称号 || playerCharacter?.出身背景?.名称 || '主角',
+            是否主要角色: true
+        } as NPC结构;
+    }, [playerCharacter]);
     React.useEffect(() => {
         setSceneArchiveLimitDraft(String(sceneArchiveLimit));
     }, [sceneArchiveLimit]);
@@ -963,13 +1016,14 @@ const ImageManagerModal: React.FC<Props> = ({
             current.push(record);
             recordMap.set(key, current);
         });
-        return npcOptions
+        const libraryNpcs = [playerLibraryNpc, ...npcOptions].filter(Boolean) as NPC结构[];
+        return libraryNpcs
             .map((npc) => ({
                 npc,
                 records: recordMap.get(npc.id) || []
             }))
             .filter((group) => group.records.length > 0);
-    }, [filteredRecords, npcOptions]);
+    }, [filteredRecords, npcOptions, playerLibraryNpc]);
 
     React.useEffect(() => {
         if (activeTab !== 'library') return;
@@ -1296,6 +1350,61 @@ const ImageManagerModal: React.FC<Props> = ({
         await withBusyAction(`local_npc_${imageId}`, async () => {
             await onSaveImageLocally(npcId, imageId);
         });
+    };
+
+    const handleSelectLibraryAvatarImage = async (npcId: string, imageId?: string) => {
+        if (npcId === 主角图库标识) {
+            if (!onSelectPlayerAvatarImage || !imageId) return;
+            await withBusyAction(`select_avatar_${imageId}`, async () => {
+                await onSelectPlayerAvatarImage(imageId);
+            });
+            return;
+        }
+        await handleSelectAvatarImage(npcId, imageId);
+    };
+
+    const handleClearLibraryAvatarImage = async (npcId: string) => {
+        if (npcId === 主角图库标识) {
+            if (!onClearPlayerAvatarImage) return;
+            await withBusyAction(`clear_avatar_${npcId}`, async () => {
+                await onClearPlayerAvatarImage();
+            });
+            return;
+        }
+        await handleClearAvatarImage(npcId);
+    };
+
+    const handleSelectLibraryPortraitImage = async (npcId: string, imageId?: string) => {
+        if (npcId === 主角图库标识) {
+            if (!onSelectPlayerPortraitImage || !imageId) return;
+            await withBusyAction(`select_portrait_${imageId}`, async () => {
+                await onSelectPlayerPortraitImage(imageId);
+            });
+            return;
+        }
+        await handleSelectPortraitImage(npcId, imageId);
+    };
+
+    const handleClearLibraryPortraitImage = async (npcId: string) => {
+        if (npcId === 主角图库标识) {
+            if (!onClearPlayerPortraitImage) return;
+            await withBusyAction(`clear_portrait_${npcId}`, async () => {
+                await onClearPlayerPortraitImage();
+            });
+            return;
+        }
+        await handleClearPortraitImage(npcId);
+    };
+
+    const handleDeleteLibraryImageRecord = async (npcId: string, imageId?: string) => {
+        if (npcId === 主角图库标识) {
+            if (!onRemovePlayerImageRecord || !imageId) return;
+            await withBusyAction(`delete_image_${imageId}`, async () => {
+                await onRemovePlayerImageRecord(imageId);
+            });
+            return;
+        }
+        await handleDeleteImageRecord(npcId, imageId);
     };
 
     const handleGenerateSceneImage = async () => {
@@ -2528,15 +2637,17 @@ const ImageManagerModal: React.FC<Props> = ({
                                 </div>
                                 <div className="text-[11px] text-gray-400 mt-2 space-x-3 flex items-center">
                                     <span className="px-2 py-0.5 rounded border border-wuxia-gold/20 bg-wuxia-gold/5">{currentLibraryGroup.npc.性别 || '未知性别'}</span>
-                                    <span className="px-2 py-0.5 rounded border border-wuxia-gold/20 bg-wuxia-gold/5">{currentLibraryGroup.npc.是否主要角色 ? '主要角色' : '普通角色'}</span>
+                                    <span className="px-2 py-0.5 rounded border border-wuxia-gold/20 bg-wuxia-gold/5">{currentLibraryGroup.npc.id === 主角图库标识 ? '主角' : (currentLibraryGroup.npc.是否主要角色 ? '主要角色' : '普通角色')}</span>
                                     <span className="px-2 py-0.5 rounded border border-wuxia-gold/20 bg-wuxia-gold/5 text-wuxia-gold/80">共 {currentLibraryGroup.records.length} 张图片</span>
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                <button type="button" onClick={() => 打开手动生图页(currentLibraryGroup.npc.id)} className={次级按钮样式()}>
-                                    去生成图片
-                                </button>
-                                {onClearImageHistory && (
+                                {currentLibraryGroup.npc.id !== 主角图库标识 && (
+                                    <button type="button" onClick={() => 打开手动生图页(currentLibraryGroup.npc.id)} className={次级按钮样式()}>
+                                        去生成图片
+                                    </button>
+                                )}
+                                {currentLibraryGroup.npc.id !== 主角图库标识 && onClearImageHistory && (
                                     <button
                                         type="button"
                                         onClick={() => { void handleClearNpcHistory(currentLibraryGroup.npc.id); }}
@@ -2556,15 +2667,16 @@ const ImageManagerModal: React.FC<Props> = ({
                                     const status = result.状态 || 'success';
                                     const imageId = typeof result.id === 'string' ? result.id : '';
                                     const imageSrc = 获取图片展示地址(result);
+                                    const isPlayerRecord = record.NPC标识 === 主角图库标识;
                                     const selectedAvatarId = currentLibraryGroup.npc?.图片档案?.已选头像图片ID || '';
                                     const selectedPortraitId = currentLibraryGroup.npc?.图片档案?.已选立绘图片ID || '';
                                     const selectedBackgroundId = currentLibraryGroup.npc?.图片档案?.已选背景图片ID || '';
                                     const isSelectedAvatar = Boolean(imageId) && imageId === selectedAvatarId;
                                     const isSelectedPortrait = Boolean(imageId) && imageId === selectedPortraitId;
                                     const isSelectedBackground = Boolean(imageId) && imageId === selectedBackgroundId;
-                                    const canSelectAvatar = Boolean(onSelectAvatarImage && imageId && status === 'success' && imageSrc && result.构图 === '头像');
-                                    const canSelectPortrait = Boolean(onSelectPortraitImage && imageId && status === 'success' && imageSrc && (result.构图 === '半身' || result.构图 === '立绘'));
-                                    const canSelectBackground = Boolean(onSelectBackgroundImage && imageId && status === 'success' && imageSrc);
+                                    const canSelectAvatar = Boolean((isPlayerRecord ? onSelectPlayerAvatarImage : onSelectAvatarImage) && imageId && status === 'success' && imageSrc && result.构图 === '头像');
+                                    const canSelectPortrait = Boolean((isPlayerRecord ? onSelectPlayerPortraitImage : onSelectPortraitImage) && imageId && status === 'success' && imageSrc && (result.构图 === '半身' || result.构图 === '立绘'));
+                                    const canSelectBackground = Boolean(!isPlayerRecord && onSelectBackgroundImage && imageId && status === 'success' && imageSrc);
                                     const hasLocalCopy = 是否存在本地图片副本(result);
                                     const normalizedPersistentWallpaper = typeof currentPersistentWallpaper === 'string' ? currentPersistentWallpaper.trim() : '';
                                     const isPersistentWallpaper = Boolean(imageSrc && normalizedPersistentWallpaper && imageSrc === normalizedPersistentWallpaper);
@@ -2629,10 +2741,10 @@ const ImageManagerModal: React.FC<Props> = ({
                                                                 type="button"
                                                                 onClick={() => {
                                                                     if (isSelectedAvatar) {
-                                                                        void handleClearAvatarImage(record.NPC标识);
+                                                                        void handleClearLibraryAvatarImage(record.NPC标识);
                                                                         return;
                                                                     }
-                                                                    void handleSelectAvatarImage(record.NPC标识, imageId);
+                                                                    void handleSelectLibraryAvatarImage(record.NPC标识, imageId);
                                                                 }}
                                                                 disabled={isSelectedAvatar ? busyActionKey === `clear_avatar_${record.NPC标识}` : busyActionKey === `select_avatar_${imageId}`}
                                                                 className={次级按钮样式()}
@@ -2645,10 +2757,10 @@ const ImageManagerModal: React.FC<Props> = ({
                                                                 type="button"
                                                                 onClick={() => {
                                                                     if (isSelectedPortrait) {
-                                                                        void handleClearPortraitImage(record.NPC标识);
+                                                                        void handleClearLibraryPortraitImage(record.NPC标识);
                                                                         return;
                                                                     }
-                                                                    void handleSelectPortraitImage(record.NPC标识, imageId);
+                                                                    void handleSelectLibraryPortraitImage(record.NPC标识, imageId);
                                                                 }}
                                                                 disabled={isSelectedPortrait ? busyActionKey === `clear_portrait_${record.NPC标识}` : busyActionKey === `select_portrait_${imageId}`}
                                                                 className={次级按钮样式()}
@@ -2690,7 +2802,7 @@ const ImageManagerModal: React.FC<Props> = ({
                                                                 {isPersistentWallpaper ? '取消常驻壁纸' : '设为常驻壁纸'}
                                                             </button>
                                                         )}
-                                                        {onSaveImageLocally && imageId && !hasLocalCopy && (
+                                                        {!isPlayerRecord && onSaveImageLocally && imageId && !hasLocalCopy && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => { void handleSaveNpcImageLocally(record.NPC标识, imageId); }}
@@ -2700,10 +2812,10 @@ const ImageManagerModal: React.FC<Props> = ({
                                                                 保存到本地
                                                             </button>
                                                         )}
-                                                        {onDeleteImageRecord && imageId && (
+                                                        {(isPlayerRecord ? onRemovePlayerImageRecord : onDeleteImageRecord) && imageId && (
                                                             <button
                                                                 type="button"
-                                                                onClick={() => { void handleDeleteImageRecord(record.NPC标识, imageId); }}
+                                                                onClick={() => { void handleDeleteLibraryImageRecord(record.NPC标识, imageId); }}
                                                                 disabled={busyActionKey === `delete_image_${imageId}`}
                                                                 className={次级按钮样式(true)}
                                                             >
@@ -3483,6 +3595,7 @@ const ImageManagerModal: React.FC<Props> = ({
                                 const normalizedPersistentWallpaper = (currentPersistentWallpaper || '').trim();
                                 const isPersistentWallpaper = Boolean(imageSrc && normalizedPersistentWallpaper && imageSrc === normalizedPersistentWallpaper);
                                 const hasLocalCopy = 是否存在本地图片副本(result);
+                                const isPlayerRecord = record.NPC标识 === 主角图库标识;
                                 
                                 return (
                                     <div key={entry.key} className="rounded border border-wuxia-gold/20 bg-black/40 overflow-hidden flex flex-col xl:flex-row group hover:border-wuxia-gold/50 hover:shadow-[0_4px_20px_rgba(212,175,55,0.15)] transition-all duration-300">
@@ -3520,8 +3633,8 @@ const ImageManagerModal: React.FC<Props> = ({
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    {onDeleteImageRecord && imageId && (
-                                                        <button type="button" onClick={() => { void handleDeleteImageRecord(record.NPC标识, imageId); }} disabled={busyActionKey === `delete_image_${imageId}`} className={次级按钮样式(true)}>
+                                                    {(isPlayerRecord ? onRemovePlayerImageRecord : onDeleteImageRecord) && imageId && (
+                                                        <button type="button" onClick={() => { void handleDeleteLibraryImageRecord(record.NPC标识, imageId); }} disabled={busyActionKey === `delete_image_${imageId}`} className={次级按钮样式(true)}>
                                                             删除图片
                                                         </button>
                                                     )}
@@ -3597,7 +3710,7 @@ const ImageManagerModal: React.FC<Props> = ({
                                                         {isPersistentWallpaper ? '取消常驻壁纸' : '设为常驻壁纸'}
                                                     </button>
                                                 )}
-                                                {onSaveImageLocally && imageId && !hasLocalCopy && (
+                                                {!isPlayerRecord && onSaveImageLocally && imageId && !hasLocalCopy && (
                                                     <button type="button" onClick={() => { void handleSaveNpcImageLocally(record.NPC标识, imageId); }} disabled={busyActionKey === `local_npc_${imageId}`} className={次级按钮样式()}>
                                                         保存到本地
                                                     </button>

@@ -6,6 +6,7 @@ import {
     type DiagnosticLogEntry,
     type DiagnosticLogLevel
 } from '../../../services/diagnosticLog';
+import { getDiagnosticReportQuota, submitDiagnosticReport } from '../../../services/diagnosticReport';
 
 const levelLabels: Record<DiagnosticLogLevel, string> = {
     log: '普通',
@@ -49,6 +50,9 @@ const LogViewer: React.FC = () => {
     const [level, setLevel] = useState<DiagnosticLogLevel | 'all'>('all');
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [reporting, setReporting] = useState(false);
+    const [reportMessage, setReportMessage] = useState('');
+    const [quota, setQuota] = useState(() => getDiagnosticReportQuota());
 
     useEffect(() => subscribeDiagnosticLogs(() => setLogs(getDiagnosticLogs())), []);
 
@@ -92,6 +96,22 @@ const LogViewer: React.FC = () => {
         URL.revokeObjectURL(url);
     };
 
+    const handleSubmitReport = async () => {
+        setReporting(true);
+        setReportMessage('');
+        try {
+            const result = await submitDiagnosticReport(filteredLogs);
+            setQuota(getDiagnosticReportQuota());
+            setReportMessage(`上报成功，诊断编号：${result.id}。今日还可上报 ${result.remainingToday} 次，日志将在 ${formatTime(result.expiresAt)} 后自动过期。`);
+            await navigator.clipboard?.writeText(result.id).catch(() => undefined);
+        } catch (error: any) {
+            setQuota(getDiagnosticReportQuota());
+            setReportMessage(error?.message || '诊断日志上报失败');
+        } finally {
+            setReporting(false);
+        }
+    };
+
     return (
         <div className="h-full flex flex-col animate-fadeIn">
             <div className="shrink-0 flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-4">
@@ -115,12 +135,24 @@ const LogViewer: React.FC = () => {
                         导出 JSON
                     </button>
                     <button
+                        onClick={handleSubmitReport}
+                        disabled={reporting || filteredLogs.length === 0 || quota.remaining <= 0}
+                        className="px-3 py-2 text-xs rounded-md border border-emerald-500/45 text-emerald-200 bg-emerald-950/25 hover:border-emerald-300/60 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {reporting ? '上报中...' : '上报日志'}
+                    </button>
+                    <button
                         onClick={clearDiagnosticLogs}
                         className="px-3 py-2 text-xs rounded-md border border-red-900/60 text-red-300 bg-red-950/20 hover:bg-red-900/25"
                     >
                         清空日志
                     </button>
                 </div>
+            </div>
+
+            <div className="shrink-0 mb-3 rounded-lg border border-emerald-500/20 bg-emerald-950/10 px-3 py-2 text-xs leading-5 text-emerald-100/85">
+                每台设备每天最多上报 {quota.limit} 次诊断日志，今天已用 {quota.used} 次，剩余 {quota.remaining} 次。上报内容会保存到云端诊断桶，保留 1 个月后过期。
+                {reportMessage && <div className="mt-1 text-wuxia-gold">{reportMessage}</div>}
             </div>
 
             <div className="shrink-0 grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
