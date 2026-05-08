@@ -2931,7 +2931,15 @@ export const useGame = () => {
         估算AI输出Token,
         计算回复耗时秒,
         触发新增NPC自动生图,
-        触发主角自动生图: (player) => 主角自动生图处理器Ref.current(player),
+        触发主角自动生图: (player) => {
+            const handler = 主角自动生图处理器Ref.current;
+            if (typeof handler !== 'function') return;
+            try {
+                handler(player);
+            } catch (error) {
+                console.warn('主角自动生图处理器异常，已避免打断开局流程', error);
+            }
+        },
         触发场景自动生图,
         提取新增NPC列表,
         获取当前视觉设置快照: () => 规范化视觉设置(深拷贝(visualConfigRef.current || visualConfig)),
@@ -3087,6 +3095,10 @@ export const useGame = () => {
         构建文生图额外要求
     });
     主角自动生图处理器Ref.current = (player: 角色数据结构) => {
+        if (typeof 自动生成主角图片 !== 'function') {
+            console.warn('主角自动生图方法尚未就绪，跳过本次自动触发');
+            return;
+        }
         void 自动生成主角图片(player).catch(() => undefined);
     };
 

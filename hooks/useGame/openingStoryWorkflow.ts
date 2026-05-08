@@ -844,7 +844,13 @@ export const 执行开场剧情生成工作流 = async (
         const 尽早触发主角开局生图 = () => {
             if (主角开局生图已触发) return;
             主角开局生图已触发 = true;
-            deps.触发主角自动生图?.(simulatedOpeningState.角色 || commandBaseState.角色);
+            const trigger = deps.触发主角自动生图;
+            if (typeof trigger !== 'function') return;
+            try {
+                trigger(simulatedOpeningState.角色 || commandBaseState.角色);
+            } catch (error) {
+                console.warn('主角开局生图触发失败，已保持开局流程继续', error);
+            }
         };
         let openingWorldInitUpdates: string[] = [];
 
@@ -963,6 +969,7 @@ export const 执行开场剧情生成工作流 = async (
                         rawText: typeof openingVariableResult?.rawText === 'string' ? openingVariableResult.rawText : '',
                         commandTexts: 构建带索引命令文本(variableCommands, openingVariableStartIndex)
                     });
+                    尽早触发主角开局生图();
                 }
             }
         } else {
@@ -970,6 +977,7 @@ export const 执行开场剧情生成工作流 = async (
                 phase: 'skipped',
                 text: '变量生成独立链路未启用，已跳过。'
             });
+            尽早触发主角开局生图();
         }
         尽早触发主角开局生图();
 
