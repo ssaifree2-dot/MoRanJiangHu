@@ -25,6 +25,13 @@ import { 核心_世界观 } from '../../prompts/core/world';
 import { 核心_境界体系 } from '../../prompts/core/realm';
 import { 设置键 } from '../../utils/settingsSchema';
 import { 环境时间转标准串 } from './timeUtils';
+import {
+    读取拍卖行状态,
+    保存拍卖行状态,
+    清理并补货,
+    构建拍卖行存储作用域,
+    type 拍卖行状态
+} from '../../services/auctionHouse';
 
 export type 自动存档快照结构 = {
     history?: 聊天记录结构[];
@@ -45,6 +52,7 @@ export type 自动存档快照结构 = {
     openingConfig?: OpeningConfig;
     visualConfig?: 视觉设置结构;
     sceneImageArchive?: 场景图片档案;
+    auctionHouse?: 拍卖行状态;
     force?: boolean;
 };
 
@@ -341,6 +349,13 @@ export const 创建存档数据 = (
     const sceneImageArchiveSource = snapshot?.sceneImageArchive
         ? snapshot.sceneImageArchive
         : currentState.sceneImageArchive;
+    const auctionHouseScope = 构建拍卖行存储作用域({
+        游戏初始时间: currentState.游戏初始时间,
+        角色数据: roleSource,
+        环境信息: envSource,
+        历史记录: historySnapshot
+    });
+    const auctionHouseSource = snapshot?.auctionHouse || 读取拍卖行状态(auctionHouseScope);
     const filteredSceneImageArchive = 过滤当前存档场景图片档案(sceneImageArchiveSource, historySnapshot, deps);
     const filteredCharacterAnchors = 过滤当前存档角色锚点(
         currentState.角色锚点列表,
@@ -393,7 +408,8 @@ export const 创建存档数据 = (
         场景图片档案: filteredSceneImageArchive,
         核心提示词快照,
         角色锚点列表: deps.深拷贝(filteredCharacterAnchors.anchors),
-        当前角色锚点ID: filteredCharacterAnchors.currentAnchorId
+        当前角色锚点ID: filteredCharacterAnchors.currentAnchorId,
+        拍卖行: deps.深拷贝(auctionHouseSource)
     };
 };
 
@@ -524,6 +540,16 @@ export const 执行读取存档 = async (
     );
     deps.设置角色锚点列表(loadedAnchors.anchors);
     deps.设置当前角色锚点ID(loadedAnchors.currentAnchorId);
+    const auctionScope = 构建拍卖行存储作用域(save);
+    const loadedAuctionState = save.拍卖行 && typeof save.拍卖行 === 'object'
+        ? 清理并补货(save.拍卖行 as 拍卖行状态)
+        : 读取拍卖行状态(auctionScope);
+    保存拍卖行状态(loadedAuctionState, auctionScope);
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('moranjianghu:auction-house-loaded', {
+            detail: { scope: auctionScope, state: loadedAuctionState }
+        }));
+    }
 
     deps.setHasSave(true);
     deps.setView('game');

@@ -619,6 +619,7 @@ export interface 存档结构 {
     核心提示词快照?: 核心提示词快照结构;
     角色锚点列表?: 角色锚点结构[];
     当前角色锚点ID?: string;
+    拍卖行?: any;
 }
 
 export type PromptCategory = '核心设定' | '数值设定' | '难度设定' | '写作设定' | '自定义';

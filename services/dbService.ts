@@ -176,7 +176,8 @@ const 清洗导入存档 = (raw: any): Omit<存档结构, 'id'> | null => {
         场景图片档案: raw.场景图片档案 && typeof raw.场景图片档案 === 'object' ? 深拷贝(raw.场景图片档案) : undefined,
         核心提示词快照: raw.核心提示词快照 && typeof raw.核心提示词快照 === 'object' ? 深拷贝(raw.核心提示词快照) : undefined,
         角色锚点列表: Array.isArray(raw.角色锚点列表) ? 深拷贝(raw.角色锚点列表) : undefined,
-        当前角色锚点ID: typeof raw.当前角色锚点ID === 'string' ? raw.当前角色锚点ID : undefined
+        当前角色锚点ID: typeof raw.当前角色锚点ID === 'string' ? raw.当前角色锚点ID : undefined,
+        拍卖行: raw.拍卖行 && typeof raw.拍卖行 === 'object' ? 深拷贝(raw.拍卖行) : undefined
     };
 
     return normalized;

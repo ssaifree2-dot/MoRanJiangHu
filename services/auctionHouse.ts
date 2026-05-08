@@ -75,7 +75,7 @@ export interface 拍卖行状态 {
     最近行情时间?: number;
 }
 
-const STORAGE_KEY = 'moranjianghu_auction_house_v1';
+const STORAGE_KEY_PREFIX = 'moranjianghu_auction_house_v2';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -147,27 +147,58 @@ const 限制类型 = (value: unknown, fallback: 物品类型 = '杂物'): 物品
 export const 格式化拍卖货币 = (value: number, currency: 拍卖货币 = '铜钱') =>
     `${Math.max(0, Math.floor(value)).toLocaleString('zh-CN')} ${货币单位[currency]?.名称 || currency}`;
 
-export const 读取拍卖行状态 = (): 拍卖行状态 => {
+const 规范化拍卖行存储作用域 = (scope?: string): string => {
+    const text = typeof scope === 'string' ? scope.trim() : '';
+    return text
+        ? text.replace(/[^a-zA-Z0-9_\-.|:\u4e00-\u9fa5]/g, '_').slice(0, 180)
+        : 'global';
+};
+
+const 获取拍卖行存储键 = (scope?: string): string => `${STORAGE_KEY_PREFIX}:${规范化拍卖行存储作用域(scope)}`;
+
+export const 构建拍卖行存储作用域 = (source?: {
+    游戏初始时间?: unknown;
+    角色数据?: any;
+    角色?: any;
+    环境信息?: any;
+    环境?: any;
+    历史记录?: unknown;
+}): string => {
+    const role = source?.角色数据 || source?.角色 || {};
+    const name = typeof role?.姓名 === 'string' && role.姓名.trim() ? role.姓名.trim() : '无名';
+    const birth = typeof role?.生辰 === 'string' && role.生辰.trim() ? role.生辰.trim() : '';
+    const initialTime = typeof source?.游戏初始时间 === 'string' && source.游戏初始时间.trim()
+        ? source.游戏初始时间.trim()
+        : '';
+    const firstHistory = Array.isArray(source?.历史记录) ? source.历史记录[0] as any : null;
+    const firstStamp = firstHistory?.timestamp ? String(firstHistory.timestamp) : '';
+    return [name, birth, initialTime, firstStamp].filter(Boolean).join('|') || 'global';
+};
+
+const 规范化拍卖行状态 = (parsed: Partial<拍卖行状态> | null | undefined): 拍卖行状态 => 清理并补货({
+    拍卖品列表: Array.isArray(parsed?.拍卖品列表) ? parsed.拍卖品列表 : [],
+    交易记录: Array.isArray(parsed?.交易记录) ? parsed.交易记录 : [],
+    最近补货时间: 读数(parsed?.最近补货时间),
+    行情列表: Array.isArray(parsed?.行情列表) ? parsed.行情列表 : [],
+    最近行情时间: 读数(parsed?.最近行情时间),
+});
+
+export const 读取拍卖行状态 = (scope?: string): 拍卖行状态 => {
     if (typeof window === 'undefined') return 创建默认拍卖行状态();
     try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
+        const scopedKey = 获取拍卖行存储键(scope);
+        const raw = window.localStorage.getItem(scopedKey);
         if (!raw) return 创建默认拍卖行状态();
         const parsed = JSON.parse(raw) as Partial<拍卖行状态>;
-        return 清理并补货({
-            拍卖品列表: Array.isArray(parsed.拍卖品列表) ? parsed.拍卖品列表 : [],
-            交易记录: Array.isArray(parsed.交易记录) ? parsed.交易记录 : [],
-            最近补货时间: 读数(parsed.最近补货时间),
-            行情列表: Array.isArray(parsed.行情列表) ? parsed.行情列表 : [],
-            最近行情时间: 读数(parsed.最近行情时间),
-        });
+        return 规范化拍卖行状态(parsed);
     } catch {
         return 创建默认拍卖行状态();
     }
 };
 
-export const 保存拍卖行状态 = (state: 拍卖行状态) => {
+export const 保存拍卖行状态 = (state: 拍卖行状态, scope?: string) => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(获取拍卖行存储键(scope), JSON.stringify(state));
 };
 
 export const 创建默认拍卖行状态 = (): 拍卖行状态 => 清理并补货({
@@ -354,9 +385,9 @@ export const 投放事件拍卖品 = (state: 拍卖行状态, params: 拍卖行�
     };
 };
 
-export const 投放事件拍卖品并保存 = (params: 拍卖行事件投放参数): 拍卖行状态 => {
-    const next = 投放事件拍卖品(读取拍卖行状态(), params);
-    保存拍卖行状态(next);
+export const 投放事件拍卖品并保存 = (params: 拍卖行事件投放参数, scope?: string): 拍卖行状态 => {
+    const next = 投放事件拍卖品(读取拍卖行状态(scope), params);
+    保存拍卖行状态(next, scope);
     recordDiagnosticLog('info', ['拍卖行事件投放', params.事件名称, params.来源描述 || '', params.主线类型 || '']);
     return next;
 };

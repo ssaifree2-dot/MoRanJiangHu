@@ -20,7 +20,7 @@ import { isDynamicImportFetchError, lazyImportWithReload } from './utils/lazyImp
 import { 小说拆分后台调度服务 } from './services/novelDecompositionScheduler';
 import { checkForAppUpdate, subscribeAppUpdateProgress, type AppUpdateProgressState } from './services/appUpdate';
 import { RELEASE_INFO } from './data/releaseInfo';
-import { 读取拍卖行状态, 保存拍卖行状态, 清理并补货, 投放事件拍卖品, 从剧情响应构建拍卖行投放参数, type 拍卖行状态 } from './services/auctionHouse';
+import { 读取拍卖行状态, 保存拍卖行状态, 清理并补货, 投放事件拍卖品, 从剧情响应构建拍卖行投放参数, 构建拍卖行存储作用域, type 拍卖行状态 } from './services/auctionHouse';
 import './services/diagnosticLog';
 
 const RELEASE_NOTES_SUPPRESS_DATE_KEY = 'moranjianghu.releaseNotesSuppressDate';
@@ -231,6 +231,12 @@ const App: React.FC = () => {
     });
     const lastUpdateCheckAtRef = React.useRef(0);
     const releaseNotesAutoOpenedRef = React.useRef(false);
+    const auctionHouseScope = React.useMemo(() => 构建拍卖行存储作用域({
+        游戏初始时间: state.游戏初始时间,
+        角色数据: state.角色,
+        环境信息: state.环境,
+        历史记录: state.历史记录
+    }), [state.游戏初始时间, state.角色, state.环境, state.历史记录]);
     const runAppUpdateCheck = React.useCallback(async (options?: { silentNoUpdate?: boolean; auto?: boolean }) => {
         try {
             await checkForAppUpdate(options);
@@ -246,9 +252,18 @@ const App: React.FC = () => {
 
     React.useEffect(() => subscribeAppUpdateProgress(setAppUpdateProgress), []);
     React.useEffect(() => {
-        const next = 清理并补货(读取拍卖行状态());
+        const next = 清理并补货(读取拍卖行状态(auctionHouseScope));
         setAuctionHouseState(next);
-        保存拍卖行状态(next);
+        保存拍卖行状态(next, auctionHouseScope);
+    }, [auctionHouseScope]);
+    React.useEffect(() => {
+        const handleAuctionLoaded = (event: Event) => {
+            const detail = (event as CustomEvent<{ scope?: string; state?: 拍卖行状态 }>).detail;
+            if (!detail?.state) return;
+            setAuctionHouseState(detail.state);
+        };
+        window.addEventListener('moranjianghu:auction-house-loaded', handleAuctionLoaded);
+        return () => window.removeEventListener('moranjianghu:auction-house-loaded', handleAuctionLoaded);
     }, []);
     const auctionBridgeHandledRef = React.useRef<Set<string>>(new Set());
     function handleMobileMenuAction(menu: string) {
@@ -817,11 +832,11 @@ const App: React.FC = () => {
         if (!bridge.shouldDispatch || !bridge.params) return;
         setAuctionHouseState((prev) => {
             const next = 投放事件拍卖品(prev, bridge.params!);
-            保存拍卖行状态(next);
+            保存拍卖行状态(next, auctionHouseScope);
             return next;
         });
         console.info('[拍卖行桥接] 已从剧情回合投放事件货品', bridge.reason, bridge.params.事件名称);
-    }, [latestAssistantMessage, currentEnvTime, state.环境]);
+    }, [latestAssistantMessage, currentEnvTime, state.环境, auctionHouseScope]);
 
     const activeMobileWindow =
         showCharacter ? '角色' :
@@ -2276,6 +2291,7 @@ const App: React.FC = () => {
                                 character={state.角色}
                                 auctionState={auctionHouseState}
                                 onAuctionStateChange={setAuctionHouseState}
+                                storageScope={auctionHouseScope}
                                 onCharacterChange={(nextCharacter: any) => {
                                     setters.setCharacter(nextCharacter);
                                     void actions.performAutoSave?.({ role: nextCharacter, force: true });
