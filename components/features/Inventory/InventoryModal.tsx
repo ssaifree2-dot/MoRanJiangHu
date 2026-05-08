@@ -1,9 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import { getRarityNameClass, getRarityStyles } from '../../ui/rarityStyles';
+import {
+    自动装备最佳装备,
+    装备物品到角色,
+    卸下角色装备,
+    是否可装备物品,
+    获取物品可装备槽位,
+    获取装备槽位标签
+} from '../../../utils/equipmentActions';
 
 interface Props {
     character: any;
     onClose: () => void;
+    onCharacterChange?: (nextCharacter: any) => void;
 }
 
 type ItemCategory = '全部' | '装备' | '消耗品' | '材料' | '秘籍' | '杂物';
@@ -96,9 +105,10 @@ const renderItemIcon = (type: string, className: string) => {
     return icons[type] || icons.杂物;
 };
 
-const InventoryModal: React.FC<Props> = ({ character, onClose }) => {
+const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange }) => {
     const [activeCategory, setActiveCategory] = useState<ItemCategory>('全部');
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [actionMessage, setActionMessage] = useState('');
 
     const items = Array.isArray(character?.物品列表) ? character.物品列表 : [];
     const totalWeight = getSafeNumber(character?.当前负重);
@@ -131,6 +141,41 @@ const InventoryModal: React.FC<Props> = ({ character, onClose }) => {
     const totalValue = items.reduce((sum, item) => (
         sum + getSafeNumber(item?.价值) * getSafeNumber(item?.堆叠数量, 1)
     ), 0);
+    const selectedEquipSlots = selectedItem ? 获取物品可装备槽位(selectedItem) : [];
+    const selectedCanEquip = selectedItem ? 是否可装备物品(selectedItem) : false;
+
+    const applyCharacterChange = (nextCharacter: any, selectedItemRef?: string) => {
+        onCharacterChange?.(nextCharacter);
+        if (selectedItemRef) {
+            const nextItem = Array.isArray(nextCharacter?.物品列表)
+                ? nextCharacter.物品列表.find((item: any) => item?.ID === selectedItemRef || item?.名称 === selectedItemRef)
+                : null;
+            if (nextItem) setSelectedItem(nextItem);
+        }
+    };
+
+    const handleEquipSelected = () => {
+        if (!selectedItem || !onCharacterChange) return;
+        const itemRef = getSafeText(selectedItem?.ID) || getSafeText(selectedItem?.名称);
+        const nextCharacter = 装备物品到角色(character, itemRef, selectedEquipSlots[0]);
+        applyCharacterChange(nextCharacter, itemRef);
+        setActionMessage(`已装备到${获取装备槽位标签(selectedEquipSlots[0])}`);
+    };
+
+    const handleUnequipSelected = () => {
+        if (!selectedItem || !onCharacterChange) return;
+        const itemRef = getSafeText(selectedItem?.ID) || getSafeText(selectedItem?.名称);
+        const nextCharacter = 卸下角色装备(character, itemRef);
+        applyCharacterChange(nextCharacter, itemRef);
+        setActionMessage('已卸下装备');
+    };
+
+    const handleEquipBest = () => {
+        if (!onCharacterChange) return;
+        const nextCharacter = 自动装备最佳装备(character);
+        applyCharacterChange(nextCharacter, getSafeText(selectedItem?.ID) || getSafeText(selectedItem?.名称));
+        setActionMessage('已自动换上当前最优装备');
+    };
 
     return (
         <div className="fixed inset-0 z-[200] hidden items-center justify-center bg-black/90 p-4 backdrop-blur-sm animate-fadeIn md:flex">
@@ -229,6 +274,14 @@ const InventoryModal: React.FC<Props> = ({ character, onClose }) => {
                         ))}
 
                         <div className="mt-auto space-y-3 border-t border-wuxia-gold/10 pt-6">
+                            <button
+                                type="button"
+                                onClick={handleEquipBest}
+                                disabled={!onCharacterChange}
+                                className="w-full rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold tracking-[0.12em] text-amber-200 transition hover:border-amber-300/60 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                自动穿戴最佳
+                            </button>
                             <div className="rounded-lg border border-wuxia-gold/5 bg-black/40 p-3">
                                 <div className="mb-1 font-mono text-[9px] uppercase tracking-widest text-gray-500">Total Value</div>
                                 <div className="flex items-center gap-1.5 font-serif text-sm text-wuxia-gold">
@@ -323,7 +376,7 @@ const InventoryModal: React.FC<Props> = ({ character, onClose }) => {
                                             </span>
                                             {selectedItem?.当前装备部位 ? (
                                                 <span className="rounded-full border border-blue-400/20 bg-blue-500/10 px-2 py-1 text-blue-300">
-                                                    已装备
+                                                    已装备：{selectedItem.当前装备部位}
                                                 </span>
                                             ) : null}
                                         </div>
@@ -344,6 +397,38 @@ const InventoryModal: React.FC<Props> = ({ character, onClose }) => {
                                 <div className="rounded-xl border border-white/5 bg-black/25 p-4 leading-relaxed text-gray-200/85">
                                     {getSafeText(selectedItem?.描述, '暂无描述')}
                                 </div>
+
+                                {selectedCanEquip ? (
+                                    <div className="rounded-xl border border-amber-400/15 bg-amber-500/5 p-4">
+                                        <div className="mb-3 flex items-center justify-between gap-3">
+                                            <span className="text-xs font-semibold tracking-[0.16em] text-amber-200">装备操作</span>
+                                            <span className="truncate text-[10px] text-gray-500">
+                                                {selectedItem?.当前装备部位 ? `当前：${selectedItem.当前装备部位}` : `可装备：${selectedEquipSlots.map(获取装备槽位标签).join(' / ')}`}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleEquipSelected}
+                                                disabled={!onCharacterChange}
+                                                className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:border-emerald-300/60 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                            >
+                                                装备
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleUnequipSelected}
+                                                disabled={!onCharacterChange || !selectedItem?.当前装备部位}
+                                                className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-100 transition hover:border-sky-300/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                            >
+                                                卸下
+                                            </button>
+                                        </div>
+                                        {actionMessage ? (
+                                            <div className="mt-2 truncate text-[10px] text-amber-200/80">{actionMessage}</div>
+                                        ) : null}
+                                    </div>
+                                ) : null}
 
                                 <div className="grid grid-cols-2 gap-3 rounded-xl border border-white/5 bg-black/25 p-4">
                                     <div className="flex justify-between"><span className="text-gray-500">类型</span><span>{getSafeText(selectedItem?.类型, '未知')}</span></div>

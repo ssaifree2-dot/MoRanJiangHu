@@ -1,6 +1,7 @@
 import { 角色数据结构, 环境信息结构, 装备槽位 } from '../../types';
 import { normalizeCanonicalGameTime, 结构化时间转标准串 } from './timeUtils';
 import { 压缩图片资源字段 } from '../../utils/imageAssets';
+import { 自动装备最佳装备 } from '../../utils/equipmentActions';
 
 const 深拷贝 = <T,>(data: T): T => JSON.parse(JSON.stringify(data)) as T;
 const 默认装备模板 = {
@@ -565,7 +566,7 @@ const 规范化角色物品容器映射 = (rawRole?: any): 角色数据结构 =>
 
     const sourceList = Array.isArray(role?.物品列表) ? role.物品列表 : [];
 
-    const deduped: any[] = [];
+    let deduped: any[] = [];
     const seenIds = new Set<string>();
     sourceList.forEach((item: any, idx: number) => {
         const normalizedItem = 规范化单个物品(item, idx);
@@ -666,6 +667,15 @@ const 规范化角色物品容器映射 = (rawRole?: any): 角色数据结构 =>
         } else {
             delete item.当前装备部位;
         }
+    });
+
+    const autoEquippedRole = 自动装备最佳装备({ ...(role as any), 物品列表: deduped } as 角色数据结构) as any;
+    role.装备 = autoEquippedRole.装备;
+    deduped = Array.isArray(autoEquippedRole.物品列表) ? autoEquippedRole.物品列表 : deduped;
+    equippedByItemId.clear();
+    deduped.forEach((item) => {
+        const equipSlot = 装备槽位集合.has(item?.当前装备部位) ? item.当前装备部位 as 装备槽位 : undefined;
+        if (equipSlot && item?.ID) equippedByItemId.set(item.ID, equipSlot);
     });
 
     role.当前负重 = 自动整理超重物品(

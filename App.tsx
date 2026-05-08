@@ -2251,11 +2251,19 @@ const App: React.FC = () => {
                             {isMobile ? (
                                 <MobileInventoryModal 
                                     character={state.角色} 
+                                    onCharacterChange={(nextCharacter: any) => {
+                                        setters.setCharacter(nextCharacter);
+                                        void actions.performAutoSave?.({ role: nextCharacter, force: true });
+                                    }}
                                     onClose={() => setters.setShowInventory(false)} 
                                 />
                             ) : (
                                 <InventoryModal 
                                     character={state.角色} 
+                                    onCharacterChange={(nextCharacter: any) => {
+                                        setters.setCharacter(nextCharacter);
+                                        void actions.performAutoSave?.({ role: nextCharacter, force: true });
+                                    }}
                                     onClose={() => setters.setShowInventory(false)} 
                                 />
                             )}

@@ -1,9 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import { getRarityNameClass, getRarityStyles } from '../../ui/rarityStyles';
+import {
+    自动装备最佳装备,
+    装备物品到角色,
+    卸下角色装备,
+    是否可装备物品,
+    获取物品可装备槽位,
+    获取装备槽位标签
+} from '../../../utils/equipmentActions';
 
 interface Props {
     character: any;
     onClose: () => void;
+    onCharacterChange?: (nextCharacter: any) => void;
 }
 
 type ItemCategory = '全部' | '装备' | '消耗品' | '材料' | '秘籍' | '杂物';
@@ -48,9 +57,10 @@ const renderItemIcon = (type: string, className: string) => {
     }
 };
 
-const MobileInventoryModal: React.FC<Props> = ({ character, onClose }) => {
+const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange }) => {
     const [activeCategory, setActiveCategory] = useState<ItemCategory>('全部');
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [actionMessage, setActionMessage] = useState('');
 
     const items = Array.isArray(character?.物品列表) ? character.物品列表 : [];
     const totalWeight = getSafeNumber(character?.当前负重);
@@ -78,6 +88,41 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose }) => {
             return getSafeText(a?.名称).localeCompare(getSafeText(b?.名称), 'zh-Hans-CN');
         });
     }, [activeCategory, items]);
+    const selectedEquipSlots = selectedItem ? 获取物品可装备槽位(selectedItem) : [];
+    const selectedCanEquip = selectedItem ? 是否可装备物品(selectedItem) : false;
+
+    const applyCharacterChange = (nextCharacter: any, selectedItemRef?: string) => {
+        onCharacterChange?.(nextCharacter);
+        if (selectedItemRef) {
+            const nextItem = Array.isArray(nextCharacter?.物品列表)
+                ? nextCharacter.物品列表.find((item: any) => item?.ID === selectedItemRef || item?.名称 === selectedItemRef)
+                : null;
+            if (nextItem) setSelectedItem(nextItem);
+        }
+    };
+
+    const handleEquipBest = () => {
+        if (!onCharacterChange) return;
+        const nextCharacter = 自动装备最佳装备(character);
+        applyCharacterChange(nextCharacter, getSafeText(selectedItem?.ID) || getSafeText(selectedItem?.名称));
+        setActionMessage('已自动换上当前最优装备');
+    };
+
+    const handleEquipSelected = () => {
+        if (!selectedItem || !onCharacterChange) return;
+        const itemRef = getSafeText(selectedItem?.ID) || getSafeText(selectedItem?.名称);
+        const nextCharacter = 装备物品到角色(character, itemRef, selectedEquipSlots[0]);
+        applyCharacterChange(nextCharacter, itemRef);
+        setActionMessage(`已装备到${获取装备槽位标签(selectedEquipSlots[0])}`);
+    };
+
+    const handleUnequipSelected = () => {
+        if (!selectedItem || !onCharacterChange) return;
+        const itemRef = getSafeText(selectedItem?.ID) || getSafeText(selectedItem?.名称);
+        const nextCharacter = 卸下角色装备(character, itemRef);
+        applyCharacterChange(nextCharacter, itemRef);
+        setActionMessage('已卸下装备');
+    };
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 animate-fadeIn">
@@ -97,6 +142,14 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose }) => {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-gray-800 bg-black/20 px-3 py-2 no-scrollbar">
+                    <button
+                        type="button"
+                        onClick={handleEquipBest}
+                        disabled={!onCharacterChange}
+                        className="shrink-0 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-100 disabled:opacity-40"
+                    >
+                        最佳
+                    </button>
                     {CATEGORIES.map((category) => (
                         <button
                             key={category}
@@ -190,6 +243,38 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose }) => {
                                 <div className="flex justify-between"><span className="text-gray-500">总价值</span><span className="font-mono text-amber-400">{getSafeNumber(selectedItem?.价值) * getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
                                 <div className="flex justify-between"><span className="text-gray-500">耐久度</span><span className="font-mono">{getSafeNumber(selectedItem?.当前耐久)}/{getSafeNumber(selectedItem?.最大耐久)}</span></div>
                             </div>
+
+                            {selectedCanEquip ? (
+                                <div className="rounded border border-amber-500/20 bg-amber-500/5 p-2">
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                        <span className="text-[10px] font-bold text-amber-200">装备操作</span>
+                                        <span className="truncate text-[10px] text-gray-500">
+                                            {selectedItem?.当前装备部位 ? `当前：${selectedItem.当前装备部位}` : selectedEquipSlots.map(获取装备槽位标签).join(' / ')}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleEquipSelected}
+                                            disabled={!onCharacterChange}
+                                            className="rounded bg-emerald-700/40 px-3 py-2 text-xs font-bold text-emerald-100 disabled:opacity-40"
+                                        >
+                                            装备
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleUnequipSelected}
+                                            disabled={!onCharacterChange || !selectedItem?.当前装备部位}
+                                            className="rounded bg-sky-700/40 px-3 py-2 text-xs font-bold text-sky-100 disabled:opacity-40"
+                                        >
+                                            卸下
+                                        </button>
+                                    </div>
+                                    {actionMessage ? (
+                                        <div className="mt-2 truncate text-[10px] text-amber-200/80">{actionMessage}</div>
+                                    ) : null}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 ) : null}
