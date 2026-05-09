@@ -1,5 +1,6 @@
 import React from 'react';
 import type { 世界书结构, 世界书条目结构, 世界书作用域, 世界书类型, 世界书条目形态, 世界书预设组结构, 内置提示词条目结构 } from '../../../types';
+import { bundledDefaultWorldbookIds, bundledWorldbookPresets, loadAllBundledWorldbookPresets, loadBundledWorldbookPreset } from '../../../data/worldbookPresets';
 import { 内置提示词分类顺序, 构建内置提示词导出数据, 解析内置提示词导入数据, 规范化内置提示词列表 } from '../../../utils/builtinPrompts';
 import { 世界书作用域选项, 世界书类型选项, 世界书条目形态选项, 世界书注入模式选项, 创建空世界书, 创建空世界书条目, 创建空世界书预设组, 获取世界书条目注入说明, 构建世界书导出数据, 构建世界书预设组导出数据, 应用世界书预设组到世界书列表, 解析世界书导入数据, 解析世界书预设组导入数据, 规范化世界书列表, 规范化世界书预设组列表 } from '../../../utils/worldbook';
 import type { ConfirmOptions } from '../../ui/InAppConfirmModal';
@@ -101,6 +102,7 @@ const WorldbookManagerModal: React.FC<Props> = ({ builtinPromptEntries, worldboo
     const selectedBook = bookDraft.find((item) => item.id === selectedBookId) || bookDraft[0] || null;
     const selectedEntry = selectedBook?.条目.find((item) => item.id === selectedEntryId) || selectedBook?.条目[0] || null;
     const selectedGroup = groupDraft.find((item) => item.id === selectedGroupId) || groupDraft[0] || null;
+    const isBundledDefaultWorldbook = !!selectedBook && bundledDefaultWorldbookIds.includes(selectedBook.id);
 
     React.useEffect(() => { if (!selectedBuiltin && builtinDraft[0]) setSelectedBuiltinId(builtinDraft[0].id); }, [builtinDraft, selectedBuiltin]);
     React.useEffect(() => { if (!selectedBook && bookDraft[0]) setSelectedBookId(bookDraft[0].id); }, [bookDraft, selectedBook]);
@@ -138,7 +140,7 @@ const WorldbookManagerModal: React.FC<Props> = ({ builtinPromptEntries, worldboo
         event.target.value = '';
         if (!file) return;
         const imported = 解析世界书导入数据(await 读取JSON文件(file));
-        setBookDraft((prev) => 规范化世界书列表([...prev, ...imported]));
+        mergeImportedWorldbooks(imported, file.name || '外部世界书');
     };
 
     const handleImportGroups = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,6 +150,73 @@ const WorldbookManagerModal: React.FC<Props> = ({ builtinPromptEntries, worldboo
         const imported = 解析世界书预设组导入数据(await 读取JSON文件(file));
         setGroupDraft((prev) => 规范化世界书预设组列表([...prev, ...imported]));
     };
+
+    const mergeImportedWorldbooks = React.useCallback((imported: 世界书结构[], sourceLabel: string) => {
+        if (!Array.isArray(imported) || imported.length <= 0) {
+            setMessage(`${sourceLabel} 中没有可导入的世界书。`);
+            return;
+        }
+        const firstBook = imported[0];
+        setBookDraft((prev) => 规范化世界书列表([...prev, ...imported]));
+        setSelectedBookId(firstBook?.id || '');
+        setSelectedEntryId(firstBook?.条目?.[0]?.id || '');
+        setMessage(`已导入 ${sourceLabel}（${imported.length} 本世界书）。`);
+    }, []);
+
+    const handleImportBundledWorldbookPreset = async (preset: (typeof bundledWorldbookPresets)[number]) => {
+        try {
+            mergeImportedWorldbooks(await loadBundledWorldbookPreset(preset), preset.title);
+        } catch (error: any) {
+            setMessage(error?.message || `${preset.title} 导入失败。`);
+        }
+    };
+
+    const handleImportAllBundledWorldbooks = async () => {
+        try {
+            const payloads = await loadAllBundledWorldbookPresets();
+            mergeImportedWorldbooks(
+                payloads,
+                `名器系列本地预置：${bundledWorldbookPresets.map((item) => item.title).join('、')}`
+            );
+        } catch (error: any) {
+            setMessage(error?.message || '名器系列本地预置导入失败。');
+        }
+    };
+
+    const renderBundledWorldbookPresetPanel = () => (
+        <div className="rounded-2xl border border-wuxia-gold/10 bg-black/30 p-3">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <div className="text-sm font-serif text-wuxia-gold">本地世界书预置</div>
+                    <div className="mt-1 text-[11px] text-gray-500">这三本现已作为默认启用的附加世界书载入。这里保留恢复入口，方便你在手动改过内容后重新套回原始版本。</div>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => { void handleImportAllBundledWorldbooks(); }}
+                    className="rounded-lg border border-wuxia-gold/30 bg-wuxia-gold/10 px-3 py-1.5 text-xs text-wuxia-gold"
+                >
+                    恢复全部
+                </button>
+            </div>
+            <div className="mt-3 space-y-2">
+                {bundledWorldbookPresets.map((preset) => (
+                    <div key={preset.id} className="flex items-center justify-between gap-3 rounded-xl border border-wuxia-gold/10 bg-black/20 px-3 py-2">
+                        <div className="min-w-0">
+                            <div className="truncate text-sm text-gray-200">{preset.title}</div>
+                            <div className="mt-1 text-[10px] text-gray-500">{preset.description}</div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => { void handleImportBundledWorldbookPreset(preset); }}
+                            className="shrink-0 rounded-lg border border-wuxia-gold/20 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:border-wuxia-gold/40 hover:text-wuxia-gold"
+                        >
+                            恢复
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 
     const 切换世界书区块展开 = (bookId: string, section: 'description' | 'outline') => {
         const key = `${bookId}:${section}`;
@@ -216,6 +285,7 @@ const WorldbookManagerModal: React.FC<Props> = ({ builtinPromptEntries, worldboo
                     ) : (
                         <div className="grid h-full gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
                             <div className="min-h-0 overflow-auto rounded-2xl border border-wuxia-gold/15 bg-black/35 p-3 space-y-4">
+                                {renderBundledWorldbookPresetPanel()}
                                 <div><div className="mb-3 flex items-center justify-between"><div><div className="text-base font-serif text-wuxia-gold">附加世界书</div><div className="text-xs text-gray-500">这里只做追加注入，不再承载内置提示词。</div></div><div className="flex items-center gap-2"><button type="button" onClick={() => { const nextBook = 创建空世界书(); setBookDraft((prev) => [nextBook, ...prev]); setSelectedBookId(nextBook.id); setSelectedEntryId(nextBook.条目[0]?.id || ''); }} className="rounded-lg border border-wuxia-gold/30 px-3 py-1.5 text-xs text-wuxia-gold">新建</button><button type="button" onClick={() => 下载JSON文件('extra-worldbooks.json', 构建世界书导出数据(bookDraft))} className="rounded-lg border border-wuxia-gold/20 px-3 py-1.5 text-xs text-gray-300">导出</button><button type="button" onClick={() => worldbookImportRef.current?.click()} className="rounded-lg border border-wuxia-gold/20 px-3 py-1.5 text-xs text-gray-300">导入</button></div></div><div className="space-y-2">{bookDraft.map((book) => <div key={book.id} className={`rounded-xl border p-3 ${selectedBook?.id === book.id ? 'border-wuxia-gold/60 bg-wuxia-gold/10' : 'border-wuxia-gold/10 bg-black/30'}`}><div className="flex items-start justify-between gap-3"><button type="button" onClick={() => setSelectedBookId(book.id)} className="flex-1 text-left"><div className={`font-serif ${selectedBook?.id === book.id ? 'text-wuxia-gold' : 'text-gray-200'}`}>{book.标题}</div><div className="mt-1 text-[11px] text-gray-500">{book.描述 || '无描述'}</div></button><勾选胶囊 checked={selectedPackBookIds.includes(book.id)} onChange={() => setSelectedPackBookIds((prev) => prev.includes(book.id) ? prev.filter((id) => id !== book.id) : [...prev, book.id])} label="打包" /></div></div>)}</div></div>
                                 <div className="rounded-2xl border border-wuxia-gold/10 bg-black/30 p-3"><div className="mb-3 flex items-center justify-between"><div><div className="text-sm font-serif text-wuxia-gold">附加世界书预设组</div><div className="text-[11px] text-gray-500">只保存附加世界书启用状态。</div></div><div className="flex items-center gap-2"><button type="button" onClick={() => { const nextGroup = 创建空世界书预设组(bookDraft.filter((book) => selectedPackBookIds.includes(book.id))); setGroupDraft((prev) => [nextGroup, ...prev]); setSelectedGroupId(nextGroup.id); }} className="rounded-lg border border-wuxia-gold/30 px-3 py-1.5 text-xs text-wuxia-gold">建组</button><button type="button" onClick={() => 下载JSON文件('extra-worldbook-preset-groups.json', 构建世界书预设组导出数据(groupDraft))} className="rounded-lg border border-wuxia-gold/20 px-3 py-1.5 text-xs text-gray-300">导出</button><button type="button" onClick={() => groupImportRef.current?.click()} className="rounded-lg border border-wuxia-gold/20 px-3 py-1.5 text-xs text-gray-300">导入</button></div></div><div className="space-y-2">{groupDraft.map((group) => <button key={group.id} type="button" onClick={() => setSelectedGroupId(group.id)} className={`w-full rounded-xl border p-3 text-left ${selectedGroup?.id === group.id ? 'border-wuxia-gold/60 bg-wuxia-gold/10' : 'border-wuxia-gold/10 bg-black/30'}`}><div className={`font-serif ${selectedGroup?.id === group.id ? 'text-wuxia-gold' : 'text-gray-200'}`}>{group.名称}</div><div className="mt-1 text-[11px] text-gray-500">{group.描述 || '无描述'}</div></button>)}</div></div>
                             </div>
@@ -230,7 +300,14 @@ const WorldbookManagerModal: React.FC<Props> = ({ builtinPromptEntries, worldboo
                                                 </select>
                                                 <button type="button" onClick={() => 新增条目到当前世界书(newEntryShape)} className="rounded-lg border border-wuxia-gold/20 px-3 py-1.5 text-xs text-gray-300">新增条目</button>
                                                 <button type="button" onClick={async () => { if (!selectedEntry) return; if (!(await confirmDelete('删除附加条目', `确定删除“${selectedEntry.标题}”吗？`))) return; setBookDraft((prev) => prev.map((book) => book.id === selectedBook.id ? { ...book, 条目: book.条目.filter((entry) => entry.id !== selectedEntry.id), 更新时间: Date.now() } : book)); setSelectedEntryId(''); }} className="rounded-lg border border-red-900/40 px-3 py-1.5 text-xs text-red-300">删除条目</button>
-                                                <button type="button" onClick={async () => { if (!(await confirmDelete('删除附加世界书', `确定删除“${selectedBook.标题}”吗？`))) return; setBookDraft((prev) => prev.filter((book) => book.id !== selectedBook.id)); setSelectedBookId(''); setSelectedEntryId(''); }} className="rounded-lg border border-red-900/40 px-3 py-1.5 text-xs text-red-300">删除世界书</button>
+                                                <button
+                                                    type="button"
+                                                    disabled={isBundledDefaultWorldbook}
+                                                    onClick={async () => { if (!(await confirmDelete('删除附加世界书', `确定删除“${selectedBook.标题}”吗？`))) return; setBookDraft((prev) => prev.filter((book) => book.id !== selectedBook.id)); setSelectedBookId(''); setSelectedEntryId(''); }}
+                                                    className={`rounded-lg border border-red-900/40 px-3 py-1.5 text-xs text-red-300 ${isBundledDefaultWorldbook ? 'cursor-not-allowed opacity-40' : ''}`}
+                                                >
+                                                    删除世界书
+                                                </button>
                                             </div>
                                         </div>
                                         <div className="grid gap-3 md:grid-cols-2">
@@ -244,6 +321,11 @@ const WorldbookManagerModal: React.FC<Props> = ({ builtinPromptEntries, worldboo
                                                     <ToggleSwitch checked={selectedBook.启用 !== false} onChange={(next) => setBookDraft((prev) => prev.map((book) => book.id === selectedBook.id ? { ...book, 启用: next, 更新时间: Date.now() } : book))} ariaLabel={`切换附加世界书 ${selectedBook.标题 || '未命名'} 启用状态`} />
                                                 </div>
                                             </div>
+                                            {isBundledDefaultWorldbook && (
+                                                <div className="md:col-span-2 rounded-xl border border-wuxia-gold/10 bg-wuxia-gold/5 px-3 py-2 text-xs text-gray-400">
+                                                    这是默认启用的本地世界书。你可以关闭、编辑，或者在左侧“本地世界书预置”里恢复原始内容；为了避免刷新后自动回补造成困惑，这三本不提供彻底删除。
+                                                </div>
+                                            )}
                                             <div className="md:col-span-2">
                                                 <button type="button" className={sectionToggleClass} onClick={() => 切换世界书区块展开(selectedBook.id, 'description')}>
                                                     <span>

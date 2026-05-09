@@ -15,6 +15,7 @@ import type {
     词组转化器提示词预设结构
 } from '../../../types';
 import * as dbService from '../../../services/dbService';
+import { bundledDefaultWorldbookIds, loadAllBundledWorldbookPresets } from '../../../data/worldbookPresets';
 import { 按场景图上限裁剪档案 } from '../sceneImageArchiveWorkflow';
 import { 规范化游戏设置 } from '../../../utils/gameSettings';
 import { 规范化图片管理设置 } from '../../../utils/imageManagerSettings';
@@ -113,7 +114,19 @@ export const 创建设置持久化工作流 = (deps: 设置持久化工作流依
     const loadWorldbooks = async () => {
         try {
             const savedEntries = await dbService.读取设置(世界书存储键);
-            deps.设置世界书列表(规范化世界书列表(savedEntries));
+            const normalizedSavedEntries = 规范化世界书列表(savedEntries);
+            let bundledDefaults: 世界书结构[] = [];
+            try {
+                bundledDefaults = await loadAllBundledWorldbookPresets();
+            } catch (error) {
+                console.error('读取默认世界书预置失败', error);
+            }
+            const normalizedMergedEntries = 规范化世界书列表([...bundledDefaults, ...normalizedSavedEntries]);
+            deps.设置世界书列表(normalizedMergedEntries);
+            const hasMissingBundledDefaults = bundledDefaultWorldbookIds.some((id) => !normalizedSavedEntries.some((book) => book.id === id));
+            if (hasMissingBundledDefaults) {
+                await dbService.保存设置(世界书存储键, normalizedMergedEntries);
+            }
         } catch (error) {
             console.error('读取世界书列表失败', error);
         }
