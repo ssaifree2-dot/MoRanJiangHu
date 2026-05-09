@@ -68,9 +68,14 @@ const RightPanel: React.FC<Props> = ({
         { label: '战斗', action: onOpenBattle, color: 'primary' as const },
         { label: '装备', action: onOpenEquipment, color: 'primary' as const },
         { label: '背包', action: onOpenInventory, color: 'primary' as const },
+        ...(onOpenAuctionHouse ? [{ label: '拍卖行', action: onOpenAuctionHouse, color: 'primary' as const }] : []),
         { label: '队伍', action: onOpenTeam, color: 'primary' as const },
         { label: '社交', action: onOpenSocial, color: 'primary' as const },
         ...(enableKungfu ? [{ label: '功法', action: onOpenKungfu, color: 'primary' as const }] : []),
+        { label: '地图', action: onOpenMap, color: 'primary' as const },
+        { label: '门派', action: onOpenSect, color: 'primary' as const },
+        { label: '任务', action: onOpenTask, color: 'primary' as const },
+        { label: '约定', action: onOpenAgreement, color: 'primary' as const },
         {
             label: worldEvolutionUpdating ? '世界·更新中' : '世界',
             action: onOpenWorld,
@@ -79,15 +84,10 @@ const RightPanel: React.FC<Props> = ({
                 ? 'animate-pulse shadow-[0_0_18px_rgba(90,220,220,0.35)]'
                 : ''
         },
-        { label: '地图', action: onOpenMap, color: 'primary' as const },
-        { label: '门派', action: onOpenSect, color: 'primary' as const },
-        { label: '任务', action: onOpenTask, color: 'primary' as const },
-        { label: '约定', action: onOpenAgreement, color: 'primary' as const },
         { label: '剧情', action: onOpenStory, color: 'primary' as const },
         ...(enableHeroinePlan ? [{ label: '规划', action: onOpenHeroinePlan, color: 'primary' as const }] : []),
         { label: '记忆', action: onOpenMemory, color: 'primary' as const },
         ...(onOpenNovelExport ? [{ label: '导出小说', action: onOpenNovelExport, color: 'secondary' as const }] : []),
-        ...(onOpenAuctionHouse ? [{ label: '拍卖行', action: onOpenAuctionHouse, color: 'secondary' as const }] : []),
         ...(onOpenImageManager ? [{ label: '图册', action: onOpenImageManager, color: 'secondary' as const }] : []),
         ...(onOpenNovelDecomposition ? [{ label: '小说分解', action: onOpenNovelDecomposition, color: 'secondary' as const }] : []),
     ];

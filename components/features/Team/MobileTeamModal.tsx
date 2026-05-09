@@ -8,8 +8,8 @@ interface Props {
 }
 
 const ProgressBar: React.FC<{ label: string; cur: number; max: number; color: string }> = ({ label, cur, max, color }) => {
-    const safeMax = Math.max(1, max || 0);
-    const safeCur = Math.max(0, cur || 0);
+    const safeCur = Math.max(0, Number.isFinite(Number(cur)) ? Math.ceil(Number(cur)) : 0);
+    const safeMax = Math.max(1, Number.isFinite(Number(max)) ? Math.ceil(Number(max)) : 0, safeCur);
     const pct = Math.max(0, Math.min(100, (safeCur / safeMax) * 100));
     return (
         <div className="space-y-1">

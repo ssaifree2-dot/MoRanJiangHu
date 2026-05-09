@@ -34,6 +34,16 @@ export interface 门派商品 {
     要求职位: string; // e.g. "内门弟子"
 }
 
+export interface 门派藏经 {
+    id: string;
+    名称: string;
+    类型: '功法' | '身法' | '心法' | '杂学';
+    品阶: string;
+    简介: string;
+    要求职位: string;
+    要求累计贡献: number;
+}
+
 export interface 门派成员简报 {
     id: string; // 保持ID用于唯一索引，但UI显示用以下字段
     姓名: string;
@@ -59,10 +69,12 @@ export interface 详细门派结构 {
     // 玩家相关
     玩家职位: string; // 外门弟子, 内门弟子, 真传弟子, 长老, 供奉
     玩家贡献: number;
+    累计贡献?: number;
     
     // 动态列表
     任务列表: 门派任务[];
     兑换列表: 门派商品[];
+    藏经阁列表?: 门派藏经[];
     
     // 人员表
     重要成员: 门派成员简报[];

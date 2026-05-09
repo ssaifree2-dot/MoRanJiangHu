@@ -344,7 +344,7 @@ const AuctionHouseModal: React.FC<Props> = ({
                     </section>
 
                     <main className={`auction-house-list-panel min-h-0 flex-1 overflow-y-auto custom-scrollbar ${isMobile ? 'p-2' : 'p-3'}`}>
-                        <div className={`auction-house-item-grid grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-2 gap-3 xl:grid-cols-3'}`}>
+                        <div className={`auction-house-item-grid grid justify-start ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-[repeat(auto-fill,minmax(13.5rem,15rem))] gap-3'}`}>
                             {displayAuctions.map((entry) => {
                                 const styles = getRarityStyles(entry.物品?.品质 || '');
                                 const selected = selectedAuction?.ID === entry.ID;
@@ -354,20 +354,20 @@ const AuctionHouseModal: React.FC<Props> = ({
                                 const isGenerating = generatingItemId === entry.ID;
                                 return (
                                     <div key={entry.ID} role="button" tabIndex={0} onClick={() => setSelectedAuctionId(entry.ID)} onKeyDown={(event) => handleCardKeyDown(event, entry)} className={`group relative overflow-hidden rounded-xl border ${isMobile ? 'p-2' : 'p-3'} text-left transition-all ${selected ? 'border-wuxia-gold/65 bg-[#332812] shadow-[0_0_22px_rgba(212,175,55,0.16)]' : `${styles.border} bg-[#121212] hover:border-wuxia-gold/35`} cursor-pointer outline-none focus:border-wuxia-gold/60`}>
-                                        {entry.是否限时热点 && <div className="absolute right-2 top-2 rounded-full border border-amber-300/40 bg-[#5b3608] px-2 py-0.5 text-[10px] font-bold text-amber-100">热点</div>}
-                                        <div className={`flex items-start justify-between ${isMobile ? 'gap-2 pr-0' : 'gap-3 pr-10'}`}>
-                                            <div className={`${isMobile ? 'h-14 w-14' : 'h-20 w-20'} shrink-0 overflow-hidden rounded-lg border border-wuxia-gold/15 bg-black/35 flex items-center justify-center`}>
+                                        {entry.是否限时热点 && <div className="absolute right-2 top-2 rounded-full border border-amber-300/40 bg-[#5b3608] px-2 py-0.5 text-xs font-bold text-amber-100">热点</div>}
+                                        <div className={`${isMobile ? 'pr-10' : 'pr-12'} font-serif text-sm font-bold leading-5 break-words ${getRarityNameClass(entry.物品?.品质 || '')}`}>{entry.物品?.名称 || '无名物品'}</div>
+                                        <div className={`mt-2 flex items-start justify-between ${isMobile ? 'gap-2' : 'gap-3'}`}>
+                                            <div className={`${isMobile ? 'h-12 w-12' : 'h-16 w-16'} shrink-0 overflow-hidden rounded-lg border border-wuxia-gold/15 bg-black/35 flex items-center justify-center`}>
                                                 {itemIconImage ? (
                                                     <img src={itemIconImage} alt={entry.物品?.名称 || '物品图标'} className="h-full w-full object-cover" />
                                                 ) : (
-                                                    <span className="text-[10px] text-wuxia-gold/45">{entry.物品?.类型 || '物'}</span>
+                                                    <span className="text-xs text-wuxia-gold/65">{entry.物品?.类型 || '物'}</span>
                                                 )}
                                             </div>
                                             <div className="min-w-0">
-                                                <div className={`truncate font-serif ${isMobile ? 'text-xs' : 'text-sm'} font-bold ${getRarityNameClass(entry.物品?.品质 || '')}`}>{entry.物品?.名称 || '无名物品'}</div>
                                                 <div className="mt-1 flex flex-wrap gap-1">
                                                     {(entry.市场标签 || []).slice(0, isMobile ? 1 : 3).map((tag) => (
-                                                        <span key={tag} className="rounded border border-wuxia-gold/15 bg-[#0d0d0d] px-1.5 py-0.5 text-[10px] text-wuxia-gold/70">{tag}</span>
+                                                        <span key={tag} className="rounded border border-wuxia-gold/15 bg-[#0d0d0d] px-1.5 py-0.5 text-xs text-wuxia-gold/80">{tag}</span>
                                                     ))}
                                                 </div>
                                             </div>

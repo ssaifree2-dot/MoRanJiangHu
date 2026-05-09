@@ -29,6 +29,45 @@
   text-orientation: upright;
 }
 
+/* Global modal readability: keep detail text legible on dark wuxia panels */
+.fixed[class*="z-[200]"],
+.desktop-right-detail-modal .fixed > div {
+  color: rgba(236, 231, 219, 0.94);
+}
+
+.fixed[class*="z-[200]"] *,
+.desktop-right-detail-modal .fixed > div * {
+  font-style: normal !important;
+}
+
+.fixed[class*="z-[200]"] .text-\[8px\],
+.fixed[class*="z-[200]"] .text-\[9px\],
+.fixed[class*="z-[200]"] .text-\[10px\],
+.desktop-right-detail-modal .fixed > div .text-\[8px\],
+.desktop-right-detail-modal .fixed > div .text-\[9px\],
+.desktop-right-detail-modal .fixed > div .text-\[10px\] {
+  font-size: 0.75rem !important;
+  line-height: 1.45 !important;
+}
+
+.fixed[class*="z-[200]"] [class*="text-gray-400"],
+.fixed[class*="z-[200]"] [class*="text-gray-500"],
+.fixed[class*="z-[200]"] [class*="text-gray-600"],
+.desktop-right-detail-modal .fixed > div [class*="text-gray-400"],
+.desktop-right-detail-modal .fixed > div [class*="text-gray-500"],
+.desktop-right-detail-modal .fixed > div [class*="text-gray-600"] {
+  color: rgba(222, 216, 204, 0.9) !important;
+}
+
+.fixed[class*="z-[200]"] [class*="opacity-40"],
+.fixed[class*="z-[200]"] [class*="opacity-50"],
+.fixed[class*="z-[200]"] [class*="opacity-60"],
+.desktop-right-detail-modal .fixed > div [class*="opacity-40"],
+.desktop-right-detail-modal .fixed > div [class*="opacity-50"],
+.desktop-right-detail-modal .fixed > div [class*="opacity-60"] {
+  opacity: 0.86 !important;
+}
+
 /* Social page readability */
 .social-modal-body,
 .social-modal-body * {
@@ -721,7 +760,8 @@
   }
 
   .desktop-right-detail-modal--auction_house:not(.desktop-right-detail-modal--fullscreen) .auction-house-item-grid {
-    grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 15rem)) !important;
+    justify-content: start !important;
     padding-bottom: 0.5rem !important;
   }
 

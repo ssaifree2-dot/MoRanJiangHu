@@ -11,6 +11,7 @@ import {
 import { 获取物品已选图标地址 } from '../../../utils/itemImage';
 import { 获取物品明细分组 } from '../../../utils/rulebook';
 import { 是否杂物类物品 } from '../../../utils/inventoryActions';
+import { 规范化消耗品使用效果 } from '../../../utils/itemEffects';
 
 interface Props {
     character: any;
@@ -52,6 +53,34 @@ const recalculateWeight = (items: any[]) => items.reduce((sum, item) => (
     sum + getSafeNumber(item?.重量) * getSafeNumber(item?.堆叠数量, 1)
 ), 0);
 
+const BODY_PARTS = ['头部', '胸部', '腹部', '左手', '右手', '左腿', '右腿'];
+
+const applyCharacterEffect = (nextCharacter: any, target: string, value: number) => {
+    if (!target || !Number.isFinite(value)) return false;
+    if (target === '全身血量') {
+        let touched = false;
+        BODY_PARTS.forEach((part) => {
+            const currentKey = `${part}当前血量`;
+            const maxKey = `${part}最大血量`;
+            const current = getSafeNumber(nextCharacter[currentKey], Number.NaN);
+            const maxValue = getSafeNumber(nextCharacter[maxKey], Number.NaN);
+            if (!Number.isFinite(current) || !Number.isFinite(maxValue)) return;
+            nextCharacter[currentKey] = Math.min(maxValue, Math.max(0, current + value));
+            touched = true;
+        });
+        return touched;
+    }
+    const current = getSafeNumber(nextCharacter[target], Number.NaN);
+    if (!Number.isFinite(current)) return false;
+    const maxKey = target.startsWith('当前') ? target.replace(/^当前/, '最大') : '';
+    const maxValue = maxKey ? getSafeNumber(nextCharacter[maxKey], Number.NaN) : Number.NaN;
+    const nextValue = current + value;
+    nextCharacter[target] = Number.isFinite(maxValue)
+        ? Math.min(maxValue, Math.max(0, nextValue))
+        : nextValue;
+    return true;
+};
+
 const applyConsumableEffect = (character: any, selectedItem: any) => {
     const nextCharacter = cloneData(character);
     nextCharacter.物品列表 = Array.isArray(nextCharacter?.物品列表) ? nextCharacter.物品列表 : [];
@@ -62,19 +91,11 @@ const applyConsumableEffect = (character: any, selectedItem: any) => {
         return { nextCharacter, message: '此物品不可使用', consumed: false };
     }
 
-    const effects = Array.isArray(item?.使用效果) ? item.使用效果 : [];
+    const effects = 规范化消耗品使用效果(item);
     effects.forEach((effect: any) => {
         const target = getSafeText(effect?.目标属性);
         const value = getSafeNumber(effect?.数值);
-        if (!target || !Number.isFinite(value)) return;
-        const current = getSafeNumber(nextCharacter[target], Number.NaN);
-        if (!Number.isFinite(current)) return;
-        const maxKey = target.startsWith('当前') ? target.replace(/^当前/, '最大') : '';
-        const maxValue = maxKey ? getSafeNumber(nextCharacter[maxKey], Number.NaN) : Number.NaN;
-        const nextValue = current + value;
-        nextCharacter[target] = Number.isFinite(maxValue)
-            ? Math.min(maxValue, Math.max(0, nextValue))
-            : nextValue;
+        applyCharacterEffect(nextCharacter, target, value);
     });
 
     const count = getSafeNumber(item?.堆叠数量, 1);
@@ -213,8 +234,30 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
                 ? nextCharacter.物品列表.find((item: any) => item?.ID === selectedItemRef || item?.名称 === selectedItemRef)
                 : null;
             if (nextItem) setSelectedItem(nextItem);
-        }
-    };
+    }
+};
+
+const DetailMetricCard: React.FC<{ groupTitle: string; entry: any }> = ({ groupTitle, entry }) => (
+    <div className="group relative min-w-0 rounded-lg border border-white/12 bg-black/35 px-3 py-2.5 transition hover:border-wuxia-gold/55 hover:bg-wuxia-gold/5 focus-within:border-wuxia-gold/60">
+        <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+                <div className="truncate text-[13px] font-semibold text-gray-100">{entry.标签}</div>
+                <div className="mt-1 truncate font-mono text-base font-bold text-amber-100">{entry.数值}</div>
+            </div>
+            <button
+                type="button"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-wuxia-gold/35 bg-wuxia-gold/10 text-sm font-bold text-wuxia-gold outline-none transition hover:border-wuxia-gold hover:bg-wuxia-gold/20 focus:border-wuxia-gold focus:bg-wuxia-gold/20"
+                aria-label={`${entry.标签}说明`}
+            >
+                ?
+            </button>
+        </div>
+        <div className="pointer-events-none absolute bottom-[calc(100%+8px)] left-0 z-50 hidden w-80 max-w-[min(80vw,22rem)] rounded-lg border border-wuxia-gold/45 bg-[#14110a] p-3 text-sm leading-6 text-amber-50 shadow-[0_16px_42px_rgba(0,0,0,0.78)] group-hover:block group-focus-within:block">
+            <div className="mb-1 text-xs font-bold tracking-[0.16em] text-wuxia-gold">{groupTitle} · {entry.标签}</div>
+            <div>{entry.依据}</div>
+        </div>
+    </div>
+);
 
     const handleEquipSelected = () => {
         if (!selectedItem || !onCharacterChange) return;
@@ -492,9 +535,9 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
                             (() => {
                                 const selectedIconImage = 获取物品已选图标地址(selectedItem);
                                 return (
-                            <div className="shrink-0 border-t border-wuxia-gold/20 bg-gradient-to-r from-black/95 via-[#08090b]/95 to-black/95 p-4 shadow-[0_-18px_45px_rgba(0,0,0,0.65)] backdrop-blur-md animate-fadeIn">
-                                <div className="grid min-w-0 grid-cols-[minmax(220px,0.82fr)_minmax(280px,1fr)] gap-3">
-                                    <div className="relative flex min-w-0 gap-4 overflow-hidden rounded-xl border border-white/10 bg-black/30 p-3.5">
+                            <div className="shrink-0 border-t border-wuxia-gold/20 bg-gradient-to-r from-black/95 via-[#08090b]/95 to-black/95 p-3 shadow-[0_-18px_45px_rgba(0,0,0,0.65)] backdrop-blur-md animate-fadeIn">
+                                <div className="grid min-w-0 items-start grid-cols-[minmax(220px,0.82fr)_minmax(280px,1fr)] gap-3">
+                                    <div className="relative flex min-w-0 gap-4 overflow-hidden rounded-xl border border-white/10 bg-black/30 p-3">
                                         <div className={`absolute right-0 top-0 h-24 w-24 rounded-full opacity-20 blur-3xl ${getRarityStyles(getSafeText(selectedItem?.品质)).bg}`} />
                                         <div className={`relative z-10 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-opacity-20 shadow-lg ${
                                             getRarityStyles(getSafeText(selectedItem?.品质)).border
@@ -535,12 +578,12 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
                                         </button>
                                     </div>
 
-                                    <div className="min-h-[112px] overflow-y-auto rounded-xl border border-white/10 bg-black/30 p-4 text-base leading-7 text-gray-100 custom-scrollbar">
+                                    <div className="max-h-28 overflow-y-auto rounded-xl border border-white/10 bg-black/30 p-3 text-[15px] leading-7 text-gray-100 custom-scrollbar">
                                         {getSafeText(selectedItem?.描述, '暂无描述')}
                                     </div>
 
-                                    <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-4">
-                                        <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-3">
+                                        <div className="mb-2 flex items-center justify-between gap-3">
                                             <span className="text-sm font-bold tracking-[0.12em] text-emerald-100">拍卖行出售</span>
                                             <span className="truncate text-xs text-gray-300">按市场价寄售，下回合入账</span>
                                         </div>
@@ -554,8 +597,8 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
                                         </button>
                                     </div>
 
-                                    <div className="rounded-xl border border-red-400/20 bg-red-500/5 p-4">
-                                        <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div className="rounded-xl border border-red-400/20 bg-red-500/5 p-3">
+                                        <div className="mb-2 flex items-center justify-between gap-3">
                                             <span className="text-sm font-bold tracking-[0.12em] text-red-100">直接丢弃</span>
                                             <span className="truncate text-xs text-gray-300">从背包移除当前物品</span>
                                         </div>
@@ -570,8 +613,8 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
                                     </div>
 
                                     {selectedCanEquip ? (
-                                        <div className="rounded-xl border border-amber-400/20 bg-amber-500/5 p-4">
-                                            <div className="mb-3 flex items-center justify-between gap-3">
+                                        <div className="rounded-xl border border-amber-400/20 bg-amber-500/5 p-3">
+                                            <div className="mb-2 flex items-center justify-between gap-3">
                                                 <span className="text-sm font-bold tracking-[0.12em] text-amber-100">装备操作</span>
                                                 <span className="truncate text-xs text-gray-300">
                                                     {selectedItem?.当前装备部位 ? `当前：${selectedItem.当前装备部位}` : `可装备：${selectedEquipSlots.map(获取装备槽位标签).join(' / ')}`}
@@ -600,8 +643,8 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
                                             ) : null}
                                         </div>
                                     ) : selectedCanUse ? (
-                                        <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-4">
-                                            <div className="mb-3 flex items-center justify-between gap-3">
+                                        <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-3">
+                                            <div className="mb-2 flex items-center justify-between gap-3">
                                                 <span className="text-sm font-bold tracking-[0.12em] text-emerald-100">消耗操作</span>
                                                 <span className="truncate text-xs text-gray-300">持有：{getSafeNumber(selectedItem?.堆叠数量, 1)}</span>
                                             </div>
@@ -623,16 +666,17 @@ const InventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange
                                         </div>
                                     )}
 
-                                    <div className="min-w-0 space-y-2 rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-gray-100">
+                                    <div className="min-w-0 space-y-3 rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-gray-100">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="text-sm font-bold tracking-[0.18em] text-wuxia-gold">属性与判定依据</div>
+                                            <div className="text-xs text-gray-300">悬停或聚焦 ? 查看说明</div>
+                                        </div>
                                         {selectedDetailGroups.map((group) => (
                                             <div key={group.标题}>
-                                                <div className="mb-1 text-[11px] font-bold tracking-[0.16em] text-wuxia-gold/75">{group.标题}</div>
-                                                <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                                                <div className="mb-2 text-xs font-bold tracking-[0.16em] text-wuxia-gold/85">{group.标题}</div>
+                                                <div className="grid grid-cols-2 gap-2 2xl:grid-cols-3">
                                                     {group.条目.map((entry) => (
-                                                        <div key={`${group.标题}-${entry.标签}`} className="rounded border border-white/8 bg-black/25 px-2 py-1.5">
-                                                            <div className="flex justify-between gap-3"><span className="text-gray-300">{entry.标签}</span><span className="font-mono text-amber-200">{entry.数值}</span></div>
-                                                            <div className="mt-1 line-clamp-2 text-[10px] leading-4 text-gray-500">{entry.依据}</div>
-                                                        </div>
+                                                        <DetailMetricCard key={`${group.标题}-${entry.标签}`} groupTitle={group.标题} entry={entry} />
                                                     ))}
                                                 </div>
                                             </div>

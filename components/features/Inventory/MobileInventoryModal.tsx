@@ -66,6 +66,28 @@ const renderItemIcon = (type: string, className: string) => {
     }
 };
 
+const MobileDetailMetricCard: React.FC<{ groupTitle: string; entry: any }> = ({ groupTitle, entry }) => (
+    <div className="group relative rounded border border-gray-700 bg-black/25 px-2.5 py-2 focus-within:border-wuxia-gold/60">
+        <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+                <div className="truncate text-[11px] font-semibold text-gray-100">{entry.标签}</div>
+                <div className="mt-1 truncate font-mono text-sm font-bold text-amber-200">{entry.数值}</div>
+            </div>
+            <button
+                type="button"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-wuxia-gold/35 bg-wuxia-gold/10 text-xs font-bold text-wuxia-gold"
+                aria-label={`${entry.标签}说明`}
+            >
+                ?
+            </button>
+        </div>
+        <div className="pointer-events-none absolute bottom-[calc(100%+6px)] left-0 z-40 hidden w-72 rounded border border-wuxia-gold/45 bg-[#14110a] p-3 text-xs leading-5 text-amber-50 shadow-2xl group-hover:block group-focus-within:block">
+            <div className="mb-1 text-[10px] font-bold tracking-[0.14em] text-wuxia-gold">{groupTitle} · {entry.标签}</div>
+            {entry.依据}
+        </div>
+    </div>
+);
+
 const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange, onSellItem, onDiscardItem, onSellAllMisc, onDiscardAllMisc }) => {
     const [activeCategory, setActiveCategory] = useState<ItemCategory>('全部');
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
@@ -322,15 +344,16 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacter
                             </p>
 
                             <div className="space-y-2 rounded border border-gray-800/50 bg-black/20 p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[11px] font-bold tracking-[0.16em] text-wuxia-gold">属性与依据</span>
+                                    <span className="text-[10px] text-gray-300">点按 ? 查看</span>
+                                </div>
                                 {selectedDetailGroups.map((group) => (
                                     <div key={group.标题}>
-                                        <div className="mb-1 text-[10px] font-bold tracking-[0.16em] text-wuxia-gold/75">{group.标题}</div>
+                                        <div className="mb-1 text-[10px] font-bold tracking-[0.16em] text-wuxia-gold/85">{group.标题}</div>
                                         <div className="grid grid-cols-2 gap-2">
                                             {group.条目.map((entry) => (
-                                                <div key={`${group.标题}-${entry.标签}`} className="rounded border border-gray-800 bg-black/20 px-2 py-1">
-                                                    <div className="flex justify-between gap-2"><span className="text-gray-500">{entry.标签}</span><span className="font-mono text-amber-300">{entry.数值}</span></div>
-                                                    <div className="mt-1 line-clamp-2 text-[9px] leading-4 text-gray-500">{entry.依据}</div>
-                                                </div>
+                                                <MobileDetailMetricCard key={`${group.标题}-${entry.标签}`} groupTitle={group.标题} entry={entry} />
                                             ))}
                                         </div>
                                     </div>

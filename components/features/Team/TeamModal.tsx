@@ -13,6 +13,14 @@ const TeamModal: React.FC<Props> = ({ character, teammates, onClose }) => {
     // 默认选中第一个队友
     const [selectedTab, setSelectedTab] = useState<string>(activeTeammates.length > 0 ? activeTeammates[0].id : '');
 
+    const 规范化资源展示 = (current: unknown, max: unknown) => {
+        const cur = Number(current);
+        const maxValue = Number(max);
+        const safeCur = Number.isFinite(cur) ? Math.max(0, Math.ceil(cur)) : 0;
+        const safeMax = Math.max(1, Number.isFinite(maxValue) ? Math.ceil(maxValue) : 0, safeCur);
+        return { current: Math.min(safeCur, safeMax), max: safeMax };
+    };
+
     const pad2 = (n: number) => `${Math.trunc(n)}`.padStart(2, '0');
     const 规范化时间串 = (raw: string): string => {
         const match = raw.trim().match(/^(\d{1,6}):(\d{1,2}):(\d{1,2}):(\d{1,2}):(\d{1,2})$/);
@@ -68,12 +76,15 @@ const TeamModal: React.FC<Props> = ({ character, teammates, onClose }) => {
     // Player detail removed
 
     const renderTeammateDetail = (npc: NPC结构) => {
-        const safeHpMax = Math.max(1, npc.最大血量 || 0);
-        const safeHpCur = Math.max(0, npc.当前血量 || 0);
-        const safeSpMax = Math.max(1, npc.最大精力 || 0);
-        const safeSpCur = Math.max(0, npc.当前精力 || 0);
-        const safeQiMax = Math.max(1, (npc as any).最大内力 || 0);
-        const safeQiCur = Math.max(0, (npc as any).当前内力 || 0);
+        const hp = 规范化资源展示(npc.当前血量, npc.最大血量);
+        const sp = 规范化资源展示(npc.当前精力, npc.最大精力);
+        const qi = 规范化资源展示((npc as any).当前内力, (npc as any).最大内力);
+        const safeHpMax = hp.max;
+        const safeHpCur = hp.current;
+        const safeSpMax = sp.max;
+        const safeSpCur = sp.current;
+        const safeQiMax = qi.max;
+        const safeQiCur = qi.current;
         const hpPct = Math.max(0, Math.min(100, (safeHpCur / safeHpMax) * 100));
         const spPct = Math.max(0, Math.min(100, (safeSpCur / safeSpMax) * 100));
         const qiPct = Math.max(0, Math.min(100, (safeQiCur / safeQiMax) * 100));

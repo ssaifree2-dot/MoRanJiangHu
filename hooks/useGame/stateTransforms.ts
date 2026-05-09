@@ -2,6 +2,8 @@ import { 角色数据结构, 环境信息结构, 装备槽位 } from '../../type
 import { normalizeCanonicalGameTime, 结构化时间转标准串 } from './timeUtils';
 import { 压缩图片资源字段 } from '../../utils/imageAssets';
 import { 自动装备最佳装备 } from '../../utils/equipmentActions';
+import { 规范化消耗品使用效果 } from '../../utils/itemEffects';
+import { 补齐自动丹药预设 } from '../../utils/autoConsumables';
 
 const 深拷贝 = <T,>(data: T): T => JSON.parse(JSON.stringify(data)) as T;
 const 默认装备模板 = {
@@ -141,7 +143,13 @@ const 规范化单个物品 = (rawItem: any, idx: number): any | null => {
     item.价值 = 规范化非负数(item?.价值, 0);
     item.当前耐久 = 规范化非负数(item?.当前耐久, 0);
     item.最大耐久 = 规范化非负数(item?.最大耐久, 0);
-    item.词条列表 = Array.isArray(item?.词条列表) ? item.词条列表 : [];
+    item.词条列表 = Array.isArray(item?.词条列表)
+        ? item.词条列表.filter((entry: any) => {
+            const attr = 规范化文本(entry?.属性);
+            const value = Number(entry?.数值);
+            return attr && attr !== '属性' && Number.isFinite(value) && value !== 0;
+        })
+        : [];
     if (item.类型 === '任务' || item.类型 === '任务物品') {
         item.类型 = '任务道具';
     }
@@ -163,6 +171,11 @@ const 规范化单个物品 = (rawItem: any, idx: number): any | null => {
     if (['武器', '防具', '饰品'].includes(item.类型)) {
         item.堆叠数量 = 1;
         item.是否可堆叠 = false;
+    }
+    if (item.类型 === '消耗品') {
+        item.使用效果 = 规范化消耗品使用效果(item);
+        item.毒性 = 规范化非负数(item?.毒性, 0);
+        item.最大堆叠 = Math.max(1, 规范化整数(item?.最大堆叠, item.堆叠数量), item.堆叠数量);
     }
     delete item.当前容器ID;
     delete item.占用空间;
@@ -748,7 +761,7 @@ const 规范化角色物品容器映射 = (rawRole?: any): 角色数据结构 =>
         delete (role as any).最近生图结果;
     }
 
-    role.物品列表 = deduped;
+    role.物品列表 = 补齐自动丹药预设(deduped);
     return role;
 };
 
@@ -968,14 +981,108 @@ const 默认NPC装备 = {
     鞋履: '无'
 };
 
+const NPC装备槽位 = Object.keys(默认NPC装备);
+const 空NPC装备正则 = /^(无|暂无|未装备|空|没有|none|n\/a)$/i;
+const NPC门派组织正则 = /([\u4e00-\u9fa5]{2,10}(?:山庄|门|派|宗|宫|寨|帮|镖局|商会|书院|府|阁|堂))/;
+
 const 默认NPC技艺 = ['炼器', '炼丹', '医术', '阵法', '符箓', '机关', '采集', '鉴定']
     .map((名称) => ({ 名称, 等级: '未入门', 熟练度: 0, 描述: '尚未形成稳定技艺。' }));
+
+const 是空NPC装备 = (value: unknown): boolean => {
+    const text = 规范化文本(value);
+    return !text || 空NPC装备正则.test(text);
+};
 
 const 标准化NPC装备 = (raw: any): Record<string, string> => {
     const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
     const out: Record<string, string> = { ...默认NPC装备 };
-    Object.keys(默认NPC装备).forEach((key) => {
+    NPC装备槽位.forEach((key) => {
         out[key] = 规范化文本(source?.[key], '无') || '无';
+    });
+    return out;
+};
+
+const 读取NPC门派组织 = (npc: any): string => {
+    const text = [
+        npc?.身份,
+        npc?.简介,
+        npc?.所属势力,
+        npc?.门派,
+        npc?.势力
+    ].map((value) => 规范化文本(value)).filter(Boolean).join(' ');
+    return text.match(NPC门派组织正则)?.[1] || '';
+};
+
+const 读取NPC境界阶位 = (npc: any): number => {
+    const text = [
+        npc?.境界,
+        npc?.修为,
+        npc?.身份,
+        npc?.简介
+    ].map((value) => 规范化文本(value)).filter(Boolean).join(' ');
+    let rank = 1;
+    const realmTable: Array<[RegExp, number]> = [
+        [/凡人|普通|未入道|无修为/, 1],
+        [/炼体|锻体/, 2],
+        [/开脉|通脉/, 3],
+        [/聚息|聚气|凝气/, 4],
+        [/筑基|归元/, 5],
+        [/凝真|玄照/, 6],
+        [/金丹|玄丹/, 8],
+        [/元婴/, 10],
+        [/化神/, 13],
+        [/炼虚/, 16],
+        [/合体/, 20],
+        [/大乘|渡劫/, 24]
+    ];
+    realmTable.forEach(([pattern, value]) => {
+        if (pattern.test(text)) rank = Math.max(rank, value);
+    });
+    if (/寨主|庄主|掌门|宗主|长老|供奉|统领|首领/.test(text)) rank += 2;
+    if (/后期|圆满|巅峰/.test(text)) rank += 1;
+    const levelMatch = text.match(/(?:第)?([一二三四五六七八九十\d]{1,3})(?:重|层)/);
+    if (levelMatch) {
+        const digit = Number(levelMatch[1]);
+        if (Number.isFinite(digit)) rank += Math.min(3, Math.max(0, Math.floor(digit / 3)));
+        else if (/七|八|九|十/.test(levelMatch[1])) rank += 2;
+        else if (/四|五|六/.test(levelMatch[1])) rank += 1;
+    }
+    return Math.max(1, rank);
+};
+
+const 生成NPC默认装备 = (npc: any): Record<string, string> => {
+    const text = [
+        npc?.姓名,
+        npc?.性别,
+        npc?.身份,
+        npc?.境界,
+        npc?.简介,
+        npc?.衣着风格
+    ].map((value) => 规范化文本(value)).filter(Boolean).join(' ');
+    const isFemale = /女|小姐|姑娘|夫人|师姐|师妹|侍女/.test(text);
+    const faction = 读取NPC门派组织(npc);
+    const factionPrefix = faction ? faction.replace(/(山庄|门|派|宗|宫|寨|帮|镖局|商会|书院|府|阁|堂)$/, '') : '';
+    const weapon = /医|药|丹/.test(text)
+        ? '防身银针'
+        : (factionPrefix ? `${factionPrefix}佩剑` : (isFemale ? '随身短剑' : '随身佩刀'));
+    const accessory = faction ? `${faction}腰牌` : (isFemale ? '随身玉佩' : '随身护符');
+    return {
+        主武器: weapon,
+        副武器: isFemale ? '袖中暗器' : '护腕短刃',
+        服装: factionPrefix && isFemale ? `${factionPrefix}绣裙` : (isFemale ? '素色劲装' : '青布劲装'),
+        饰品: accessory,
+        内衣: '贴身中衣',
+        内裤: '贴身衬裤',
+        袜饰: isFemale ? '素罗短袜' : '布袜',
+        鞋履: isFemale ? '轻便绣鞋' : '轻便布靴'
+    };
+};
+
+const 补齐NPC装备 = (raw: any, npc: any): Record<string, string> => {
+    const out = 标准化NPC装备(raw);
+    const fallback = 生成NPC默认装备(npc);
+    NPC装备槽位.forEach((key) => {
+        if (是空NPC装备(out[key])) out[key] = fallback[key] || '无';
     });
     return out;
 };
@@ -1001,6 +1108,89 @@ const 标准化NPC背包 = (raw: any): Array<{ 名称: string; 类型?: string; 
             .filter(Boolean) as Array<{ 名称: string; 类型?: string; 数量?: number; 描述?: string }>
         : []
 );
+
+const 生成NPC默认背包 = (npc: any): Array<{ 名称: string; 类型?: string; 数量?: number; 描述?: string }> => {
+    const text = [
+        npc?.姓名,
+        npc?.性别,
+        npc?.身份,
+        npc?.境界,
+        npc?.简介
+    ].map((value) => 规范化文本(value)).filter(Boolean).join(' ');
+    const faction = 读取NPC门派组织(npc);
+    const isFemale = /女|小姐|姑娘|夫人|师姐|师妹|侍女/.test(text);
+    const bag: Array<{ 名称: string; 类型?: string; 数量?: number; 描述?: string }> = [
+        { 名称: '疗伤散', 类型: '消耗品', 数量: 1, 描述: '普通外伤药粉，可处理轻伤。' },
+        { 名称: '干粮', 类型: '杂物', 数量: 2, 描述: '行走江湖时随身携带的简易口粮。' },
+        {
+            名称: faction ? `${faction}信物` : '随身火折子',
+            类型: '杂物',
+            数量: 1,
+            描述: faction ? '表明身份来历的随身信物。' : '夜行与野外留宿时常用的小物。'
+        }
+    ];
+    if (isFemale) {
+        bag.push({ 名称: '备用发簪', 类型: '杂物', 数量: 1, 描述: '便于整理发髻的随身小物。' });
+    }
+    return bag;
+};
+
+const 补齐NPC背包 = (raw: any, npc: any): Array<{ 名称: string; 类型?: string; 数量?: number; 描述?: string }> => {
+    const normalized = 标准化NPC背包(raw);
+    if (normalized.length > 0) return normalized;
+    return 生成NPC默认背包(npc);
+};
+
+const 标准化NPC资源值 = (curRaw: unknown, maxRaw: unknown, fallbackMax: number): { 当前: number; 最大: number } => {
+    const rawCur = Number(curRaw);
+    const rawMax = Number(maxRaw);
+    const hasCur = Number.isFinite(rawCur);
+    const hasMax = Number.isFinite(rawMax);
+    const badMax = !hasMax || rawMax <= 1 || (hasCur && rawCur > rawMax);
+    const saneMax = Math.max(
+        1,
+        Math.ceil(fallbackMax),
+        hasMax && rawMax > 1 ? Math.ceil(rawMax) : 0,
+        hasCur && rawCur > 1 ? Math.ceil(rawCur) : 0
+    );
+    const 最大 = badMax ? saneMax : Math.max(1, Math.ceil(rawMax));
+    const 当前 = (() => {
+        if (!hasCur) return 最大;
+        if (badMax && rawCur <= 1) return 最大;
+        return Math.max(0, Math.min(最大, Math.ceil(rawCur)));
+    })();
+    return { 当前, 最大 };
+};
+
+const 标准化NPC战斗数值 = (npc: any): {
+    攻击力: number;
+    防御力: number;
+    当前血量: number;
+    最大血量: number;
+    当前精力: number;
+    最大精力: number;
+    当前内力: number;
+    最大内力: number;
+} => {
+    const rank = 读取NPC境界阶位(npc);
+    const text = [npc?.身份, npc?.境界, npc?.简介].map((value) => 规范化文本(value)).join(' ');
+    const eliteBonus = /寨主|庄主|掌门|宗主|长老|供奉|统领|首领|小姐|公子/.test(text) ? 8 : 0;
+    const hp = 标准化NPC资源值(npc?.当前血量, npc?.最大血量, 85 + rank * 32 + eliteBonus * 2);
+    const sp = 标准化NPC资源值(npc?.当前精力, npc?.最大精力, 65 + rank * 24 + eliteBonus);
+    const qi = 标准化NPC资源值(npc?.当前内力, npc?.最大内力, 45 + rank * 28 + eliteBonus);
+    const rawAtk = Number(npc?.攻击力);
+    const rawDef = Number(npc?.防御力);
+    return {
+        攻击力: Number.isFinite(rawAtk) && rawAtk > 0 ? Math.ceil(rawAtk) : Math.ceil(12 + rank * 7 + eliteBonus),
+        防御力: Number.isFinite(rawDef) && rawDef > 0 ? Math.ceil(rawDef) : Math.ceil(9 + rank * 5 + Math.floor(eliteBonus / 2)),
+        当前血量: hp.当前,
+        最大血量: hp.最大,
+        当前精力: sp.当前,
+        最大精力: sp.最大,
+        当前内力: qi.当前,
+        最大内力: qi.最大
+    };
+};
 
 const 标准化NPC状态效果 = (raw: any): Array<{ 名称: string; 描述: string; 效果: string; 结束时间?: string }> => (
     Array.isArray(raw)
@@ -1307,11 +1497,12 @@ const 标准化单个NPC = (rawNpc: any, fallbackIndex: number): any => {
     );
     const 记忆 = 标准化NPC记忆(npc?.记忆);
     const 总结记忆 = 标准化NPC总结记忆(npc?.总结记忆);
-    const 当前装备 = 标准化NPC装备(npc?.当前装备);
-    const 背包 = 标准化NPC背包(npc?.背包 ?? npc?.物品列表);
+    const 当前装备 = 补齐NPC装备(npc?.当前装备, npc);
+    const 背包 = 补齐NPC背包(npc?.背包 ?? npc?.物品列表, npc);
     const BUFF = 标准化NPC状态效果(npc?.BUFF ?? npc?.buff ?? npc?.增益);
     const DEBUFF = 标准化NPC状态效果(npc?.DEBUFF ?? npc?.debuff ?? npc?.负面状态);
     const 技艺 = 标准化NPC技艺(npc?.技艺);
+    const 战斗数值 = 标准化NPC战斗数值(npc);
     const 核心性格特征 = 取首个非空文本(npc?.核心性格特征);
     const 好感度突破条件 = 取首个非空文本(npc?.好感度突破条件);
     const 关系突破条件 = 取首个非空文本(npc?.关系突破条件);
@@ -1353,14 +1544,14 @@ const 标准化单个NPC = (rawNpc: any, fallbackIndex: number): any => {
         关系状态: typeof npc?.关系状态 === 'string' ? npc.关系状态 : '未知',
         ...(对主角称呼 ? { 对主角称呼 } : {}),
         简介: typeof npc?.简介 === 'string' ? npc.简介 : '暂无简介',
-        攻击力: Number.isFinite(Number(npc?.攻击力)) ? Number(npc.攻击力) : undefined,
-        防御力: Number.isFinite(Number(npc?.防御力)) ? Number(npc.防御力) : undefined,
-        当前血量: Number.isFinite(Number(npc?.当前血量)) ? Number(npc.当前血量) : undefined,
-        最大血量: Number.isFinite(Number(npc?.最大血量)) ? Number(npc.最大血量) : undefined,
-        当前精力: Number.isFinite(Number(npc?.当前精力)) ? Number(npc.当前精力) : undefined,
-        最大精力: Number.isFinite(Number(npc?.最大精力)) ? Number(npc.最大精力) : undefined,
-        当前内力: Number.isFinite(Number(npc?.当前内力)) ? Number(npc.当前内力) : undefined,
-        最大内力: Number.isFinite(Number(npc?.最大内力)) ? Number(npc.最大内力) : undefined,
+        攻击力: 战斗数值.攻击力,
+        防御力: 战斗数值.防御力,
+        当前血量: 战斗数值.当前血量,
+        最大血量: 战斗数值.最大血量,
+        当前精力: 战斗数值.当前精力,
+        最大精力: 战斗数值.最大精力,
+        当前内力: 战斗数值.当前内力,
+        最大内力: 战斗数值.最大内力,
         当前装备,
         背包,
         BUFF,
@@ -1395,17 +1586,17 @@ const 合并NPC对象 = (leftRaw: any, rightRaw: any, fallbackIndex: number): an
     const mergedWomb = 合并子宫档案(left?.子宫, right?.子宫);
 
     const mergedEquip = (() => {
-        const leftEquip = 标准化NPC装备(left?.当前装备);
-        const rightEquip = 标准化NPC装备(right?.当前装备);
+        const leftEquip = 标准化NPC装备(leftRaw?.当前装备);
+        const rightEquip = 标准化NPC装备(rightRaw?.当前装备);
         const keys = ['主武器', '副武器', '服装', '饰品', '内衣', '内裤', '袜饰', '鞋履'];
         const out: Record<string, string> = {};
         keys.forEach((k) => {
             const text = 取更优文本(取字段文本(leftEquip, k), 取字段文本(rightEquip, k));
             out[k] = text || '无';
         });
-        return out;
+        return 补齐NPC装备(out, { ...left, ...right });
     })();
-    const mergedBag = [...标准化NPC背包(left?.背包), ...标准化NPC背包(right?.背包)]
+    const mergedRawBag = [...标准化NPC背包(leftRaw?.背包 ?? leftRaw?.物品列表), ...标准化NPC背包(rightRaw?.背包 ?? rightRaw?.物品列表)]
         .filter((item, index, list) => list.findIndex((candidate) => candidate.名称 === item.名称 && candidate.类型 === item.类型) === index);
     const mergedBuff = [...标准化NPC状态效果(left?.BUFF), ...标准化NPC状态效果(right?.BUFF)]
         .filter((item, index, list) => list.findIndex((candidate) => candidate.名称 === item.名称) === index);
@@ -1414,6 +1605,36 @@ const 合并NPC对象 = (leftRaw: any, rightRaw: any, fallbackIndex: number): an
     const mergedSkills = 标准化NPC技艺([...标准化NPC技艺(left?.技艺), ...标准化NPC技艺(right?.技艺)]);
     const mergedRelationNet = 合并关系网变量(left?.关系网变量, right?.关系网变量);
     const mergedImageArchive = 合并NPC图片档案对象(left?.图片档案, right?.图片档案);
+    const mergedBaseForCombat = {
+        ...left,
+        ...right,
+        攻击力: Number.isFinite(Number(right?.攻击力)) && Number(right?.攻击力) > 0
+            ? Number(right.攻击力)
+            : (Number.isFinite(Number(left?.攻击力)) && Number(left?.攻击力) > 0 ? Number(left.攻击力) : undefined),
+        防御力: Number.isFinite(Number(right?.防御力)) && Number(right?.防御力) > 0
+            ? Number(right.防御力)
+            : (Number.isFinite(Number(left?.防御力)) && Number(left?.防御力) > 0 ? Number(left.防御力) : undefined),
+        当前血量: Number.isFinite(Number(right?.当前血量))
+            ? Number(right.当前血量)
+            : (Number.isFinite(Number(left?.当前血量)) ? Number(left.当前血量) : undefined),
+        最大血量: Number.isFinite(Number(right?.最大血量))
+            ? Number(right.最大血量)
+            : (Number.isFinite(Number(left?.最大血量)) ? Number(left.最大血量) : undefined),
+        当前精力: Number.isFinite(Number(right?.当前精力))
+            ? Number(right.当前精力)
+            : (Number.isFinite(Number(left?.当前精力)) ? Number(left.当前精力) : undefined),
+        最大精力: Number.isFinite(Number(right?.最大精力))
+            ? Number(right.最大精力)
+            : (Number.isFinite(Number(left?.最大精力)) ? Number(left.最大精力) : undefined),
+        当前内力: Number.isFinite(Number(right?.当前内力))
+            ? Number(right.当前内力)
+            : (Number.isFinite(Number(left?.当前内力)) ? Number(left.当前内力) : undefined),
+        最大内力: Number.isFinite(Number(right?.最大内力))
+            ? Number(right.最大内力)
+            : (Number.isFinite(Number(left?.最大内力)) ? Number(left.最大内力) : undefined)
+    };
+    const mergedCombat = 标准化NPC战斗数值(mergedBaseForCombat);
+    const mergedBag = mergedRawBag.length > 0 ? mergedRawBag : 生成NPC默认背包({ ...left, ...right });
 
     return {
         ...left,
@@ -1465,35 +1686,19 @@ const 合并NPC对象 = (leftRaw: any, rightRaw: any, fallbackIndex: number): an
             return 取更优文本(l, r);
         })(),
         初夜描述: 取更优文本(取字段文本(left, '初夜描述'), 取字段文本(right, '初夜描述')),
-        攻击力: Number.isFinite(Number(right?.攻击力))
-            ? Number(right.攻击力)
-            : (Number.isFinite(Number(left?.攻击力)) ? Number(left.攻击力) : undefined),
-        防御力: Number.isFinite(Number(right?.防御力))
-            ? Number(right.防御力)
-            : (Number.isFinite(Number(left?.防御力)) ? Number(left.防御力) : undefined),
+        攻击力: mergedCombat.攻击力,
+        防御力: mergedCombat.防御力,
         上次更新时间: (() => {
             const l = 解析任意时间字段(left?.上次更新时间 ?? left?.最后更新时间 ?? left?.更新时间);
             const r = 解析任意时间字段(right?.上次更新时间 ?? right?.最后更新时间 ?? right?.更新时间);
             return 取更优文本(l, r);
         })(),
-        当前血量: Number.isFinite(Number(right?.当前血量))
-            ? Number(right.当前血量)
-            : (Number.isFinite(Number(left?.当前血量)) ? Number(left.当前血量) : undefined),
-        最大血量: Number.isFinite(Number(right?.最大血量))
-            ? Number(right.最大血量)
-            : (Number.isFinite(Number(left?.最大血量)) ? Number(left.最大血量) : undefined),
-        当前精力: Number.isFinite(Number(right?.当前精力))
-            ? Number(right.当前精力)
-            : (Number.isFinite(Number(left?.当前精力)) ? Number(left.当前精力) : undefined),
-        最大精力: Number.isFinite(Number(right?.最大精力))
-            ? Number(right.最大精力)
-            : (Number.isFinite(Number(left?.最大精力)) ? Number(left.最大精力) : undefined),
-        当前内力: Number.isFinite(Number(right?.当前内力))
-            ? Number(right.当前内力)
-            : (Number.isFinite(Number(left?.当前内力)) ? Number(left.当前内力) : undefined),
-        最大内力: Number.isFinite(Number(right?.最大内力))
-            ? Number(right.最大内力)
-            : (Number.isFinite(Number(left?.最大内力)) ? Number(left.最大内力) : undefined),
+        当前血量: mergedCombat.当前血量,
+        最大血量: mergedCombat.最大血量,
+        当前精力: mergedCombat.当前精力,
+        最大精力: mergedCombat.最大精力,
+        当前内力: mergedCombat.当前内力,
+        最大内力: mergedCombat.最大内力,
         当前装备: mergedEquip,
         背包: mergedBag,
         BUFF: mergedBuff,

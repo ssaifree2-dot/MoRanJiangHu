@@ -274,7 +274,7 @@ const SocialModal: React.FC<Props> = ({
 
     return (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-fadeIn">
-            <div className="bg-ink-black/95 w-full max-w-7xl max-h-[90vh] flex flex-col rounded-2xl border border-wuxia-gold/20 shadow-[0_0_80px_rgba(0,0,0,0.9)] shadow-wuxia-gold/10 relative overflow-hidden">
+            <div className="bg-ink-black/95 w-full max-w-7xl h-[90vh] max-h-[90vh] flex flex-col rounded-2xl border border-wuxia-gold/20 shadow-[0_0_80px_rgba(0,0,0,0.9)] shadow-wuxia-gold/10 relative overflow-hidden">
 
                 {/* Header */}
                 <div className="h-14 shrink-0 border-b border-white/10 bg-gradient-to-r from-black/80 to-black/40 flex items-center justify-between px-6 relative z-50">
@@ -293,13 +293,14 @@ const SocialModal: React.FC<Props> = ({
                     </button>
                 </div>
 
-                <div className="social-modal-body flex-1 flex overflow-hidden relative">
-                    {/* Left: Party Selection */}
-                    <div className="social-roster-panel w-[300px] shrink-0 border-r border-white/5 bg-gradient-to-b from-black/80 to-black/90 overflow-y-auto custom-scrollbar p-3 space-y-2 relative z-10 z-[60]">
-                        <div className="text-[10px] text-wuxia-gold/50 tracking-[0.3em] uppercase mb-4 px-2 flex items-center gap-2">
+                <div className="social-modal-body flex-1 min-h-0 flex flex-col overflow-hidden relative">
+                    {/* Top: Party Selection */}
+                    <div className="social-roster-panel w-full shrink-0 border-b border-white/5 bg-gradient-to-r from-black/85 via-black/70 to-black/90 relative z-10 z-[60]">
+                        <div className="px-5 pt-3 pb-2 text-[10px] text-wuxia-gold/50 tracking-[0.3em] uppercase flex items-center gap-2">
                             <span className="w-2 h-2 rounded bg-wuxia-gold/30 rotate-45"></span>
                             Character Roster
                         </div>
+                        <div className="flex gap-3 overflow-x-auto overflow-y-hidden custom-scrollbar px-5 pb-4 snap-x snap-mandatory">
                         {socialList.map(npc => (
                             <button
                                 key={npc.id}
@@ -307,13 +308,13 @@ const SocialModal: React.FC<Props> = ({
                                     setSelectedId(npc.id);
                                     onSelectedNpcIdChange?.(npc.id);
                                 }}
-                                className={`w-full text-left p-2 rounded-xl transition-all relative group overflow-hidden flex items-center gap-3 ${selectedId === npc.id
-                                    ? 'bg-gradient-to-r from-wuxia-gold/20 to-wuxia-gold/5 border border-wuxia-gold/40 shadow-[0_0_15px_rgba(212,175,55,0.15)]'
+                                className={`w-[245px] h-[76px] shrink-0 snap-start text-left p-2.5 rounded-xl transition-all relative group overflow-hidden flex items-center gap-3 ${selectedId === npc.id
+                                    ? 'bg-gradient-to-b from-wuxia-gold/18 to-wuxia-gold/5 border border-wuxia-gold/40 shadow-[0_0_15px_rgba(212,175,55,0.15)]'
                                     : 'border border-transparent hover:border-white/10 hover:bg-white/[0.03]'
                                     }`}
                             >
                                 {selectedId === npc.id && (
-                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-wuxia-gold shadow-[0_0_10px_rgba(212,175,55,0.8)] z-10"></div>
+                                    <div className="absolute left-3 right-3 bottom-0 h-0.5 bg-wuxia-gold shadow-[0_0_10px_rgba(212,175,55,0.8)] z-10"></div>
                                 )}
 
                                 <div className="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden border border-white/10 bg-black/50 group-hover:border-white/30 transition-colors">
@@ -356,15 +357,16 @@ const SocialModal: React.FC<Props> = ({
                             </button>
                         ))}
                         {socialList.length === 0 && (
-                            <div className="text-center text-gray-600 text-xs py-10 font-serif flex flex-col items-center gap-2">
+                            <div className="w-full text-center text-gray-600 text-xs py-6 font-serif flex flex-col items-center gap-2">
                                 <IconBeads size={24} className="opacity-50" />
                                 暂无结识之人
                             </div>
                         )}
+                        </div>
                     </div>
 
-                    {/* Right: JRPG Detail Screen */}
-                    <div className="social-detail-pane flex-1 flex flex-col relative bg-black shrink-0 w-0 z-[50]">
+                    {/* Detail Screen */}
+                    <div className="social-detail-pane flex-1 min-h-0 flex flex-col relative bg-black shrink-0 w-full z-[50]">
                         {/* Global Background for Right Area */}
                         <div className="absolute inset-0 z-0">
                             {当前背景 ? (
