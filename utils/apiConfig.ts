@@ -1915,7 +1915,9 @@ export const 生图接口支持NSFW = (config: 当前可用接口结构 | null):
     if (!config) return false;
     const backend = config.图片后端类型 || 'openai';
     if (backend === 'openai') return false;
-    const modelText = [config.model, config.供应商, config.baseUrl]
+    // 仅检查模型名和 URL，不检查供应商字段；openai_compatible 是协议描述（ComfyUI/SD WebUI 也用），
+    // 不代表后端不支持 NSFW。
+    const modelText = [config.model, config.baseUrl]
         .map((value) => 读取字符串(value).toLowerCase())
         .join(' ');
     return !不支持NSFW生图模型片段.some((keyword) => modelText.includes(keyword));
