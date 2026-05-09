@@ -164,6 +164,19 @@ const MobileSocial: React.FC<Props> = ({
             内射记录
         };
     };
+    const 读取NPC背包 = (npc: NPC结构): Array<{ 名称: string; 类型?: string; 数量?: number }> => (
+        Array.isArray((npc as any)?.背包) ? (npc as any).背包 : []
+    ).map((item: any) => (
+        typeof item === 'string'
+            ? { 名称: item.trim(), 类型: '杂物', 数量: 1 }
+            : { 名称: item?.名称 || '未命名物品', 类型: item?.类型 || '杂物', 数量: Number(item?.数量 || item?.堆叠数量 || 1) }
+    )).filter((item) => item.名称);
+    const 读取NPC状态 = (npc: NPC结构, key: 'BUFF' | 'DEBUFF') => (
+        Array.isArray((npc as any)?.[key]) ? (npc as any)[key] : []
+    ).filter((item: any) => item && typeof item === 'object');
+    const 读取NPC技艺 = (npc: NPC结构) => (
+        Array.isArray((npc as any)?.技艺) ? (npc as any).技艺 : []
+    ).filter((item: any) => item && typeof item === 'object');
     const 展示关系驱动面板 = 展示女性扩展;
     const 当前关系网 = currentNPC ? 读取关系网(currentNPC) : [];
     const 当前子宫档案 = currentNPC ? 读取当前子宫档案(currentNPC) : undefined;
@@ -502,6 +515,53 @@ const MobileSocial: React.FC<Props> = ({
                                     <p className="text-gray-300 font-serif leading-relaxed text-xs relative z-10">
                                         {currentNPC.简介 || "暂无详细生平记录。"}
                                     </p>
+                                </div>
+
+                                <div className="bg-black/40 border border-sky-900/30 rounded-xl p-3.5 shadow-lg">
+                                    <h4 className="text-sky-300/90 font-serif font-bold mb-3 uppercase tracking-[0.18em] text-xs flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rotate-45 bg-sky-400/70"></span>
+                                        技艺与随身状态
+                                    </h4>
+                                    <div className="space-y-3">
+                                        <div className="rounded border border-white/10 bg-black/25 p-2">
+                                            <div className="mb-1.5 text-[9px] tracking-[0.18em] text-wuxia-gold/70">装备</div>
+                                            <div className="grid grid-cols-2 gap-1 text-[10px] text-gray-300">
+                                                {Object.entries((currentNPC as any).当前装备 || {}).map(([key, value]) => (
+                                                    <div key={key} className="flex justify-between gap-2 rounded bg-black/25 px-1.5 py-1"><span className="text-gray-500">{key}</span><span className="truncate">{String(value || '无')}</span></div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="rounded border border-white/10 bg-black/25 p-2">
+                                            <div className="mb-1.5 text-[9px] tracking-[0.18em] text-wuxia-gold/70">背包</div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {读取NPC背包(currentNPC).length > 0 ? 读取NPC背包(currentNPC).map((item, idx) => (
+                                                    <span key={`${item.名称}-${idx}`} className="rounded border border-gray-700 bg-black/40 px-2 py-1 text-[9px] text-gray-300">
+                                                        {item.名称}{item.数量 && item.数量 > 1 ? ` x${item.数量}` : ''}
+                                                    </span>
+                                                )) : <span className="text-[10px] text-gray-600">暂无物品</span>}
+                                            </div>
+                                        </div>
+                                        <div className="rounded border border-white/10 bg-black/25 p-2">
+                                            <div className="mb-1.5 text-[9px] tracking-[0.18em] text-emerald-300/80">BUFF / DEBUFF</div>
+                                            <div className="space-y-1 text-[9px]">
+                                                {[...读取NPC状态(currentNPC, 'BUFF').map((item: any) => ({ ...item, tone: 'text-emerald-200' })), ...读取NPC状态(currentNPC, 'DEBUFF').map((item: any) => ({ ...item, tone: 'text-red-200' }))].map((item: any, idx) => (
+                                                    <div key={`${item.名称}-${idx}`} className={`rounded border border-white/10 bg-black/35 px-2 py-1 ${item.tone}`}>{item.名称 || '未命名状态'} · {item.效果 || item.描述 || '待记录'}</div>
+                                                ))}
+                                                {读取NPC状态(currentNPC, 'BUFF').length + 读取NPC状态(currentNPC, 'DEBUFF').length <= 0 ? <span className="text-[10px] text-gray-600">暂无状态</span> : null}
+                                            </div>
+                                        </div>
+                                        <div className="rounded border border-white/10 bg-black/25 p-2">
+                                            <div className="mb-1.5 text-[9px] tracking-[0.18em] text-sky-300/80">技艺</div>
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                                {读取NPC技艺(currentNPC).map((skill: any, idx) => (
+                                                    <div key={`${skill.名称}-${idx}`} className="rounded border border-sky-900/30 bg-sky-950/10 px-2 py-1">
+                                                        <div className="text-[9px] text-sky-100">{skill.名称}</div>
+                                                        <div className="text-[8px] text-gray-500">{skill.等级 || '未入门'} · {Number(skill.熟练度 || 0)}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {展示关系驱动面板 && (

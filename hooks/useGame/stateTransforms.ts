@@ -48,6 +48,7 @@ const 规范化文本 = (value: unknown, fallback = ''): string => (
 );
 const 未命名物品正则 = /^(未命名|未知物品|未知|无名|杂物|物品|\?+|n\/a)$/i;
 const 秘籍残卷正则 = /残卷|残篇|残本|残页|残章/;
+const 任务唯一道具正则 = /任务|主线|支线|剧情|信物|令牌|手令|调兵令|密令|密函|钥匙|契约|凭证|腰牌|玉佩|印信|地图|残图/;
 const 储物容器名称正则 = /储物袋|乾坤袋|须弥袋|百宝囊|行囊|纳戒|储物戒|储物镯|储物手镯/;
 const 规范化非负数 = (value: unknown, fallback = 0): number => {
     const n = Number(value);
@@ -83,6 +84,21 @@ const 生成物品名称 = (item: any): string => {
 const 是否为秘籍残卷 = (item: any): boolean => {
     const text = `${规范化文本(item?.名称)} ${规范化文本(item?.描述)}`;
     return 秘籍残卷正则.test(text);
+};
+const 是否唯一剧情道具 = (item: any): boolean => {
+    const text = [
+        item?.名称,
+        item?.描述,
+        item?.类型,
+        item?.物品来源类型,
+        item?.来源描述,
+        item?.视觉唯一性
+    ].map((value) => 规范化文本(value)).join(' ');
+    return item?.类型 === '任务道具'
+        || item?.视觉唯一性 === '唯一'
+        || item?.视觉唯一性 === '主线'
+        || ['任务奖励', '支线奖励', '主线奖励', '主线事件'].includes(规范化文本(item?.物品来源类型))
+        || 任务唯一道具正则.test(text);
 };
 const 估算容器容量 = (item: any): number => {
     const existing = 规范化非负数(item?.容器属性?.最大容量, 0);
@@ -126,7 +142,25 @@ const 规范化单个物品 = (rawItem: any, idx: number): any | null => {
     item.当前耐久 = 规范化非负数(item?.当前耐久, 0);
     item.最大耐久 = 规范化非负数(item?.最大耐久, 0);
     item.词条列表 = Array.isArray(item?.词条列表) ? item.词条列表 : [];
+    if (item.类型 === '任务' || item.类型 === '任务物品') {
+        item.类型 = '任务道具';
+    }
+    if ((item.类型 === '杂物' || item.类型 === '杂项') && 是否唯一剧情道具(item)) {
+        item.类型 = '任务道具';
+    }
     if (item.类型 === '秘籍' && !是否为秘籍残卷(item)) {
+        item.堆叠数量 = 1;
+        item.是否可堆叠 = false;
+    }
+    if (是否唯一剧情道具(item)) {
+        item.堆叠数量 = 1;
+        item.是否可堆叠 = false;
+        item.最大堆叠 = 1;
+        if (!item.视觉唯一性 || item.视觉唯一性 === '普通') {
+            item.视觉唯一性 = item.类型 === '任务道具' ? '主线' : '唯一';
+        }
+    }
+    if (['武器', '防具', '饰品'].includes(item.类型)) {
         item.堆叠数量 = 1;
         item.是否可堆叠 = false;
     }
@@ -577,6 +611,16 @@ const 规范化角色物品容器映射 = (rawRole?: any): 角色数据结构 =>
         deduped.push(normalizedItem);
     });
 
+    const uniqueByName = new Map<string, any>();
+    deduped = deduped.filter((item) => {
+        if (!是否唯一剧情道具(item)) return true;
+        const key = 规范化文本(item?.名称).replace(/\s+/g, '').toLowerCase();
+        if (!key) return true;
+        if (uniqueByName.has(key)) return false;
+        uniqueByName.set(key, item);
+        return true;
+    });
+
     const itemById = new Map<string, any>(deduped.map((item) => [item.ID, item]));
 
     const findItemByRef = (idOrName: string): any | undefined => {
@@ -913,6 +957,87 @@ const 合并字符串数组 = (a: any, b: any): string[] | undefined => {
     return merged.length > 0 ? merged : undefined;
 };
 
+const 默认NPC装备 = {
+    主武器: '无',
+    副武器: '无',
+    服装: '无',
+    饰品: '无',
+    内衣: '无',
+    内裤: '无',
+    袜饰: '无',
+    鞋履: '无'
+};
+
+const 默认NPC技艺 = ['炼器', '炼丹', '医术', '阵法', '符箓', '机关', '采集', '鉴定']
+    .map((名称) => ({ 名称, 等级: '未入门', 熟练度: 0, 描述: '尚未形成稳定技艺。' }));
+
+const 标准化NPC装备 = (raw: any): Record<string, string> => {
+    const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const out: Record<string, string> = { ...默认NPC装备 };
+    Object.keys(默认NPC装备).forEach((key) => {
+        out[key] = 规范化文本(source?.[key], '无') || '无';
+    });
+    return out;
+};
+
+const 标准化NPC背包 = (raw: any): Array<{ 名称: string; 类型?: string; 数量?: number; 描述?: string }> => (
+    Array.isArray(raw)
+        ? raw
+            .map((item: any) => {
+                if (typeof item === 'string') {
+                    const 名称 = 规范化文本(item);
+                    return 名称 ? { 名称, 类型: '杂物', 数量: 1 } : null;
+                }
+                if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+                const 名称 = 规范化文本(item?.名称);
+                if (!名称) return null;
+                return {
+                    名称,
+                    类型: 规范化文本(item?.类型, '杂物'),
+                    数量: Math.max(1, 规范化整数(item?.数量 ?? item?.堆叠数量, 1)),
+                    描述: 规范化文本(item?.描述)
+                };
+            })
+            .filter(Boolean) as Array<{ 名称: string; 类型?: string; 数量?: number; 描述?: string }>
+        : []
+);
+
+const 标准化NPC状态效果 = (raw: any): Array<{ 名称: string; 描述: string; 效果: string; 结束时间?: string }> => (
+    Array.isArray(raw)
+        ? raw
+            .map((item: any) => {
+                if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+                const 名称 = 规范化文本(item?.名称);
+                const 描述 = 规范化文本(item?.描述);
+                const 效果 = 规范化文本(item?.效果);
+                const 结束时间 = 解析任意时间字段(item?.结束时间);
+                if (!名称 && !描述 && !效果) return null;
+                return { 名称: 名称 || '未命名状态', 描述, 效果, ...(结束时间 ? { 结束时间 } : {}) };
+            })
+            .filter(Boolean) as Array<{ 名称: string; 描述: string; 效果: string; 结束时间?: string }>
+        : []
+);
+
+const 标准化NPC技艺 = (raw: any): Array<{ 名称: string; 等级: string; 熟练度: number; 描述: string }> => {
+    const source = Array.isArray(raw) ? raw : [];
+    const byName = new Map<string, any>();
+    source.forEach((item: any) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return;
+        const 名称 = 规范化文本(item?.名称);
+        if (!名称) return;
+        byName.set(名称, {
+            名称,
+            等级: 规范化文本(item?.等级, '未入门'),
+            熟练度: Math.max(0, Math.min(100, 规范化数值(item?.熟练度, 0))),
+            描述: 规范化文本(item?.描述, '尚未形成稳定技艺。')
+        });
+    });
+    默认NPC技艺.forEach((item) => {
+        if (!byName.has(item.名称)) byName.set(item.名称, { ...item });
+    });
+    return Array.from(byName.values());
+};
+
 const 标准化关系网变量 = (raw: any): Array<{ 对象姓名: string; 关系: string; 备注?: string }> | undefined => {
     if (!Array.isArray(raw)) return undefined;
     const merged = new Map<string, { 对象姓名: string; 关系: string; 备注?: string }>();
@@ -1182,6 +1307,11 @@ const 标准化单个NPC = (rawNpc: any, fallbackIndex: number): any => {
     );
     const 记忆 = 标准化NPC记忆(npc?.记忆);
     const 总结记忆 = 标准化NPC总结记忆(npc?.总结记忆);
+    const 当前装备 = 标准化NPC装备(npc?.当前装备);
+    const 背包 = 标准化NPC背包(npc?.背包 ?? npc?.物品列表);
+    const BUFF = 标准化NPC状态效果(npc?.BUFF ?? npc?.buff ?? npc?.增益);
+    const DEBUFF = 标准化NPC状态效果(npc?.DEBUFF ?? npc?.debuff ?? npc?.负面状态);
+    const 技艺 = 标准化NPC技艺(npc?.技艺);
     const 核心性格特征 = 取首个非空文本(npc?.核心性格特征);
     const 好感度突破条件 = 取首个非空文本(npc?.好感度突破条件);
     const 关系突破条件 = 取首个非空文本(npc?.关系突破条件);
@@ -1231,6 +1361,11 @@ const 标准化单个NPC = (rawNpc: any, fallbackIndex: number): any => {
         最大精力: Number.isFinite(Number(npc?.最大精力)) ? Number(npc.最大精力) : undefined,
         当前内力: Number.isFinite(Number(npc?.当前内力)) ? Number(npc.当前内力) : undefined,
         最大内力: Number.isFinite(Number(npc?.最大内力)) ? Number(npc.最大内力) : undefined,
+        当前装备,
+        背包,
+        BUFF,
+        DEBUFF,
+        技艺,
         记忆,
         ...(总结记忆.length > 0 ? { 总结记忆 } : {}),
         ...(核心性格特征 ? { 核心性格特征 } : {}),
@@ -1260,17 +1395,23 @@ const 合并NPC对象 = (leftRaw: any, rightRaw: any, fallbackIndex: number): an
     const mergedWomb = 合并子宫档案(left?.子宫, right?.子宫);
 
     const mergedEquip = (() => {
-        const leftEquip = left?.当前装备 && typeof left.当前装备 === 'object' ? left.当前装备 : undefined;
-        const rightEquip = right?.当前装备 && typeof right.当前装备 === 'object' ? right.当前装备 : undefined;
-        if (!leftEquip && !rightEquip) return undefined;
+        const leftEquip = 标准化NPC装备(left?.当前装备);
+        const rightEquip = 标准化NPC装备(right?.当前装备);
         const keys = ['主武器', '副武器', '服装', '饰品', '内衣', '内裤', '袜饰', '鞋履'];
         const out: Record<string, string> = {};
         keys.forEach((k) => {
             const text = 取更优文本(取字段文本(leftEquip, k), 取字段文本(rightEquip, k));
-            if (text) out[k] = text;
+            out[k] = text || '无';
         });
-        return Object.keys(out).length > 0 ? out : undefined;
+        return out;
     })();
+    const mergedBag = [...标准化NPC背包(left?.背包), ...标准化NPC背包(right?.背包)]
+        .filter((item, index, list) => list.findIndex((candidate) => candidate.名称 === item.名称 && candidate.类型 === item.类型) === index);
+    const mergedBuff = [...标准化NPC状态效果(left?.BUFF), ...标准化NPC状态效果(right?.BUFF)]
+        .filter((item, index, list) => list.findIndex((candidate) => candidate.名称 === item.名称) === index);
+    const mergedDebuff = [...标准化NPC状态效果(left?.DEBUFF), ...标准化NPC状态效果(right?.DEBUFF)]
+        .filter((item, index, list) => list.findIndex((candidate) => candidate.名称 === item.名称) === index);
+    const mergedSkills = 标准化NPC技艺([...标准化NPC技艺(left?.技艺), ...标准化NPC技艺(right?.技艺)]);
     const mergedRelationNet = 合并关系网变量(left?.关系网变量, right?.关系网变量);
     const mergedImageArchive = 合并NPC图片档案对象(left?.图片档案, right?.图片档案);
 
@@ -1354,7 +1495,10 @@ const 合并NPC对象 = (leftRaw: any, rightRaw: any, fallbackIndex: number): an
             ? Number(right.最大内力)
             : (Number.isFinite(Number(left?.最大内力)) ? Number(left.最大内力) : undefined),
         当前装备: mergedEquip,
-        背包: 合并字符串数组(left?.背包, right?.背包),
+        背包: mergedBag,
+        BUFF: mergedBuff,
+        DEBUFF: mergedDebuff,
+        技艺: mergedSkills,
         记忆: mergedMemory,
         ...(mergedSummaryMemory.length > 0 ? { 总结记忆: mergedSummaryMemory } : {}),
         ...(mergedImageArchive ? { 图片档案: mergedImageArchive, 最近生图结果: mergedImageArchive.最近生图结果 } : {})

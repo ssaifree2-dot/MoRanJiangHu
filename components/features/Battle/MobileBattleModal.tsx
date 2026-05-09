@@ -1,9 +1,11 @@
 import React from 'react';
 import { 角色数据结构, 战斗状态结构 } from '../../../types';
+import { 生成战斗可视化数据, 逻辑判断知识库 } from '../../../utils/rulebook';
 
 interface Props {
     character: 角色数据结构;
     battle: 战斗状态结构;
+    contextText?: string;
     onClose: () => void;
 }
 
@@ -34,9 +36,10 @@ const 条形值: React.FC<{
     );
 };
 
-const MobileBattleModal: React.FC<Props> = ({ character, battle, onClose }) => {
+const MobileBattleModal: React.FC<Props> = ({ character, battle, contextText = '', onClose }) => {
     const 敌方列表 = (Array.isArray(battle?.敌方) ? battle.敌方 : []) as 扩展敌方[];
     const 存活敌人数 = 敌方列表.filter((enemy) => (enemy?.当前血量 || 0) > 0).length;
+    const 可视化 = 生成战斗可视化数据(character, battle, contextText);
 
     const 部位当前 = [
         character.头部当前血量,
@@ -99,6 +102,27 @@ const MobileBattleModal: React.FC<Props> = ({ character, battle, onClose }) => {
                             <条形值 label="精力" current={character.当前精力} max={character.最大精力} color="bg-gradient-to-r from-cyan-700 to-cyan-400" />
                             <条形值 label="内力" current={character.当前内力} max={character.最大内力} color="bg-gradient-to-r from-indigo-700 to-indigo-400" />
                         </div>
+                        <div className="mt-3 grid grid-cols-4 gap-1.5 text-[10px]">
+                            <div className="rounded border border-red-500/20 bg-red-950/20 p-1.5 text-center"><div className="text-red-200">攻</div><div className="font-mono text-red-100">{可视化.玩家.攻势}</div></div>
+                            <div className="rounded border border-sky-500/20 bg-sky-950/20 p-1.5 text-center"><div className="text-sky-200">守</div><div className="font-mono text-sky-100">{可视化.玩家.守势}</div></div>
+                            <div className="rounded border border-emerald-500/20 bg-emerald-950/20 p-1.5 text-center"><div className="text-emerald-200">身</div><div className="font-mono text-emerald-100">{可视化.玩家.身法}</div></div>
+                            <div className="rounded border border-amber-500/20 bg-amber-950/20 p-1.5 text-center"><div className="text-amber-200">续</div><div className="font-mono text-amber-100">{可视化.玩家.续航}</div></div>
+                        </div>
+                    </div>
+
+                    <div className="rounded-xl border border-wuxia-gold/20 bg-black/35 p-3">
+                        <div className="mb-2 text-[10px] text-wuxia-gold/80 tracking-[0.2em]">判定逻辑</div>
+                        <div className="space-y-2">
+                            {可视化.阶段.slice(0, 3).map((stage) => (
+                                <div key={stage.名称} className="rounded border border-gray-800 bg-black/20 px-2 py-1.5 text-[10px]">
+                                    <div className="font-bold text-gray-100">{stage.名称}</div>
+                                    <div className="mt-0.5 leading-4 text-gray-400">{stage.描述}</div>
+                                </div>
+                            ))}
+                            <div className="rounded border border-gray-800 bg-black/20 px-2 py-1.5 text-[10px] text-gray-500">
+                                {逻辑判断知识库.find((rule) => rule.名称 === '战斗先机')?.公式}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="rounded-xl border border-gray-800 bg-black/35 p-3">
@@ -114,6 +138,7 @@ const MobileBattleModal: React.FC<Props> = ({ character, battle, onClose }) => {
                                     const spMax = Math.max(1, enemy?.最大精力 || 1);
                                     const qiCur = Math.max(0, enemy?.当前内力 || 0);
                                     const qiMax = Math.max(1, enemy?.最大内力 || Math.max(qiCur, 1));
+                                    const enemyViz = 可视化.敌方[idx];
                                     return (
                                         <div key={`${enemy?.名字 || 'enemy'}-${idx}`} className="rounded-lg border border-red-900/35 bg-red-950/10 p-3">
                                             <div className="flex items-start justify-between">
@@ -136,6 +161,12 @@ const MobileBattleModal: React.FC<Props> = ({ character, battle, onClose }) => {
                                             <div className="mt-2 text-[10px] text-gray-500">
                                                 技能：{Array.isArray(enemy?.技能) && enemy.技能.length > 0 ? enemy.技能.join(' / ') : '无'}
                                             </div>
+                                            {enemyViz ? (
+                                                <div className="mt-2 rounded border border-amber-500/20 bg-amber-950/10 px-2 py-1.5 text-[10px] leading-4 text-amber-100/80">
+                                                    态势：{enemyViz.威胁} · 攻 {enemyViz.攻势} / 守 {enemyViz.守势}
+                                                    <div className="mt-0.5 text-amber-100/60">{enemyViz.判定}</div>
+                                                </div>
+                                            ) : null}
                                         </div>
                                     );
                                 })}

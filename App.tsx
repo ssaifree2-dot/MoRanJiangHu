@@ -16,13 +16,14 @@ import { 构建字体注入样式文本, 构建UI文字CSS变量 } from './utils
 import { 获取图片资源文本地址 } from './utils/imageAssets';
 import { 生成物品图标 } from './services/ai/itemImageGeneration';
 import { 物品已有可用图标 } from './utils/itemImage';
+import { 丢弃背包物品, 是否杂物类物品 } from './utils/inventoryActions';
 import { MusicProvider } from './components/features/Music/MusicProvider';
 import { isNativeCapacitorEnvironment } from './utils/nativeRuntime';
 import { isDynamicImportFetchError, lazyImportWithReload } from './utils/lazyImportWithReload';
 import { 小说拆分后台调度服务 } from './services/novelDecompositionScheduler';
 import { checkForAppUpdate, subscribeAppUpdateProgress, type AppUpdateProgressState } from './services/appUpdate';
 import { RELEASE_INFO } from './data/releaseInfo';
-import { 读取拍卖行状态, 保存拍卖行状态, 清理并补货, 投放事件拍卖品, 从剧情响应构建拍卖行投放参数, 构建拍卖行存储作用域, type 拍卖行状态 } from './services/auctionHouse';
+import { 读取拍卖行状态, 保存拍卖行状态, 清理并补货, 投放事件拍卖品, 从剧情响应构建拍卖行投放参数, 构建拍卖行存储作用域, 上架背包物品, 创建交易记录, 结算玩家寄售, type 拍卖行状态 } from './services/auctionHouse';
 import './services/diagnosticLog';
 
 const RELEASE_NOTES_SUPPRESS_DATE_KEY = 'moranjianghu.releaseNotesSuppressDate';
@@ -249,6 +250,7 @@ const App: React.FC = () => {
     const releaseNotesAutoOpenedRef = React.useRef(false);
     const autoItemImageRunningRef = React.useRef<Set<string>>(new Set());
     const autoItemImageFailedAtRef = React.useRef<Map<string, number>>(new Map());
+    const auctionSettlementHandledRef = React.useRef<Set<string>>(new Set());
     const auctionHouseScope = React.useMemo(() => 构建拍卖行存储作用域({
         游戏初始时间: state.游戏初始时间,
         角色数据: state.角色,
@@ -837,6 +839,31 @@ const App: React.FC = () => {
             : [],
         [latestAssistantMessage]
     );
+    const latestBattleContextText = React.useMemo(() => {
+        const response = latestAssistantMessage?.structuredResponse;
+        if (!response) return '';
+        return [
+            Array.isArray(response.logs) ? response.logs.map((log) => `${log?.sender || '旁白'}：${log?.text || ''}`).join('\n') : '',
+            response.t_state || '',
+            response.t_branch || '',
+            Array.isArray(response.dynamic_world) ? response.dynamic_world.join('\n') : '',
+        ].filter(Boolean).join('\n').slice(0, 1200);
+    }, [latestAssistantMessage]);
+    React.useEffect(() => {
+        if (!latestAssistantMessage?.structuredResponse) return;
+        const signature = `${latestAssistantMessage.timestamp || 0}-${latestAssistantMessage.gameTime || ''}`;
+        if (auctionSettlementHandledRef.current.has(signature)) return;
+        auctionSettlementHandledRef.current.add(signature);
+        setAuctionHouseState((prev) => {
+            const settled = 结算玩家寄售(prev, state.角色, latestAssistantMessage.timestamp || Date.now());
+            if (!settled.settledCount) return prev;
+            保存拍卖行状态(settled.nextState, auctionHouseScope);
+            setters.setCharacter(settled.nextCharacter);
+            void actions.performAutoSave?.({ role: settled.nextCharacter, force: true });
+            actions.pushNotification({ title: '寄售成交', message: settled.message, tone: 'success' });
+            return settled.nextState;
+        });
+    }, [actions, auctionHouseScope, latestAssistantMessage, setters, state.角色]);
     React.useEffect(() => {
         const response = latestAssistantMessage?.structuredResponse;
         if (!response) return;
@@ -1160,6 +1187,104 @@ const App: React.FC = () => {
         closeAllPanels();
         setShowAuctionHouse(true);
     }, [closeAllPanels]);
+    const handleSellBagItemToAuction = React.useCallback((itemId: string) => {
+        const result = 上架背包物品(state.角色, itemId, undefined, '铜钱', auctionHouseState.行情列表 || []);
+        if (!result.ok) {
+            actions.pushNotification({ title: '寄售失败', message: result.message, tone: 'error' });
+            return { ok: false as const, message: result.message };
+        }
+        const nextState: 拍卖行状态 = {
+            ...auctionHouseState,
+            拍卖品列表: [result.auction, ...(auctionHouseState.拍卖品列表 || [])],
+            交易记录: [
+                创建交易记录('寄售', '背包寄售', result.message),
+                ...(auctionHouseState.交易记录 || []),
+            ].slice(0, 40),
+        };
+        setAuctionHouseState(nextState);
+        保存拍卖行状态(nextState, auctionHouseScope);
+        setters.setCharacter(result.nextCharacter);
+        void actions.performAutoSave?.({ role: result.nextCharacter, force: true });
+        actions.pushNotification({ title: '已送入拍卖行', message: result.message, tone: 'success' });
+        return { ok: true as const, message: result.message };
+    }, [actions, auctionHouseScope, auctionHouseState, setters, state.角色]);
+    const handleDiscardBagItem = React.useCallback((itemId: string) => {
+        const result = 丢弃背包物品(state.角色, itemId);
+        if (!result.ok) {
+            actions.pushNotification({ title: '丢弃失败', message: result.message, tone: 'error' });
+            return { ok: false as const, message: result.message };
+        }
+        setters.setCharacter(result.nextCharacter);
+        void actions.performAutoSave?.({ role: result.nextCharacter, force: true });
+        actions.pushNotification({ title: '已丢弃物品', message: result.message, tone: 'success' });
+        return { ok: true as const, message: result.message };
+    }, [actions, setters, state.角色]);
+    const handleSellAllMiscItems = React.useCallback(() => {
+        const sourceItems = Array.isArray(state.角色?.物品列表) ? state.角色.物品列表 : [];
+        const miscItems = sourceItems.filter(是否杂物类物品);
+        if (miscItems.length <= 0) {
+            const message = '背包中没有可一键出售的杂物。';
+            actions.pushNotification({ title: '没有杂物', message, tone: 'info' });
+            return { ok: false as const, message };
+        }
+        let nextCharacter: any = state.角色;
+        const newAuctions: any[] = [];
+        const messages: string[] = [];
+        for (const item of miscItems) {
+            const itemId = String(item?.ID || '');
+            if (!itemId) continue;
+            const result = 上架背包物品(nextCharacter, itemId, undefined, '铜钱', auctionHouseState.行情列表 || [], Number.POSITIVE_INFINITY);
+            if (!result.ok) continue;
+            nextCharacter = result.nextCharacter;
+            newAuctions.push(result.auction);
+            messages.push(result.message);
+        }
+        if (newAuctions.length <= 0) {
+            const message = '杂物出售失败，请稍后再试。';
+            actions.pushNotification({ title: '出售失败', message, tone: 'error' });
+            return { ok: false as const, message };
+        }
+        const nextState: 拍卖行状态 = {
+            ...auctionHouseState,
+            拍卖品列表: [...newAuctions, ...(auctionHouseState.拍卖品列表 || [])],
+            交易记录: [
+                创建交易记录('寄售', '杂物一键寄售', `已寄售 ${newAuctions.length} 组杂物，下回合自动成交。`),
+                ...(auctionHouseState.交易记录 || []),
+            ].slice(0, 40),
+        };
+        setAuctionHouseState(nextState);
+        保存拍卖行状态(nextState, auctionHouseScope);
+        setters.setCharacter(nextCharacter);
+        void actions.performAutoSave?.({ role: nextCharacter, force: true });
+        const message = `已寄售 ${newAuctions.length} 组杂物，下回合自动成交。`;
+        actions.pushNotification({ title: '杂物已寄售', message, tone: 'success' });
+        return { ok: true as const, message: messages.length > 1 ? message : messages[0] || message };
+    }, [actions, auctionHouseScope, auctionHouseState, setters, state.角色]);
+    const handleDiscardAllMiscItems = React.useCallback(() => {
+        const sourceItems = Array.isArray(state.角色?.物品列表) ? state.角色.物品列表 : [];
+        const miscItems = sourceItems.filter(是否杂物类物品);
+        if (miscItems.length <= 0) {
+            const message = '背包中没有可一键丢弃的杂物。';
+            actions.pushNotification({ title: '没有杂物', message, tone: 'info' });
+            return { ok: false as const, message };
+        }
+        let nextCharacter: any = state.角色;
+        let removedCount = 0;
+        for (const item of miscItems) {
+            const itemId = String(item?.ID || '');
+            const count = Math.max(1, Math.trunc(Number(item?.堆叠数量) || 1));
+            if (!itemId) continue;
+            const result = 丢弃背包物品(nextCharacter, itemId, Number.POSITIVE_INFINITY);
+            if (!result.ok) continue;
+            nextCharacter = result.nextCharacter;
+            removedCount += count;
+        }
+        setters.setCharacter(nextCharacter);
+        void actions.performAutoSave?.({ role: nextCharacter, force: true });
+        const message = `已丢弃 ${removedCount || miscItems.length} 件杂物。`;
+        actions.pushNotification({ title: '杂物已丢弃', message, tone: 'success' });
+        return { ok: true as const, message };
+    }, [actions, setters, state.角色]);
     const openNovelExport = React.useCallback(() => {
         closeAllPanels();
         setShowNovelExport(true);
@@ -2373,6 +2498,10 @@ const App: React.FC = () => {
                                         setters.setCharacter(nextCharacter);
                                         void actions.performAutoSave?.({ role: nextCharacter, force: true });
                                     }}
+                                    onSellItem={handleSellBagItemToAuction}
+                                    onDiscardItem={handleDiscardBagItem}
+                                    onSellAllMisc={handleSellAllMiscItems}
+                                    onDiscardAllMisc={handleDiscardAllMiscItems}
                                     onClose={() => setters.setShowInventory(false)} 
                                 />
                             ) : (
@@ -2382,6 +2511,10 @@ const App: React.FC = () => {
                                         setters.setCharacter(nextCharacter);
                                         void actions.performAutoSave?.({ role: nextCharacter, force: true });
                                     }}
+                                    onSellItem={handleSellBagItemToAuction}
+                                    onDiscardItem={handleDiscardBagItem}
+                                    onSellAllMisc={handleSellAllMiscItems}
+                                    onDiscardAllMisc={handleDiscardAllMiscItems}
                                     onClose={() => setters.setShowInventory(false)} 
                                 />
                             )}
@@ -2463,12 +2596,14 @@ const App: React.FC = () => {
                                 <MobileBattleModal
                                     character={state.角色}
                                     battle={state.战斗}
+                                    contextText={latestBattleContextText}
                                     onClose={() => setters.setShowBattle(false)}
                                 />
                             ) : (
                                 <BattleModal
                                     character={state.角色}
                                     battle={state.战斗}
+                                    contextText={latestBattleContextText}
                                     onClose={() => setters.setShowBattle(false)}
                                 />
                             )}

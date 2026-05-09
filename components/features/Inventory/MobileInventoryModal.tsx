@@ -9,18 +9,24 @@ import {
     获取装备槽位标签
 } from '../../../utils/equipmentActions';
 import { 获取物品已选图标地址 } from '../../../utils/itemImage';
+import { 获取物品明细分组 } from '../../../utils/rulebook';
+import { 是否杂物类物品 } from '../../../utils/inventoryActions';
 
 interface Props {
     character: any;
     onClose: () => void;
     onCharacterChange?: (nextCharacter: any) => void;
+    onSellItem?: (itemId: string) => { ok: boolean; message: string } | void;
+    onDiscardItem?: (itemId: string) => { ok: boolean; message: string } | void;
+    onSellAllMisc?: () => { ok: boolean; message: string } | void;
+    onDiscardAllMisc?: () => { ok: boolean; message: string } | void;
 }
 
-type ItemCategory = '全部' | '装备' | '消耗品' | '材料' | '秘籍' | '杂物';
+type ItemCategory = '全部' | '装备' | '任务道具' | '消耗品' | '材料' | '秘籍' | '杂物';
 
-const TYPE_ORDER = ['武器', '防具', '饰品', '秘籍', '消耗品', '材料', '杂物', '杂项'];
+const TYPE_ORDER = ['武器', '防具', '饰品', '任务道具', '秘籍', '消耗品', '材料', '杂物', '杂项'];
 const QUALITY_ORDER = ['传说', '绝世', '极品', '上品', '良品', '凡品'];
-const CATEGORIES: ItemCategory[] = ['全部', '装备', '消耗品', '材料', '秘籍', '杂物'];
+const CATEGORIES: ItemCategory[] = ['全部', '装备', '任务道具', '消耗品', '材料', '秘籍', '杂物'];
 
 const getSafeNumber = (value: unknown, fallback = 0) => {
     const parsed = Number(value);
@@ -34,7 +40,7 @@ const getSafeText = (value: unknown, fallback = '') => (
 const getCategoryCount = (items: any[], category: ItemCategory) => {
     if (category === '全部') return items.length;
     if (category === '装备') return items.filter((item) => ['武器', '防具', '饰品'].includes(getSafeText(item?.类型))).length;
-    if (category === '杂物') return items.filter((item) => ['杂物', '杂项'].includes(getSafeText(item?.类型))).length;
+    if (category === '杂物') return items.filter(是否杂物类物品).length;
     return items.filter((item) => getSafeText(item?.类型) === category).length;
 };
 
@@ -43,6 +49,8 @@ const renderItemIcon = (type: string, className: string) => {
     switch (type) {
         case '武器':
             return <svg {...props}><path d="M12 1L9 9h2v7H7v2h4v4h2v-4h4v-2h-4V9h2L12 1z" /></svg>;
+        case '任务道具':
+            return <svg {...props}><path d="M7 3h10l2 3v15H5V6l2-3zm1 5h8V6H8v2zm0 4h8v2H8v-2zm0 4h5v2H8v-2z" /></svg>;
         case '防具':
             return <svg {...props}><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>;
         case '饰品':
@@ -58,7 +66,7 @@ const renderItemIcon = (type: string, className: string) => {
     }
 };
 
-const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange }) => {
+const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacterChange, onSellItem, onDiscardItem, onSellAllMisc, onDiscardAllMisc }) => {
     const [activeCategory, setActiveCategory] = useState<ItemCategory>('全部');
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [actionMessage, setActionMessage] = useState('');
@@ -73,7 +81,7 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacter
             const type = getSafeText(item?.类型);
             if (activeCategory === '全部') return true;
             if (activeCategory === '装备') return ['武器', '防具', '饰品'].includes(type);
-            if (activeCategory === '杂物') return ['杂物', '杂项'].includes(type);
+            if (activeCategory === '杂物') return 是否杂物类物品(item);
             return type === activeCategory;
         });
 
@@ -97,6 +105,7 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacter
     }, [items, selectedItem]);
     const selectedEquipSlots = selectedItem ? 获取物品可装备槽位(selectedItem) : [];
     const selectedCanEquip = selectedItem ? 是否可装备物品(selectedItem) : false;
+    const selectedDetailGroups = selectedItem ? 获取物品明细分组(selectedItem) : [];
 
     const applyCharacterChange = (nextCharacter: any, selectedItemRef?: string) => {
         onCharacterChange?.(nextCharacter);
@@ -129,6 +138,38 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacter
         const nextCharacter = 卸下角色装备(character, itemRef);
         applyCharacterChange(nextCharacter, itemRef);
         setActionMessage('已卸下装备');
+    };
+
+    const handleSellSelected = () => {
+        if (!selectedItem || !onSellItem) return;
+        const itemRef = getSafeText(selectedItem?.ID);
+        if (!itemRef) return;
+        const result = onSellItem(itemRef);
+        setActionMessage(result?.message || '已送入拍卖行寄卖');
+        if (!result || result.ok) setSelectedItem(null);
+    };
+
+    const handleDiscardSelected = () => {
+        if (!selectedItem || !onDiscardItem) return;
+        const itemRef = getSafeText(selectedItem?.ID);
+        if (!itemRef) return;
+        const result = onDiscardItem(itemRef);
+        setActionMessage(result?.message || '已丢弃物品');
+        if (!result || result.ok) setSelectedItem(null);
+    };
+
+    const handleSellAllMisc = () => {
+        if (!onSellAllMisc) return;
+        const result = onSellAllMisc();
+        setActionMessage(result?.message || '已一键寄售杂物');
+        if (!result || result.ok) setSelectedItem(null);
+    };
+
+    const handleDiscardAllMisc = () => {
+        if (!onDiscardAllMisc) return;
+        const result = onDiscardAllMisc();
+        setActionMessage(result?.message || '已一键丢弃杂物');
+        if (!result || result.ok) setSelectedItem(null);
     };
 
     return (
@@ -174,6 +215,22 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacter
                             {category} {getCategoryCount(items, category)}
                         </button>
                     ))}
+                    <button
+                        type="button"
+                        onClick={handleSellAllMisc}
+                        disabled={!onSellAllMisc || getCategoryCount(items, '杂物') <= 0}
+                        className="shrink-0 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-100 disabled:opacity-40"
+                    >
+                        杂物全售
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleDiscardAllMisc}
+                        disabled={!onDiscardAllMisc || getCategoryCount(items, '杂物') <= 0}
+                        className="shrink-0 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-100 disabled:opacity-40"
+                    >
+                        杂物全弃
+                    </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto bg-black/10 p-2 space-y-2">
@@ -264,13 +321,50 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacter
                                 {getSafeText(selectedItem?.描述, '暂无描述')}
                             </p>
 
-                            <div className="grid grid-cols-2 gap-2 rounded border border-gray-800/50 bg-black/20 p-2">
-                                <div className="flex justify-between"><span className="text-gray-500">类型</span><span>{getSafeText(selectedItem?.类型, '未知')}</span></div>
-                                <div className="flex justify-between"><span className="text-gray-500">品质</span><span>{getSafeText(selectedItem?.品质, '未知')}</span></div>
-                                <div className="flex justify-between"><span className="text-gray-500">单件重量</span><span className="font-mono">{getSafeNumber(selectedItem?.重量)}</span></div>
-                                <div className="flex justify-between"><span className="text-gray-500">持有数量</span><span className="font-mono">{getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
-                                <div className="flex justify-between"><span className="text-gray-500">总价值</span><span className="font-mono text-amber-400">{getSafeNumber(selectedItem?.价值) * getSafeNumber(selectedItem?.堆叠数量, 1)}</span></div>
-                                <div className="flex justify-between"><span className="text-gray-500">耐久度</span><span className="font-mono">{getSafeNumber(selectedItem?.当前耐久)}/{getSafeNumber(selectedItem?.最大耐久)}</span></div>
+                            <div className="space-y-2 rounded border border-gray-800/50 bg-black/20 p-2">
+                                {selectedDetailGroups.map((group) => (
+                                    <div key={group.标题}>
+                                        <div className="mb-1 text-[10px] font-bold tracking-[0.16em] text-wuxia-gold/75">{group.标题}</div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {group.条目.map((entry) => (
+                                                <div key={`${group.标题}-${entry.标签}`} className="rounded border border-gray-800 bg-black/20 px-2 py-1">
+                                                    <div className="flex justify-between gap-2"><span className="text-gray-500">{entry.标签}</span><span className="font-mono text-amber-300">{entry.数值}</span></div>
+                                                    <div className="mt-1 line-clamp-2 text-[9px] leading-4 text-gray-500">{entry.依据}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="rounded border border-emerald-500/20 bg-emerald-500/5 p-2">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-bold text-emerald-200">拍卖行出售</span>
+                                    <span className="truncate text-[10px] text-gray-500">市场价，下回合入账</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleSellSelected}
+                                    disabled={!onSellItem}
+                                    className="w-full rounded bg-emerald-700/40 px-3 py-2 text-xs font-bold text-emerald-100 disabled:opacity-40"
+                                >
+                                    出售
+                                </button>
+                            </div>
+
+                            <div className="rounded border border-red-500/20 bg-red-500/5 p-2">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-bold text-red-200">直接丢弃</span>
+                                    <span className="truncate text-[10px] text-gray-500">从背包移除</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleDiscardSelected}
+                                    disabled={!onDiscardItem}
+                                    className="w-full rounded bg-red-700/40 px-3 py-2 text-xs font-bold text-red-100 disabled:opacity-40"
+                                >
+                                    丢弃
+                                </button>
                             </div>
 
                             {selectedCanEquip ? (

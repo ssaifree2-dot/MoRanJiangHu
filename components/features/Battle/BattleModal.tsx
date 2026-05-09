@@ -1,10 +1,12 @@
 import React from 'react';
 import { 角色数据结构, 战斗状态结构 } from '../../../types';
 import { IconSwords, IconYinYang } from '../../ui/Icons';
+import { 生成战斗可视化数据, 逻辑判断知识库 } from '../../../utils/rulebook';
 
 interface Props {
     character: 角色数据结构;
     battle: 战斗状态结构;
+    contextText?: string;
     onClose: () => void;
 }
 
@@ -46,9 +48,10 @@ const 资源条: React.FC<{
     );
 };
 
-const BattleModal: React.FC<Props> = ({ character, battle, onClose }) => {
+const BattleModal: React.FC<Props> = ({ character, battle, contextText = '', onClose }) => {
     const 敌方列表 = (Array.isArray(battle?.敌方) ? battle.敌方 : []) as 扩展敌方[];
     const 存活敌人数 = 敌方列表.filter((enemy) => (enemy?.当前血量 || 0) > 0).length;
+    const 可视化 = 生成战斗可视化数据(character, battle, contextText);
 
     const 部位列表 = [
         ['头部', character.头部当前血量, character.头部最大血量, character.头部状态],
@@ -117,6 +120,38 @@ const BattleModal: React.FC<Props> = ({ character, battle, onClose }) => {
                 <div className="flex-1 min-h-0 flex flex-col relative z-10">
                     {/* 敌方单位列表（全宽版） */}
                     <div className="flex-1 p-6 overflow-y-auto custom-scrollbar relative">
+                        <div className="mb-4 grid gap-3 lg:grid-cols-[1.1fr_1fr]">
+                            <section className="rounded-xl border border-wuxia-gold/20 bg-black/35 p-4">
+                                <div className="mb-3 text-xs font-bold tracking-[0.22em] text-wuxia-gold/80">统一判定摘要</div>
+                                <div className="grid grid-cols-4 gap-2 text-xs">
+                                    <div className="rounded border border-red-500/20 bg-red-950/20 px-3 py-2"><div className="text-red-200">攻势</div><div className="font-mono text-lg text-red-100">{可视化.玩家.攻势}</div></div>
+                                    <div className="rounded border border-sky-500/20 bg-sky-950/20 px-3 py-2"><div className="text-sky-200">守势</div><div className="font-mono text-lg text-sky-100">{可视化.玩家.守势}</div></div>
+                                    <div className="rounded border border-emerald-500/20 bg-emerald-950/20 px-3 py-2"><div className="text-emerald-200">身法</div><div className="font-mono text-lg text-emerald-100">{可视化.玩家.身法}</div></div>
+                                    <div className="rounded border border-amber-500/20 bg-amber-950/20 px-3 py-2"><div className="text-amber-200">续航</div><div className="font-mono text-lg text-amber-100">{可视化.玩家.续航}</div></div>
+                                </div>
+                                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                    {可视化.阶段.map((stage) => (
+                                        <div key={stage.名称} className="rounded border border-white/8 bg-black/25 px-3 py-2">
+                                            <div className="text-xs font-semibold text-wuxia-gold">{stage.名称}</div>
+                                            <div className="mt-1 text-xs leading-5 text-gray-200">{stage.描述}</div>
+                                            <div className="mt-1 text-[10px] leading-4 text-gray-500">{stage.依据}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                            <section className="rounded-xl border border-white/10 bg-black/30 p-4">
+                                <div className="mb-3 text-xs font-bold tracking-[0.22em] text-gray-300">规则来源</div>
+                                <div className="space-y-2">
+                                    {逻辑判断知识库.slice(2, 5).map((rule) => (
+                                        <div key={rule.名称} className="rounded border border-white/8 bg-black/25 px-3 py-2 text-xs">
+                                            <div className="font-semibold text-gray-100">{rule.名称}</div>
+                                            <div className="mt-1 leading-5 text-gray-400">{rule.说明}</div>
+                                            <div className="mt-1 font-mono text-[10px] text-wuxia-gold/70">{rule.公式}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </div>
                         {敌方列表.length === 0 ? (
                             <div className="h-full rounded-2xl border border-dashed border-wuxia-gold/20 bg-black/20 flex flex-col items-center justify-center text-wuxia-gold/40 gap-4 font-serif">
                                 <IconYinYang size={64} className="opacity-30 drop-shadow-lg" />
@@ -132,6 +167,7 @@ const BattleModal: React.FC<Props> = ({ character, battle, onClose }) => {
                                     const qiCur = Math.max(0, enemy?.当前内力 || 0);
                                     const qiMax = Math.max(1, enemy?.最大内力 || Math.max(qiCur, 1));
                                     const 已失能 = hpCur <= 0;
+                                    const enemyViz = 可视化.敌方[idx];
 
                                     return (
                                         <div key={`${enemy?.名字 || 'enemy'}-${idx}`} className={`relative rounded-xl border p-5 overflow-hidden group transition-all duration-300 ${
@@ -177,7 +213,16 @@ const BattleModal: React.FC<Props> = ({ character, battle, onClose }) => {
                                                 )}
                                             </div>
 
-                                            <div className="mt-4 pt-3 border-t border-white/5 relative z-10">
+                                                 <div className="mt-4 pt-3 border-t border-white/5 relative z-10">
+                                                {enemyViz ? (
+                                                    <div className="mb-3 rounded-lg border border-amber-400/15 bg-amber-950/10 px-3 py-2 text-[11px] leading-5 text-amber-50/80">
+                                                        <div className="mb-1 flex items-center justify-between">
+                                                            <span className="font-bold text-amber-200">态势：{enemyViz.威胁}</span>
+                                                            <span className="font-mono text-amber-100">攻 {enemyViz.攻势} / 守 {enemyViz.守势}</span>
+                                                        </div>
+                                                        {enemyViz.判定}
+                                                    </div>
+                                                ) : null}
                                                 <div className="text-[10px] text-red-500/70 tracking-[0.2em] font-serif mb-2 flex items-center gap-1.5">
                                                     <span className="w-1 h-3 bg-red-900/80 rounded-full"></span> 功法路数
                                                 </div>

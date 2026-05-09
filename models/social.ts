@@ -52,6 +52,23 @@ export interface NPC装备栏 {
 
 export interface NPC背包物品 {
     名称: string;
+    类型?: string;
+    数量?: number;
+    描述?: string;
+}
+
+export interface NPC状态效果 {
+    名称: string;
+    描述: string;
+    效果: string;
+    结束时间?: string;
+}
+
+export interface NPC技艺 {
+    名称: string;
+    等级: string;
+    熟练度?: number;
+    描述?: string;
 }
 
 export interface NPC结构 {
@@ -87,9 +104,12 @@ export interface NPC结构 {
     当前内力?: number;
     最大内力?: number;
 
-    // --- 装备与物品 (仅队友强制需要；非队友可省略) ---
+    // --- 装备、物品与状态（运行时会为所有 NPC 补齐最小结构） ---
     当前装备?: NPC装备栏;
-    背包?: NPC背包物品[]; // 物品名称数组
+    背包?: NPC背包物品[];
+    BUFF?: NPC状态效果[];
+    DEBUFF?: NPC状态效果[];
+    技艺?: NPC技艺[];
 
     // --- 扁平化：外貌相关 ---
     外貌描写?: string;

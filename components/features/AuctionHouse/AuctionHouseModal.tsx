@@ -2,12 +2,13 @@ import React from 'react';
 import {
     保存拍卖行状态,
     上架背包物品,
-    执行货币换兑,
     拍卖品记录,
     拍卖行状态,
-    拍卖货币,
-    拍卖货币列表,
     格式化拍卖货币,
+    格式化金钱折算,
+    格式化铜钱总值,
+    计算金钱铜钱总值,
+    计算物品市场铜钱,
     清理并补货,
     生成行情列表,
     创建交易记录,
@@ -63,18 +64,14 @@ const AuctionHouseModal: React.FC<Props> = ({
     const [sortBy, setSortBy] = React.useState<排序>('热点优先');
     const [selectedAuctionId, setSelectedAuctionId] = React.useState<string>('');
     const [sellItemId, setSellItemId] = React.useState<string>('');
-    const [sellPrice, setSellPrice] = React.useState<string>('');
-    const [sellCurrency, setSellCurrency] = React.useState<拍卖货币>('铜钱');
     const [minPrice, setMinPrice] = React.useState('');
     const [maxPrice, setMaxPrice] = React.useState('');
     const [hotOnly, setHotOnly] = React.useState(false);
-    const [exchangeFrom, setExchangeFrom] = React.useState<拍卖货币>('银子');
-    const [exchangeTo, setExchangeTo] = React.useState<拍卖货币>('铜钱');
-    const [exchangeAmount, setExchangeAmount] = React.useState('');
     const [generatingItemId, setGeneratingItemId] = React.useState('');
 
     const bagItems = React.useMemo(() => 取背包物品(character), [character]);
     const money = character?.金钱 || {};
+    const totalCopper = 计算金钱铜钱总值(money);
     const playerId = character?.姓名 || 'player';
     const activeAuctions = React.useMemo(
         () => (auctionState.拍卖品列表 || []).filter((entry) => entry.状态 === '上架中'),
@@ -185,11 +182,13 @@ const AuctionHouseModal: React.FC<Props> = ({
         if (!auction || auction.卖家ID !== playerId) return;
         const currency = auction.标价货币 || '铜钱';
         const income = Math.max(1, Math.floor(读数(auction.一口价 || auction.当前价格) * 0.82));
+        const copperIncome = income * (currency === '金元宝' ? 100000 : currency === '银子' ? 1000 : 1);
         const nextCharacter = {
             ...character,
             金钱: {
-                ...(character?.金钱 || {}),
-                [currency]: 读数(character?.金钱?.[currency]) + income,
+                金元宝: Math.floor((totalCopper + copperIncome) / 100000),
+                银子: Math.floor(((totalCopper + copperIncome) % 100000) / 1000),
+                铜钱: (totalCopper + copperIncome) % 1000,
             },
         };
         const settledAuction: 拍卖品记录 = {
@@ -209,16 +208,11 @@ const AuctionHouseModal: React.FC<Props> = ({
     };
 
     const handleSell = () => {
-        const price = Math.floor(Number(sellPrice));
         if (!sellItemId) {
             notify('上架失败', '请选择要寄售的物品。', 'error');
             return;
         }
-        if (!Number.isFinite(price) || price <= 0) {
-            notify('上架失败', '请填写有效的一口价。', 'error');
-            return;
-        }
-        const result = 上架背包物品(character, sellItemId, price, sellCurrency);
+        const result = 上架背包物品(character, sellItemId, undefined, '铜钱', marketList);
         if (!result.ok) {
             notify('上架失败', result.message, 'error');
             return;
@@ -230,23 +224,8 @@ const AuctionHouseModal: React.FC<Props> = ({
         updateAuctionState(nextState);
         onCharacterChange(result.nextCharacter);
         setSellItemId('');
-        setSellPrice('');
-        console.info('[拍卖行交易] 寄售上架', result.auction.物品?.名称, price, sellCurrency);
+        console.info('[拍卖行交易] 寄售上架', result.auction.物品?.名称, result.marketPrice, '铜钱');
         notify('寄售成功', result.message, 'success');
-    };
-
-    const handleExchange = () => {
-        const result = 执行货币换兑(character, exchangeFrom, exchangeTo, Number(exchangeAmount));
-        if (!result.ok) {
-            notify('换兑失败', result.message, 'error');
-            return;
-        }
-        const nextState = appendRecord(auctionState, 创建交易记录('换兑', '牙行换兑', result.message));
-        updateAuctionState(nextState);
-        onCharacterChange(result.nextCharacter);
-        setExchangeAmount('');
-        console.info('[拍卖行交易] 货币换兑', exchangeFrom, exchangeTo, exchangeAmount);
-        notify('换兑完成', result.message, 'success');
     };
 
     const handleGenerateItemImage = async (auction: 拍卖品记录) => {
@@ -276,7 +255,10 @@ const AuctionHouseModal: React.FC<Props> = ({
 
     const marketList = auctionState.行情列表 || [];
     const recentRecords = (auctionState.交易记录 || []).slice(0, 3);
-    const canAfford = (entry: 拍卖品记录) => 读数(money[entry.标价货币]) >= 读数(entry.一口价);
+    const canAfford = (entry: 拍卖品记录) => {
+        const unit = entry.标价货币 === '金元宝' ? 100000 : entry.标价货币 === '银子' ? 1000 : 1;
+        return totalCopper >= 读数(entry.一口价) * unit;
+    };
     const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, entry: 拍卖品记录) => {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
@@ -293,8 +275,8 @@ const AuctionHouseModal: React.FC<Props> = ({
                         <div className={`mt-1 text-xs tracking-[0.16em] text-wuxia-gold/45 ${isMobile ? 'hidden' : ''}`}>AUCTION HOUSE</div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="hidden rounded border border-wuxia-gold/20 bg-[#0f0c08] px-3 py-1.5 text-xs text-wuxia-gold/80 sm:block">
-                            铜钱 {读数(money.铜钱).toLocaleString('zh-CN')} / 银子 {读数(money.银子).toLocaleString('zh-CN')} / 元宝 {读数(money.金元宝).toLocaleString('zh-CN')}
+                        <div className="hidden max-w-[560px] rounded border border-wuxia-gold/20 bg-[#0f0c08] px-3 py-1.5 text-xs text-wuxia-gold/80 sm:block">
+                            {格式化金钱折算(money)}
                         </div>
                         <button type="button" onClick={handleRefresh} className={`rounded-lg border border-emerald-500/40 bg-[#103522] text-xs text-emerald-100 transition-colors hover:border-emerald-300/60 ${isMobile ? 'px-2 py-1.5' : 'px-3 py-1.5'}`}>
                             刷新市场
@@ -447,43 +429,31 @@ const AuctionHouseModal: React.FC<Props> = ({
                         <div className="grid gap-3 xl:grid-cols-[1fr_0.9fr_1.1fr]">
                         <section className="min-w-0 rounded-xl border border-wuxia-gold/15 bg-[#11100d] p-3">
                             <div className="mb-3 text-sm font-semibold text-wuxia-gold">寄售背包物品</div>
-                            <div className="grid gap-2 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_110px] xl:grid-cols-1">
+                            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_110px] xl:grid-cols-1">
                                 <select value={sellItemId} onChange={(event) => {
                                     const itemId = event.target.value;
                                     setSellItemId(itemId);
-                                    const item = bagItems.find((candidate: any) => String(candidate?.ID) === itemId);
-                                    if (item && !sellPrice) setSellPrice(String(Math.max(1, Math.floor(读数(item?.价值, 100) * 1.2))));
                                 }} className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2 text-sm text-gray-200 outline-none focus:border-wuxia-gold/40">
                                     <option value="">选择物品</option>
                                     {bagItems.map((item: any) => (
-                                        <option key={String(item?.ID)} value={String(item?.ID)}>{item?.名称 || '无名物品'} · {item?.品质 || '未知'}</option>
+                                        <option key={String(item?.ID)} value={String(item?.ID)}>{item?.名称 || '无名物品'} · {item?.品质 || '未知'} · 市价 {计算物品市场铜钱(item, marketList)} 铜</option>
                                     ))}
                                 </select>
-                                <div className="grid grid-cols-[1fr_92px] gap-2">
-                                    <input value={sellPrice} onChange={(event) => setSellPrice(event.target.value)} inputMode="numeric" placeholder="一口价" className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2 text-sm text-gray-200 outline-none focus:border-wuxia-gold/40" />
-                                    <select value={sellCurrency} onChange={(event) => setSellCurrency(event.target.value as 拍卖货币)} className="rounded-lg border border-white/10 bg-[#0d0d0d] px-2 py-2 text-sm text-gray-200 outline-none">
-                                        {拍卖货币列表.map((currency) => <option key={currency}>{currency}</option>)}
-                                    </select>
+                                <button type="button" onClick={handleSell} className="w-full rounded-lg border border-emerald-500/40 bg-[#103522] px-4 py-2 text-sm font-semibold text-emerald-100 transition-colors hover:border-emerald-300/60">市价寄售</button>
+                                <div className="md:col-span-2 xl:col-span-1 text-[11px] leading-5 text-emerald-100/65">
+                                    价格由物品价值、品质和今日行情自动折算；寄售后下回合自动成交入账。
                                 </div>
-                                <button type="button" onClick={handleSell} className="w-full rounded-lg border border-emerald-500/40 bg-[#103522] px-4 py-2 text-sm font-semibold text-emerald-100 transition-colors hover:border-emerald-300/60">送入牙行</button>
                             </div>
                         </section>
 
                         <section className="min-w-0 overflow-hidden rounded-xl border border-sky-400/25 bg-[#0a2330] p-3">
-                            <div className="mb-3 text-sm font-semibold text-sky-200">牙行换兑</div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <select value={exchangeFrom} onChange={(event) => setExchangeFrom(event.target.value as 拍卖货币)} className="rounded-lg border border-white/10 bg-[#0d0d0d] px-2 py-2 text-xs text-gray-200 outline-none">
-                                    {拍卖货币列表.map((currency) => <option key={currency}>{currency}</option>)}
-                                </select>
-                                <select value={exchangeTo} onChange={(event) => setExchangeTo(event.target.value as 拍卖货币)} className="rounded-lg border border-white/10 bg-[#0d0d0d] px-2 py-2 text-xs text-gray-200 outline-none">
-                                    {拍卖货币列表.map((currency) => <option key={currency}>{currency}</option>)}
-                                </select>
+                            <div className="mb-3 text-sm font-semibold text-sky-200">自动换兑</div>
+                            <div className="rounded-lg border border-sky-400/20 bg-black/20 px-3 py-2 font-mono text-sm text-sky-50">
+                                {格式化铜钱总值(totalCopper)}
                             </div>
-                            <div className="mt-2 grid grid-cols-[minmax(0,1fr)_5.5rem] gap-2">
-                                <input value={exchangeAmount} onChange={(event) => setExchangeAmount(event.target.value)} inputMode="numeric" placeholder="数目" className="min-w-0 rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2 text-sm text-gray-200 outline-none focus:border-sky-400/40" />
-                                <button type="button" onClick={handleExchange} className="w-full rounded-lg border border-sky-400/40 bg-[#0b2a3a] px-3 py-2 text-sm font-semibold text-sky-100">换兑</button>
+                            <div className="mt-2 text-[11px] leading-5 text-sky-100/65">
+                                购买、出售和寄售结算都会自动折算总铜钱，不再需要手动选择铜钱、银子或元宝换兑。
                             </div>
-                            <div className="mt-2 text-[11px] leading-5 text-sky-100/60">柜上明牌，过手抽三分水牌。</div>
                         </section>
 
                         <section className="min-w-0 rounded-xl border border-wuxia-gold/15 bg-[#11100d] p-3">
