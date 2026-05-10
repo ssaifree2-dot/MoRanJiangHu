@@ -277,7 +277,7 @@ const 提取判定前缀名称 = (prefix?: string): string => {
 export const NarratorRenderer: React.FC<{ text: string; visualConfig?: 视觉设置结构 }> = ({ text, visualConfig }) => {
     const style = 构建区域文字样式(visualConfig, '旁白');
     return (
-        <div className="w-full my-1 px-8 py-2 bg-white/5 backdrop-blur-sm border-x-4 border-wuxia-gold/55 leading-relaxed relative overflow-hidden rounded-md shadow-lg transition-all duration-300" style={style}>
+        <div className="narrator-renderer w-full my-1 px-8 py-2 bg-white/5 backdrop-blur-sm border-x-4 border-wuxia-gold/55 leading-relaxed relative overflow-hidden rounded-md shadow-lg transition-all duration-300" style={style}>
             <p className="relative z-10 whitespace-pre-wrap break-words tracking-wide" style={{ fontSize: 'inherit', lineHeight: 'inherit' }}>{text}</p>
         </div>
     );

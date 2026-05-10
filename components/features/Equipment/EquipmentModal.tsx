@@ -179,7 +179,7 @@ const EquipmentModal: React.FC<Props> = ({ character, onClose, onCharacterChange
     };
 
     return (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[200] flex items-center justify-center p-0 md:p-4 animate-fadeIn">
+        <div className="equipment-modal-body fixed inset-0 bg-black/95 backdrop-blur-sm z-[200] flex items-center justify-center p-0 md:p-4 animate-fadeIn">
             {/* 主窗口：采用 max-w-7xl h-[90vh] 标准，增加仙侠金边渐变效果 */}
             <div className="bg-ink-black/95 border-y border-wuxia-gold/20 md:border md:border-wuxia-gold/20 w-full max-w-none md:max-w-[calc(100vw-2rem)] 2xl:max-w-[1780px] h-[100dvh] md:max-h-[92vh] md:h-[92vh] flex flex-col shadow-[0_0_80px_rgba(0,0,0,0.9)] relative overflow-hidden rounded-none md:rounded-2xl">
                 

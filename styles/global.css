@@ -474,6 +474,250 @@ html[data-theme="day"] .release-notes-panel [class*="text-gray-500"] {
   opacity: 1 !important;
 }
 
+/* Day mode final contrast pass.
+   This sits after the generic dark-modal readability rules so light mode cannot
+   be pulled back to pale gray text by later selectors or inline visual styles. */
+html[data-theme="day"] {
+  --day-ink-strong: #1f2937;
+  --day-ink-muted: #374151;
+  --day-ink-soft: #4b5563;
+  --day-brown-strong: #5c2d0a;
+  --day-paper: rgba(255, 252, 244, 0.96);
+  --day-paper-solid: #fffdf7;
+  --day-paper-muted: #f8f1e4;
+  --day-border: rgba(92, 45, 10, 0.34);
+}
+
+html[data-theme="day"] .left-panel-body,
+html[data-theme="day"] .equipment-modal-body,
+html[data-theme="day"] .inventory-modal-body,
+html[data-theme="day"] .auction-house-modal,
+html[data-theme="day"] .narrator-renderer {
+  color: var(--day-ink-strong) !important;
+}
+
+html[data-theme="day"] .left-panel-body [style*="color"],
+html[data-theme="day"] .inventory-modal-body [style*="color"],
+html[data-theme="day"] .narrator-renderer[style*="color"],
+html[data-theme="day"] .narrator-renderer [style*="color"],
+html[data-theme="day"] [style*="color: rgb(209, 213, 219"],
+html[data-theme="day"] [style*="color:rgba(209,213,219"],
+html[data-theme="day"] [style*="color: rgba(209, 213, 219"],
+html[data-theme="day"] [style*="color: rgb(156, 163, 175"],
+html[data-theme="day"] [style*="color:rgba(156,163,175"],
+html[data-theme="day"] [style*="color: rgba(156, 163, 175"],
+html[data-theme="day"] [style*="color: rgb(107, 114, 128"],
+html[data-theme="day"] [style*="color:rgba(107,114,128"],
+html[data-theme="day"] [style*="color: rgba(107, 114, 128"] {
+  color: var(--day-ink-strong) !important;
+}
+
+html[data-theme="day"] .narrator-renderer {
+  background: rgba(255, 252, 244, 0.86) !important;
+  border-color: rgba(92, 45, 10, 0.5) !important;
+  box-shadow: 0 10px 28px rgba(92, 45, 10, 0.12) !important;
+}
+
+html[data-theme="day"] .narrator-renderer,
+html[data-theme="day"] .narrator-renderer * {
+  color: #253044 !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="day"] .left-panel-body [class*="text-gray-"],
+html[data-theme="day"] .left-panel-body [class*="text-slate-"],
+html[data-theme="day"] .left-panel-body [class*="text-zinc-"],
+html[data-theme="day"] .left-panel-body [class*="text-neutral-"],
+html[data-theme="day"] .left-panel-body [class*="text-stone-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-gray-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-slate-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-zinc-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-neutral-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-stone-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-gray-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-slate-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-zinc-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-neutral-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-stone-"],
+html[data-theme="day"] .auction-house-modal [class*="text-gray-"],
+html[data-theme="day"] .auction-house-modal [class*="text-slate-"],
+html[data-theme="day"] .auction-house-modal [class*="text-zinc-"],
+html[data-theme="day"] .auction-house-modal [class*="text-neutral-"],
+html[data-theme="day"] .auction-house-modal [class*="text-stone-"],
+html[data-theme="day"] .fixed[class*="z-["] [class*="text-gray-"],
+html[data-theme="day"] .fixed[class*="z-["] [class*="text-slate-"],
+html[data-theme="day"] .fixed[class*="z-["] [class*="text-zinc-"],
+html[data-theme="day"] .fixed[class*="z-["] [class*="text-neutral-"],
+html[data-theme="day"] .fixed[class*="z-["] [class*="text-stone-"] {
+  color: var(--day-ink-muted) !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="day"] .left-panel-body [class*="text-wuxia-gold"],
+html[data-theme="day"] .left-panel-body [class*="text-amber-"],
+html[data-theme="day"] .left-panel-body [class*="text-yellow-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-wuxia-gold"],
+html[data-theme="day"] .equipment-modal-body [class*="text-amber-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-yellow-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-wuxia-gold"],
+html[data-theme="day"] .inventory-modal-body [class*="text-amber-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-yellow-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-orange-"],
+html[data-theme="day"] .auction-house-modal [class*="text-wuxia-gold"],
+html[data-theme="day"] .auction-house-modal [class*="text-amber-"],
+html[data-theme="day"] .auction-house-modal [class*="text-yellow-"],
+html[data-theme="day"] .auction-house-modal [class*="text-orange-"] {
+  color: var(--day-brown-strong) !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="day"] .left-panel-body [class*="text-emerald-"],
+html[data-theme="day"] .left-panel-body [class*="text-green-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-emerald-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-green-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-emerald-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-green-"],
+html[data-theme="day"] .auction-house-modal [class*="text-emerald-"],
+html[data-theme="day"] .auction-house-modal [class*="text-green-"] {
+  color: #166534 !important;
+}
+
+html[data-theme="day"] .equipment-modal-body [class*="text-sky-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-cyan-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-blue-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-sky-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-cyan-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-blue-"],
+html[data-theme="day"] .auction-house-modal [class*="text-sky-"],
+html[data-theme="day"] .auction-house-modal [class*="text-cyan-"],
+html[data-theme="day"] .auction-house-modal [class*="text-blue-"] {
+  color: #075985 !important;
+}
+
+html[data-theme="day"] .equipment-modal-body [class*="text-red-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-rose-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-red-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-rose-"],
+html[data-theme="day"] .auction-house-modal [class*="text-red-"],
+html[data-theme="day"] .auction-house-modal [class*="text-rose-"] {
+  color: #b91c1c !important;
+}
+
+html[data-theme="day"] .equipment-modal-body [class*="text-purple-"],
+html[data-theme="day"] .equipment-modal-body [class*="text-violet-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-purple-"],
+html[data-theme="day"] .inventory-modal-body [class*="text-violet-"],
+html[data-theme="day"] .auction-house-modal [class*="text-purple-"],
+html[data-theme="day"] .auction-house-modal [class*="text-violet-"] {
+  color: #7e22ce !important;
+}
+
+html[data-theme="day"] .left-panel-body [class*="bg-black"],
+html[data-theme="day"] .left-panel-body [class*="bg-gray-9"],
+html[data-theme="day"] .left-panel-body [class*="bg-neutral-9"],
+html[data-theme="day"] .equipment-modal-body [class*="bg-black"],
+html[data-theme="day"] .equipment-modal-body [class*="bg-ink-black"],
+html[data-theme="day"] .equipment-modal-body [class*="bg-gray-9"],
+html[data-theme="day"] .equipment-modal-body [class*="bg-neutral-9"],
+html[data-theme="day"] .equipment-modal-body [class*="bg-[#"],
+html[data-theme="day"] .inventory-modal-body [class*="bg-black"],
+html[data-theme="day"] .inventory-modal-body [class*="bg-ink-black"],
+html[data-theme="day"] .inventory-modal-body [class*="bg-gray-8"],
+html[data-theme="day"] .inventory-modal-body [class*="bg-gray-9"],
+html[data-theme="day"] .inventory-modal-body [class*="bg-neutral-9"],
+html[data-theme="day"] .inventory-modal-body [class*="bg-[#"],
+html[data-theme="day"] .auction-house-modal [class*="bg-black"],
+html[data-theme="day"] .auction-house-modal [class*="bg-gray-9"],
+html[data-theme="day"] .auction-house-modal [class*="bg-neutral-9"],
+html[data-theme="day"] .auction-house-modal [class*="bg-[#"] {
+  background: var(--day-paper) !important;
+  background-color: var(--day-paper) !important;
+  background-image: none !important;
+}
+
+html[data-theme="day"] .auction-house-modal > div,
+html[data-theme="day"] .auction-house-body,
+html[data-theme="day"] .auction-house-filter-panel,
+html[data-theme="day"] .auction-house-market-panel,
+html[data-theme="day"] .auction-house-list-panel,
+html[data-theme="day"] .auction-house-item-grid > div,
+html[data-theme="day"] .auction-house-market-list > div {
+  background: var(--day-paper-solid) !important;
+  background-color: var(--day-paper-solid) !important;
+  color: var(--day-ink-strong) !important;
+  border-color: var(--day-border) !important;
+}
+
+html[data-theme="day"] .auction-house-item-grid > div[role="button"] {
+  box-shadow: 0 10px 24px rgba(92, 45, 10, 0.10) !important;
+}
+
+html[data-theme="day"] .auction-house-item-grid > div[role="button"]:hover,
+html[data-theme="day"] .auction-house-item-grid > div[role="button"]:focus {
+  background: #fff8ed !important;
+  border-color: rgba(92, 45, 10, 0.58) !important;
+}
+
+html[data-theme="day"] .auction-house-modal input,
+html[data-theme="day"] .auction-house-modal select,
+html[data-theme="day"] .auction-house-modal label,
+html[data-theme="day"] .auction-house-modal button,
+html[data-theme="day"] .equipment-modal-body button,
+html[data-theme="day"] .inventory-modal-body button {
+  color: var(--day-ink-strong) !important;
+  background-color: rgba(255, 252, 244, 0.92) !important;
+  border-color: var(--day-border) !important;
+}
+
+html[data-theme="day"] .auction-house-modal button:disabled,
+html[data-theme="day"] .equipment-modal-body button:disabled,
+html[data-theme="day"] .inventory-modal-body button:disabled {
+  color: var(--day-ink-soft) !important;
+  background-color: rgba(238, 231, 214, 0.82) !important;
+  opacity: 0.72 !important;
+}
+
+html[data-theme="day"] .left-panel-body [class*="border-gray-"],
+html[data-theme="day"] .left-panel-body [class*="border-white/"],
+html[data-theme="day"] .equipment-modal-body [class*="border-gray-"],
+html[data-theme="day"] .equipment-modal-body [class*="border-white/"],
+html[data-theme="day"] .inventory-modal-body [class*="border-gray-"],
+html[data-theme="day"] .inventory-modal-body [class*="border-white/"],
+html[data-theme="day"] .inventory-modal-body [class*="border-wuxia-gold/"],
+html[data-theme="day"] .auction-house-modal [class*="border-gray-"],
+html[data-theme="day"] .auction-house-modal [class*="border-white/"],
+html[data-theme="day"] .auction-house-modal [class*="border-wuxia-gold/"],
+html[data-theme="day"] .equipment-modal-body [class*="border-wuxia-gold/"] {
+  border-color: var(--day-border) !important;
+}
+
+html[data-theme="day"] .left-panel-body [class*="opacity-20"],
+html[data-theme="day"] .left-panel-body [class*="opacity-30"],
+html[data-theme="day"] .left-panel-body [class*="opacity-40"],
+html[data-theme="day"] .left-panel-body [class*="opacity-50"],
+html[data-theme="day"] .left-panel-body [class*="opacity-60"],
+html[data-theme="day"] .auction-house-modal [class*="opacity-40"],
+html[data-theme="day"] .auction-house-modal [class*="opacity-50"],
+html[data-theme="day"] .auction-house-modal [class*="opacity-60"],
+html[data-theme="day"] .equipment-modal-body [class*="opacity-40"],
+html[data-theme="day"] .equipment-modal-body [class*="opacity-50"],
+html[data-theme="day"] .equipment-modal-body [class*="opacity-60"],
+html[data-theme="day"] .inventory-modal-body [class*="opacity-30"],
+html[data-theme="day"] .inventory-modal-body [class*="opacity-40"],
+html[data-theme="day"] .inventory-modal-body [class*="opacity-50"],
+html[data-theme="day"] .inventory-modal-body [class*="opacity-60"] {
+  opacity: 0.9 !important;
+}
+
+html[data-theme="day"] .inventory-modal-body .drop-shadow-sm,
+html[data-theme="day"] .inventory-modal-body .drop-shadow-md,
+html[data-theme="day"] .equipment-modal-body .drop-shadow-sm,
+html[data-theme="day"] .equipment-modal-body .drop-shadow-md,
+html[data-theme="day"] .auction-house-modal .drop-shadow-sm,
+html[data-theme="day"] .auction-house-modal .drop-shadow-md {
+  filter: none !important;
+}
+
 /* P5 Style Clip Paths */
 .clip-trapezoid {
   clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
