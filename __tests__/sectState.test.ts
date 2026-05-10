@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { 创建空门派状态, 创建开场基础状态, 创建开场命令基态, 规范化门派状态, 是否无门派标识, 保护开局生成门派状态 } from '../hooks/useGame/storyState';
+import { 开局变量生成附加提示词, 构建开局变量生成审计重点 } from '../prompts/runtime/openingVariableGenerationInit';
 
 describe('门派状态规范化', () => {
     it('无门派语义不会补默认同门', () => {
@@ -99,7 +100,7 @@ describe('门派状态规范化', () => {
         expect(commandBase.玩家门派.重要成员.length).toBeGreaterThanOrEqual(6);
     });
 
-    it('开局门派贡献足够时自动学习当前最好的可学功法', () => {
+    it('开局门派贡献足够时不再本地固定补功法，交给 AI 开局变量生成', () => {
         const openingBase = 创建开场基础状态(
             {
                 姓名: '杨培强',
@@ -119,11 +120,15 @@ describe('门派状态规范化', () => {
             } as any
         );
 
-        expect(openingBase.角色.功法列表[0]?.名称).toBe('踏云步');
-        expect(openingBase.角色.功法列表[0]?.来源).toBe('杨家堡藏经阁');
+        expect(openingBase.玩家门派.名称).toBe('杨家堡');
+        expect(openingBase.玩家门派.藏经阁列表.length).toBeGreaterThan(0);
+        expect(openingBase.角色.功法列表).toEqual([]);
+        expect(开局变量生成附加提示词).toContain('角色.功法列表');
+        expect(开局变量生成附加提示词).toContain('根据第0回合正文、建档、门派、职位、贡献、境界、内力与出身因果生成');
+        expect(开局变量生成附加提示词).toContain('不要依赖或复述本地固定兜底名称');
     });
 
-    it('无门派但已有修炼事实时补基础功法', () => {
+    it('无门派但已有修炼事实时不再本地固定补功法，交给 AI 生成合理入门功法', () => {
         const openingBase = 创建开场基础状态(
             {
                 姓名: '散修',
@@ -144,7 +149,10 @@ describe('门派状态规范化', () => {
         );
 
         expect(openingBase.玩家门派.名称).toBe('无门无派');
-        expect(openingBase.角色.功法列表[0]?.名称).toBe('基础吐纳诀');
+        expect(openingBase.角色.功法列表).toEqual([]);
+        expect(开局变量生成附加提示词).toContain('无门派但已有境界、内力、家传、散修或江湖经历');
+        expect(构建开局变量生成审计重点()).toContain('功法应由 AI 按当前门派/身份/贡献/境界/内力/出身生成');
+        expect(构建开局变量生成审计重点()).toContain('不能用本地固定模板直接补齐');
     });
 
     it('明确凡人无门派时不开局补功法', () => {
