@@ -73,6 +73,7 @@ interface Props {
     onClearSceneHistory?: () => Promise<void> | void;
     onDeleteSceneQueueTask?: (taskId: string) => Promise<void> | void;
     onClearSceneQueue?: (mode?: 'all' | 'completed') => Promise<void> | void;
+    onClearItemImageHistory?: () => Promise<void> | void;
     onSaveSceneImageLocally?: (imageId: string) => Promise<void> | void;
     onSavePngStylePreset?: (preset: PNG画风预设结构) => Promise<PNG画风预设结构 | null | void> | PNG画风预设结构 | null | void;
     onDeletePngStylePreset?: (presetId: string) => Promise<void> | void;
@@ -338,6 +339,7 @@ const ImageManagerModal: React.FC<Props> = ({
     onClearSceneHistory,
     onDeleteSceneQueueTask,
     onClearSceneQueue,
+    onClearItemImageHistory,
     onSaveSceneImageLocally,
     onSavePngStylePreset,
     onDeletePngStylePreset,
@@ -965,20 +967,27 @@ const ImageManagerModal: React.FC<Props> = ({
         });
     }, [combinedQueue, filters]);
 
-    const 图片统计 = React.useMemo(() => ({
-        total: records.length + ((Array.isArray(sceneArchive?.生图历史) ? sceneArchive.生图历史 : []).length),
-        success: records.filter((item) => (item.结果?.状态 || 'success') === 'success').length + (Array.isArray(sceneArchive?.生图历史) ? sceneArchive.生图历史 : []).filter((item) => (item?.状态 || 'success') === 'success').length,
-        failed: records.filter((item) => item.结果?.状态 === 'failed').length + (Array.isArray(sceneArchive?.生图历史) ? sceneArchive.生图历史 : []).filter((item) => item?.状态 === 'failed').length,
-        pending: records.filter((item) => item.结果?.状态 === 'pending').length + (Array.isArray(sceneArchive?.生图历史) ? sceneArchive.生图历史 : []).filter((item) => item?.状态 === 'pending').length
-    }), [records, sceneArchive]);
+    const 图片统计 = React.useMemo(() => {
+        const sceneHistoryCount = Array.isArray(sceneArchive?.生图历史) ? sceneArchive.生图历史 : [];
+        return {
+            total: records.length + sceneHistoryCount.length + itemSequenceList.length,
+            success: records.filter((item) => (item.结果?.状态 || 'success') === 'success').length + sceneHistoryCount.filter((item) => (item?.状态 || 'success') === 'success').length + itemSequenceList.filter((item) => (item.状态 || 'success') === 'success').length,
+            failed: records.filter((item) => item.结果?.状态 === 'failed').length + sceneHistoryCount.filter((item) => item?.状态 === 'failed').length + itemSequenceList.filter((item) => item.状态 === 'failed').length,
+            pending: records.filter((item) => item.结果?.状态 === 'pending').length + sceneHistoryCount.filter((item) => item?.状态 === 'pending').length + itemSequenceList.filter((item) => item.状态 === 'pending').length
+        };
+    }, [records, sceneArchive, itemSequenceList]);
 
-    const 队列统计 = React.useMemo(() => ({
-        total: combinedQueue.length,
-        queued: combinedQueue.filter((item) => item.状态 === 'queued').length,
-        running: combinedQueue.filter((item) => item.状态 === 'running').length,
-        success: combinedQueue.filter((item) => item.状态 === 'success').length,
-        failed: combinedQueue.filter((item) => item.状态 === 'failed').length
-    }), [combinedQueue]);
+    const 队列统计 = React.useMemo(() => {
+        const itemRunning = itemSequenceList.filter((item) => item.状态 === 'pending').length;
+        const itemFailed = itemSequenceList.filter((item) => item.状态 === 'failed').length;
+        return {
+            total: combinedQueue.length + itemRunning + itemFailed,
+            queued: combinedQueue.filter((item) => item.状态 === 'queued').length,
+            running: combinedQueue.filter((item) => item.状态 === 'running').length + itemRunning,
+            success: combinedQueue.filter((item) => item.状态 === 'success').length,
+            failed: combinedQueue.filter((item) => item.状态 === 'failed').length + itemFailed
+        };
+    }, [combinedQueue, itemSequenceList]);
 
     const sceneHistory = React.useMemo(() => {
         return (Array.isArray(sceneArchive?.生图历史) ? sceneArchive.生图历史 : [])
@@ -2899,7 +2908,12 @@ const ImageManagerModal: React.FC<Props> = ({
                                     <div className="text-cyan-200 font-serif text-base tracking-wider">物品生图序列</div>
                                     <div className="mt-1 text-[10px] text-cyan-100/50">按最近生成时间展示背包物品图标、特写与展示图。</div>
                                 </div>
-                                <div className="text-[11px] text-cyan-100/70">{itemSequenceList.length} 条</div>
+                                <div className="flex items-center gap-2">
+                                    <div className="text-[11px] text-cyan-100/70">{itemSequenceList.length} 条</div>
+                                    {onClearItemImageHistory && (
+                                        <button type="button" onClick={() => { void onClearItemImageHistory(); }} className="rounded border border-cyan-400/30 bg-cyan-950/30 px-2 py-1 text-[10px] text-cyan-200/80 hover:border-cyan-400/50 hover:text-cyan-100">清空</button>
+                                    )}
+                                </div>
                             </div>
                             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                                 {itemSequenceList.map((item) => (

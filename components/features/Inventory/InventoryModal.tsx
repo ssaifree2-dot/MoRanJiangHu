@@ -505,9 +505,7 @@ const DetailMetricCard: React.FC<{ groupTitle: string; entry: any }> = ({ groupT
                                                     <div className={`line-clamp-2 break-words text-[13px] font-bold leading-[1.1] tracking-wide drop-shadow-sm ${getRarityNameClass(getSafeText(item?.品质))}`}>
                                                         {name}
                                                     </div>
-                                                    {count > 1 ? (
-                                                        <div className="mt-0.5 font-mono text-xs text-gray-200">x{count}</div>
-                                                    ) : null}
+                                                    <div className="mt-0.5 font-mono text-xs text-gray-200">x{count}</div>
                                                 </div>
                                             </button>
                                         );

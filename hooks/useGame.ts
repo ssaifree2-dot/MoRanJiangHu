@@ -1428,6 +1428,20 @@ export const useGame = () => {
         });
     };
 
+    const 清空物品图片历史 = () => {
+        设置角色(prev => {
+            if (!prev) return prev;
+            const next = { ...prev };
+            if (Array.isArray(next.物品列表)) {
+                next.物品列表 = next.物品列表.map((item: any) => {
+                    if (!item?.图片档案) return item;
+                    return { ...item, 图片档案: { ...item.图片档案, 生图历史: [] } };
+                });
+            }
+            return next;
+        });
+    };
+
     const 获取NPC唯一标识 = (npc: any, index?: number): string => {
         const id = typeof npc?.id === 'string' ? npc.id.trim() : '';
         if (id) return `id:${id}`;
@@ -1951,8 +1965,6 @@ export const useGame = () => {
     const NPC是否成人女性主要角色 = (npc: any): boolean => (
         npc?.是否主要角色 === true
         && 读取NPC文本字段(npc, '性别') === '女'
-        && typeof npc?.年龄 === 'number'
-        && npc.年龄 >= 18
     );
 
     const NPC是否已有成功香闺秘档部位 = (npc: any, part: 香闺秘档部位类型): boolean => {
@@ -2084,23 +2096,27 @@ export const useGame = () => {
     };
 
     useEffect(() => {
-        const latestAssistantTurn = [...(Array.isArray(历史记录) ? 历史记录 : [])]
-            .reverse()
-            .find((item) => item?.role === 'assistant' && item?.structuredResponse);
-        if (!latestAssistantTurn) return;
-
         const missingSignature = 构建主要角色资源缺口签名(社交);
         if (!missingSignature) return;
 
-        const turnSignature = `${latestAssistantTurn.timestamp || latestAssistantTurn.gameTime || 'unknown'}__${missingSignature}`;
-        if (主要角色资源补全签名Ref.current === turnSignature) return;
-        主要角色资源补全签名Ref.current = turnSignature;
+        const feature = apiConfig?.功能模型占位 as any;
+        const resourceSignature = [
+            gameConfig?.启用NSFW模式 === true ? 'nsfw:on' : 'nsfw:off',
+            feature?.文生图功能启用 === true ? 'image:on' : 'image:off',
+            feature?.NSFW生图独立接口启用 === true ? 'nsfw-api:on' : 'nsfw-api:shared',
+            feature?.NSFW生图后端类型 || feature?.图片后端类型 || '',
+            feature?.NSFW生图模型使用模型 || feature?.文生图模型使用模型 || '',
+            feature?.NSFW生图模型API地址 || feature?.文生图模型API地址 || '',
+            missingSignature
+        ].join('__');
+        if (主要角色资源补全签名Ref.current === resourceSignature) return;
+        主要角色资源补全签名Ref.current = resourceSignature;
 
         const timerId = window.setTimeout(() => {
             void 自动补全主要角色图片与锚点(社交);
         }, 300);
         return () => window.clearTimeout(timerId);
-    }, [历史记录, 社交]);
+    }, [社交, gameConfig?.启用NSFW模式, apiConfig]);
 
     const 世界演变功能已开启 = (): boolean => {
         const feature = apiConfig?.功能模型占位 as any;
@@ -3400,6 +3416,7 @@ export const useGame = () => {
             clearSceneImageHistory: 清空场景图片历史,
             removeSceneImageQueueTask: 删除场景生图任务,
             clearSceneImageQueue: 清空场景生图任务队列,
+            clearItemImageHistory: 清空物品图片历史,
             saveSceneImageLocally: 保存场景图片本地副本,
             dismissNotification: 关闭右下角提示,
             appendSystemMessage: 追加系统消息,

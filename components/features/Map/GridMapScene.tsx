@@ -251,6 +251,7 @@ const GridMapScene: React.FC<Props> = ({
 
     const mapWidth = Math.max(12, Number(selectedLayer?.网格宽度) || 24);
     const mapHeight = Math.max(12, Number(selectedLayer?.网格高度) || 24);
+    const mapEdgePadding = Math.max(4, Math.min(8, Math.max(mapWidth, mapHeight) * 0.12));
     const 约束标签X = (x: number, width: number) => Math.max(0.25, Math.min(mapWidth - width - 0.25, x - width / 2));
     const 匹配社交人物 = (person: any) => {
         const normalizedName = 归一化地图文本(person?.名称);
@@ -293,28 +294,37 @@ const GridMapScene: React.FC<Props> = ({
             });
         });
         currentLayerPeople.forEach((person) => {
-            bounds = 扩展边界(bounds, person?.坐标);
+            const point = person?.坐标;
+            if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+            bounds = 扩展边界(bounds, { x: point.x - mapEdgePadding, y: point.y - mapEdgePadding });
+            bounds = 扩展边界(bounds, { x: point.x + mapEdgePadding, y: point.y + mapEdgePadding });
         });
-        if (!bounds) return { x: 0, y: 0, width: mapWidth, height: mapHeight };
+        if (!bounds) return { x: -mapEdgePadding, y: -mapEdgePadding, width: mapWidth + mapEdgePadding * 2, height: mapHeight + mapEdgePadding * 2 };
         const rawWidth = Math.max(8, bounds.maxX - bounds.minX);
         const rawHeight = Math.max(8, bounds.maxY - bounds.minY);
         const padding = Math.max(rawWidth, rawHeight) * 0.18 + 4;
-        const x = 约束数值(bounds.minX - padding, 0, Math.max(0, mapWidth - 1));
-        const y = 约束数值(bounds.minY - padding, 0, Math.max(0, mapHeight - 1));
-        const width = Math.min(mapWidth - x, rawWidth + padding * 2);
-        const height = Math.min(mapHeight - y, rawHeight + padding * 2);
+        const x = Math.max(-mapEdgePadding, bounds.minX - padding);
+        const y = Math.max(-mapEdgePadding, bounds.minY - padding);
+        const right = Math.min(mapWidth + mapEdgePadding, bounds.maxX + padding);
+        const bottom = Math.min(mapHeight + mapEdgePadding, bounds.maxY + padding);
+        const width = right - x;
+        const height = bottom - y;
         return { x, y, width: Math.max(1, width), height: Math.max(1, height) };
-    }, [currentLayerBuildings, currentLayerRoads, currentLayerPeople, mapWidth, mapHeight]);
+    }, [currentLayerBuildings, currentLayerRoads, currentLayerPeople, mapWidth, mapHeight, mapEdgePadding]);
     const mapViewBox = useMemo(() => {
         const zoom = 约束数值(mapZoom, 1, 8);
         const width = Math.max(1, contentBounds.width / zoom);
         const height = Math.max(1, contentBounds.height / zoom);
         const centerX = (mapFocusPoint?.x ?? (contentBounds.x + contentBounds.width / 2)) + mapPan.x;
         const centerY = (mapFocusPoint?.y ?? (contentBounds.y + contentBounds.height / 2)) + mapPan.y;
-        const x = 约束数值(centerX - width / 2, 0, Math.max(0, mapWidth - width));
-        const y = 约束数值(centerY - height / 2, 0, Math.max(0, mapHeight - height));
+        const minX = -mapEdgePadding;
+        const minY = -mapEdgePadding;
+        const maxX = Math.max(minX, mapWidth + mapEdgePadding - width);
+        const maxY = Math.max(minY, mapHeight + mapEdgePadding - height);
+        const x = 约束数值(centerX - width / 2, minX, maxX);
+        const y = 约束数值(centerY - height / 2, minY, maxY);
         return { x, y, width, height };
-    }, [contentBounds, mapFocusPoint, mapHeight, mapPan, mapWidth, mapZoom]);
+    }, [contentBounds, mapEdgePadding, mapFocusPoint, mapHeight, mapPan, mapWidth, mapZoom]);
     const handleMapWheel = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
         event.preventDefault();
         const direction = event.deltaY < 0 ? 1 : -1;
@@ -507,8 +517,8 @@ const GridMapScene: React.FC<Props> = ({
                 )}
             </aside>
 
-            <div className="order-1 grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-3">
-                <section className="min-h-0 overflow-hidden rounded-2xl border border-[#c7a56a]/45 bg-[#fffaf0]">
+            <div className="order-1 flex min-h-0 flex-col gap-3">
+                <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#c7a56a]/45 bg-[#fffaf0]">
                     <div className="flex items-center justify-between gap-3 border-b border-[#d8c4a2] bg-[#fffdf6] px-4 py-3">
                         <div className="min-w-0">
                             <div className="truncate font-serif text-2xl font-bold text-[#7a3f12]">{selectedLayer?.名称 || '未命中层级'}</div>
@@ -519,7 +529,7 @@ const GridMapScene: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    <div className={`relative ${compact ? 'h-[460px]' : 'h-full min-h-[560px]'} overflow-hidden overscroll-contain`} onWheel={handleMapWheel}>
+                    <div className={`relative ${compact ? 'h-[520px]' : 'min-h-0 flex-1'} overflow-hidden overscroll-contain`} onWheel={handleMapWheel}>
                         <div className="absolute right-3 top-3 z-10 rounded-full border border-[#c7a56a]/55 bg-[#fffaf0]/95 px-3 py-1 text-xs font-mono text-[#7a3f12]">
                             缩放 {mapZoom.toFixed(1)}x
                         </div>
@@ -774,7 +784,7 @@ const GridMapScene: React.FC<Props> = ({
                     </div>
                 </section>
 
-                <section className={`grid gap-3 ${compact ? 'grid-cols-1' : 'grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]'}`}>
+                <section className={`grid max-h-[240px] shrink-0 gap-3 overflow-y-auto custom-scrollbar ${compact ? 'grid-cols-1' : 'grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]'}`}>
                     <div className="rounded-2xl border border-[#c7a56a]/45 bg-[#fffaf0] p-4">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">

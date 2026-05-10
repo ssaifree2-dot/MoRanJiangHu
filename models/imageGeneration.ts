@@ -168,6 +168,8 @@ export interface 物品生图任务记录 {
     图片URL?: string;
     本地路径?: string;
     错误信息?: string;
+    重试次数?: number;
+    最大重试次数?: number;
     进度阶段?: 'queued' | 'prompting' | 'generating' | 'saving' | 'success' | 'failed';
     进度文本?: string;
     额外要求?: string;
@@ -200,6 +202,8 @@ export interface NPC生图任务记录 {
     图片URL?: string;
     本地路径?: string;
     错误信息?: string;
+    重试次数?: number;
+    最大重试次数?: number;
     进度阶段?: 'queued' | 'prompting' | 'generating' | 'saving' | 'success' | 'failed';
     进度文本?: string;
     额外要求?: string;
@@ -228,6 +232,8 @@ export interface 场景生图任务记录 {
     图片URL?: string;
     本地路径?: string;
     错误信息?: string;
+    重试次数?: number;
+    最大重试次数?: number;
     进度阶段?: 'queued' | 'prompting' | 'generating' | 'saving' | 'success' | 'failed';
     进度文本?: string;
     来源回合?: number;

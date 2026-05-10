@@ -56,6 +56,10 @@ const 门派职位贡献门槛: Record<string, number> = {
 const 标准门派职位列表 = Object.keys(职位等级排序);
 
 const 补全门派职位 = (source: any, totalContribution = 0, fallback = '无'): string => {
+    let contributionRank = totalContribution > 0 ? '杂役弟子' : '无';
+    Object.entries(门派职位贡献门槛).forEach(([rank, required]) => {
+        if (totalContribution >= required) contributionRank = rank;
+    });
     const candidates = [
         source?.玩家职位,
         source?.门派职位,
@@ -66,17 +70,19 @@ const 补全门派职位 = (source: any, totalContribution = 0, fallback = '无'
         fallback,
     ].map((item) => 取文本(item)).filter(Boolean);
     const exact = candidates.find((item) => 标准门派职位列表.includes(item));
-    if (exact) return exact;
+    if (exact) {
+        return (职位等级排序[contributionRank] || 0) > (职位等级排序[exact] || 0) ? contributionRank : exact;
+    }
     const matched = candidates
         .map((item) => 标准门派职位列表.find((rank) => item.includes(rank)))
         .find(Boolean);
-    if (matched) return matched;
-    if (fallback !== '无') return fallback;
-    let inferred = '杂役弟子';
-    Object.entries(门派职位贡献门槛).forEach(([rank, required]) => {
-        if (totalContribution >= required) inferred = rank;
-    });
-    return totalContribution > 0 ? inferred : '无';
+    if (matched) {
+        return (职位等级排序[contributionRank] || 0) > (职位等级排序[matched] || 0) ? contributionRank : matched;
+    }
+    if (fallback !== '无') {
+        return (职位等级排序[contributionRank] || 0) > (职位等级排序[fallback] || 0) ? contributionRank : fallback;
+    }
+    return contributionRank;
 };
 
 const 取布尔 = (value: any, fallback = false): boolean => (

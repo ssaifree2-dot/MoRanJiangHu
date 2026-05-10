@@ -1690,6 +1690,35 @@ const 提取ComfyUI图片地址 = (
     return null;
 };
 
+const COMFYUI_POLL_TIMEOUT_MS = 3 * 60 * 1000;
+
+const 提取ComfyUI历史根节点 = (historyPayload: any): any => {
+    if (!historyPayload || typeof historyPayload !== 'object') return null;
+    return Array.isArray(historyPayload)
+        ? historyPayload[0]
+        : Object.values(historyPayload as Record<string, unknown>)[0];
+};
+
+const 提取ComfyUI失败信息 = (historyPayload: any): string | null => {
+    const root = 提取ComfyUI历史根节点(historyPayload);
+    if (!root || typeof root !== 'object') return null;
+    const status = (root as any).status && typeof (root as any).status === 'object' ? (root as any).status : {};
+    const statusText = typeof status.status_str === 'string' ? status.status_str.trim().toLowerCase() : '';
+    const completed = status.completed === true;
+    const messages = Array.isArray(status.messages) ? status.messages : [];
+    const executionError = messages.find((entry: any) => Array.isArray(entry) && String(entry[0] || '').toLowerCase().includes('error'));
+    if (statusText === 'error' || executionError) {
+        const detail = Array.isArray(executionError)
+            ? JSON.stringify(executionError[1] || executionError).slice(0, 800)
+            : '';
+        return `ComfyUI 工作流执行失败${detail ? `：${detail}` : ''}`;
+    }
+    if (completed && statusText === 'success' && !提取ComfyUI图片地址(historyPayload, '')) {
+        return 'ComfyUI 工作流已结束，但没有输出图片。请检查 workflow 的保存图片节点。';
+    }
+    return null;
+};
+
 type ComfyUI队列任务 = {
     baseUrl: string;
     apiConfig: 当前可用接口结构;
@@ -1774,8 +1803,12 @@ const 执行ComfyUI生图 = async (
     signal?.addEventListener('abort', handleAbort, { once: true });
 
     try {
+        const startedAt = Date.now();
         const historyEndpoint = `${baseUrl}/history/${encodeURIComponent(promptId)}`;
         while (true) {
+            if (Date.now() - startedAt > COMFYUI_POLL_TIMEOUT_MS) {
+                throw new Error(`ComfyUI 生图超过 ${Math.round(COMFYUI_POLL_TIMEOUT_MS / 1000)} 秒仍未返回图片，已自动判定本次尝试失败。`);
+            }
             let historyResponse: Response;
             try {
                 historyResponse = await fetch(historyEndpoint, {
@@ -1810,6 +1843,10 @@ const 执行ComfyUI生图 = async (
                         图片URL: imageUrl,
                         原始响应: historyText
                     };
+                }
+                const failureMessage = 提取ComfyUI失败信息(historyPayload);
+                if (failureMessage) {
+                    throw new Error(failureMessage);
                 }
             }
             await 等待(1000, signal);

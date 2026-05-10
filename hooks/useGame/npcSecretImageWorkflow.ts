@@ -6,6 +6,7 @@ import type {
     生图任务来源类型,
 } from '../../types';
 import { 获取词组转化器预设上下文, type 当前可用接口结构 } from '../../utils/apiConfig';
+import { 生图最大自动重试次数, 执行生图模型调用带重试 } from '../../utils/imageGenerationRetry';
 import type { PNG解析参数结构, 角色锚点结构 } from '../../models/system';
 type 图片功能配置 = {
     总开关: boolean;
@@ -343,14 +344,40 @@ export const 执行NPC香闺秘档部位生图工作流 = async (
             状态: 'pending' as const,
             错误信息: undefined
         }, { 同步最近结果: false });
-        const imageResult = await imageAIService.generateImageByPrompt(生图词组, imageApi!, options?.signal, {
-            构图: '部位特写',
-            尺寸: 尺寸 || '1024x1024',
-            附加正向提示词: 特写附加正向提示词,
-            附加负面提示词: 合并负向画师串,
-            跳过基础负面提示词: Boolean((画师串预设?.负面提示词 || '').trim() || (PNG画风预设?.负面提示词 || '').trim()),
-            PNG参数
-        });
+        const imageResult = await 执行生图模型调用带重试(
+            () => imageAIService.generateImageByPrompt(生图词组, imageApi!, options?.signal, {
+                构图: '部位特写',
+                尺寸: 尺寸 || '1024x1024',
+                附加正向提示词: 特写附加正向提示词,
+                附加负面提示词: 合并负向画师串,
+                跳过基础负面提示词: Boolean((画师串预设?.负面提示词 || '').trim() || (PNG画风预设?.负面提示词 || '').trim()),
+                PNG参数
+            }),
+            {
+                signal: options?.signal,
+                onAttempt: (attempt, totalAttempts) => {
+                    deps.更新NPC生图任务(task.id, (currentTask) => ({
+                        ...currentTask,
+                        状态: 'running',
+                        重试次数: Math.max(0, attempt - 1),
+                        最大重试次数: 生图最大自动重试次数,
+                        进度阶段: 'generating',
+                        进度文本: `${part}词组转换完成，正在调用图片模型生成特写（第 ${attempt}/${totalAttempts} 次尝试）。`
+                    }));
+                },
+                onRetry: (attempt, totalAttempts, errorMessage) => {
+                    deps.更新NPC生图任务(task.id, (currentTask) => ({
+                        ...currentTask,
+                        状态: 'running',
+                        重试次数: attempt,
+                        最大重试次数: 生图最大自动重试次数,
+                        错误信息: errorMessage,
+                        进度阶段: 'generating',
+                        进度文本: `第 ${attempt}/${totalAttempts} 次${part}特写生成失败：${errorMessage}；正在自动重试。`
+                    }));
+                }
+            }
+        );
         const localizedImageResult = await imageAIService.persistImageAssetLocally(imageResult);
         if (!localizedImageResult.图片URL && !localizedImageResult.本地路径) {
             throw new Error('图片已生成，但未得到可展示或可保存的图片资源。');

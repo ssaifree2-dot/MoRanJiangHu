@@ -282,9 +282,7 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacter
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-start justify-between gap-2">
                                         <div className={`truncate text-xs ${getRarityNameClass(getSafeText(item?.品质))}`}>{name}</div>
-                                        {count > 1 ? (
-                                            <span className="rounded bg-black/40 px-1 text-[10px] font-mono text-gray-400">x{count}</span>
-                                        ) : null}
+                                        <span className="rounded bg-black/40 px-1 text-[10px] font-mono text-gray-400">x{count}</span>
                                     </div>
                                     <div className="mt-1 flex justify-between text-[10px] text-gray-500">
                                         <span className="flex gap-2">
