@@ -1020,6 +1020,11 @@ const App: React.FC = () => {
             IMAGE_TASK_BUSY_STATES.has(String(task?.状态 || ''))
         ));
         if (hasCharacterOrSceneImageWork) return;
+        
+        // 限制物品生图并发数量，避免一次性提交所有任务
+        const MAX_CONCURRENT_ITEM_IMAGE_TASKS = 1;
+        if (autoItemImageRunningRef.current.size >= MAX_CONCURRENT_ITEM_IMAGE_TASKS) return;
+        
         let cancelled = false;
         const idleTimer = window.setTimeout(() => {
             if (cancelled) return;

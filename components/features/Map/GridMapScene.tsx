@@ -453,7 +453,7 @@ const GridMapScene: React.FC<Props> = ({
 
     return (
         <div className="grid h-full min-h-0 grid-cols-1 gap-3">
-            <aside className={`order-2 min-h-0 overflow-hidden rounded-2xl border border-[#c7a56a]/45 bg-[#fffaf0] ${compact ? 'p-3' : 'p-3.5'}`}>
+            <aside className={`order-2 min-h-0 max-h-[180px] overflow-hidden rounded-2xl border border-[#c7a56a]/45 bg-[#fffaf0] ${compact ? 'p-3' : 'p-3.5'}`}>
                 <div className="mb-3 flex items-center justify-between gap-2 text-sm font-bold tracking-widest text-[#7a3f12]">
                     <span>地图层级</span>
                     <span className="rounded border border-[#d8c4a2] bg-[#fffdf6] px-2 py-0.5 font-mono text-[#5f3a1e]">{layers.length}</span>
@@ -472,7 +472,7 @@ const GridMapScene: React.FC<Props> = ({
                     <div className="mt-2 text-sm text-[#6f4a26]">{layerSummaryText}</div>
                 </div>
 
-                <div className="grid max-h-[13rem] grid-cols-1 gap-2 overflow-y-auto pr-1 custom-scrollbar md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid max-h-[12rem] grid-cols-1 gap-2 overflow-y-auto pr-1 custom-scrollbar md:grid-cols-2 xl:grid-cols-3">
                     {siblingLayers.map((layer) => {
                         const active = layer.ID === currentLayerId;
                         return (
@@ -784,7 +784,7 @@ const GridMapScene: React.FC<Props> = ({
                     </div>
                 </section>
 
-                <section className={`grid max-h-[240px] shrink-0 gap-3 overflow-y-auto custom-scrollbar ${compact ? 'grid-cols-1' : 'grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]'}`}>
+                <section className={`grid max-h-[200px] shrink-0 gap-3 overflow-y-auto custom-scrollbar ${compact ? 'grid-cols-1' : 'grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]'}`}>
                     <div className="rounded-2xl border border-[#c7a56a]/45 bg-[#fffaf0] p-4">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">

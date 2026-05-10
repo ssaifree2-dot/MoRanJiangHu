@@ -4852,20 +4852,21 @@ const ImageManagerModal: React.FC<Props> = ({
 
             {imageViewer && (
                 <div
-                    className="absolute inset-0 z-[250] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
+                    className="absolute inset-0 z-[250] bg-black/95 backdrop-blur-sm flex items-center justify-end p-4 pr-8"
                     onClick={() => setImageViewer(null)}
                 >
                     <div
-                        className="relative inline-flex w-fit max-w-[92vw] max-h-[94vh] rounded-lg overflow-hidden border border-wuxia-gold/20 shadow-[0_0_50px_rgba(212,175,55,0.16)]"
+                        className="relative inline-flex w-fit max-w-[85vw] max-h-[94vh] rounded-lg overflow-hidden border border-wuxia-gold/30 shadow-[0_0_60px_rgba(212,175,55,0.25)]"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <img src={imageViewer.src} alt={imageViewer.alt} className="max-w-[92vw] max-h-[94vh] object-contain bg-black" />
+                        <img src={imageViewer.src} alt={imageViewer.alt} className="max-w-[85vw] max-h-[94vh] object-contain bg-black" />
                         <button
                             type="button"
-                            className="absolute top-3 right-3 w-10 h-10 flex items-center justify-center rounded-full bg-black/60 border border-gray-700 text-gray-300"
+                            className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center rounded-full bg-red-600/90 hover:bg-red-500 border-2 border-white/80 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)] transition-all hover:scale-110"
                             onClick={() => setImageViewer(null)}
+                            title="关闭预览"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                             </svg>
                         </button>
