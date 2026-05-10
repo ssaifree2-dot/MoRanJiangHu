@@ -10,6 +10,7 @@ import type {
     地图道路结构,
     地图人物结构,
 } from '../types';
+import { 优化地图布局 } from './mapLayoutOptimizer';
 
 type 地图层尺寸结构 = { width: number; height: number };
 
@@ -1233,7 +1234,21 @@ const 从旧版字段派生地图空间 = (
 
     layers.forEach((layer) => {
         const layerBuildings = buildings.filter((building) => building.所在层级ID === layer.ID);
-        重排离散建筑布局(layer, layerBuildings);
+        
+        // 先尝试使用新的布局优化器
+        const 优化结果 = 优化地图布局(layer, layerBuildings);
+        if (优化结果.建筑.length > 0) {
+            // 应用优化后的建筑布局
+            优化结果.建筑.forEach((优化建筑, index) => {
+                if (layerBuildings[index]) {
+                    layerBuildings[index].四角坐标 = 优化建筑.四角坐标;
+                }
+            });
+        } else {
+            // 如果优化器不适用，使用原有逻辑
+            重排离散建筑布局(layer, layerBuildings);
+        }
+        
         避让层级建筑重叠(layer, layerBuildings);
     });
 
