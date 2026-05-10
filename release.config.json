@@ -2,7 +2,7 @@
   "versionCode": 102,
   "versionName": "1.0.101",
   "releaseChannel": "stable",
-  "releasePublishedAt": "2026-05-11T00:00:00+08:00",
+  "releasePublishedAt": "2026-05-11T01:35:00+08:00",
   "releaseNotes": [
     "正式发布 1.0.101，修复拍卖行重复物品和兜底物品问题。",
     "拍卖行新增去重机制：系统补货时检查物品名称、类型、品质，避免生成完全相同的拍品。",
