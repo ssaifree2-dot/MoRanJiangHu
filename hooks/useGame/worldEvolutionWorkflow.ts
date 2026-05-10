@@ -95,6 +95,34 @@ const 序列化上下文命令 = (commands: any[]): string => (
         .join('\n')
 );
 
+const 世界演变请求超时毫秒 = 90000;
+
+const 创建世界演变超时错误 = (): Error => {
+    const error = new Error(`世界演变请求超时（${Math.max(1, Math.ceil(世界演变请求超时毫秒 / 1000))} 秒）`);
+    error.name = 'TimeoutError';
+    return error;
+};
+
+const 执行世界演变带超时 = async <T,>(task: (signal: AbortSignal) => Promise<T>): Promise<T> => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof window.setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            task(controller.signal),
+            new Promise<T>((_, reject) => {
+                timer = window.setTimeout(() => {
+                    controller.abort();
+                    reject(创建世界演变超时错误());
+                }, 世界演变请求超时毫秒);
+            })
+        ]);
+    } finally {
+        if (timer !== undefined) {
+            window.clearTimeout(timer);
+        }
+    }
+};
+
 export const 执行世界演变更新工作流 = async (
     params: 世界演变触发参数 | undefined,
     deps: 世界演变依赖
@@ -251,16 +279,18 @@ export const 执行世界演变更新工作流 = async (
         });
         const 独立世界演变GPT模式 = worldRuntimeGameConfig.独立APIGPT模式?.世界演变 === true;
 
-        const result = await textAIService.generateWorldEvolutionUpdate(
-            worldContext,
-            worldApi,
-            undefined,
-            worldExtraPrompt,
-            worldCotPseudoPrompt,
-            worldCotPrompt,
-            fandomPromptBundle.enabled,
-            独立世界演变GPT模式
-        );
+        const result = await 执行世界演变带超时(signal => (
+            textAIService.generateWorldEvolutionUpdate(
+                worldContext,
+                worldApi,
+                signal,
+                worldExtraPrompt,
+                worldCotPseudoPrompt,
+                worldCotPrompt,
+                fandomPromptBundle.enabled,
+                独立世界演变GPT模式
+            )
+        ));
         const normalizedCommands = 规范化世界演变命令列表(result.commands as any);
         const rawCommandCount = Array.isArray(result.commands) ? result.commands.length : 0;
         const rawText = typeof result.rawText === 'string' ? result.rawText.trim() : '';
@@ -317,7 +347,14 @@ export const 执行世界演变更新工作流 = async (
             statusText: updateSummary
         };
     } catch (error: any) {
-        const message = error?.message || '世界演变更新失败';
+        const message = error?.name === 'AbortError'
+            ? '世界演变请求已取消'
+            : (error?.message || '世界演变更新失败');
+        console.error('[世界演变] 更新失败', {
+            name: error?.name || 'Error',
+            message,
+            status: error?.status
+        });
         deps.set世界演变状态文本(message);
         if (params?.force || triggerSource === 'manual') {
             deps.追加系统消息(`[世界演变失败] ${message}`, { position: 'after_last_turn' });
