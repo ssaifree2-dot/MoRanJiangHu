@@ -65,6 +65,7 @@ import { 同步剧情小说分解时间校准 } from '../../services/novelDecomp
 import { 按功能开关过滤提示词内容, 裁剪修炼体系上下文数据 } from '../../utils/promptFeatureToggles';
 import { 执行变量模型校准工作流 } from './variableModelWorkflow';
 import { 合并变量校准结果到响应 as 合并变量生成结果到响应 } from './variableCalibrationMerge';
+import { 保护开局生成门派状态 } from './storyState';
 
 type 开场命令基态 = {
     角色: 角色数据结构;
@@ -779,6 +780,11 @@ export const 执行开场剧情生成工作流 = async (
             同人剧情规划: deps.规范化同人剧情规划状态((contextData as any).同人剧情规划 ?? deps.同人剧情规划),
             同人女主剧情规划: deps.规范化同人女主剧情规划状态((contextData as any).同人女主剧情规划 ?? deps.同人女主剧情规划)
         };
+        const 保护开局门派 = <T extends 开场命令基态>(state: T): T => 保护开局生成门派状态(
+            state,
+            commandBaseState,
+            options?.开局配置
+        );
         const openingBodyText = 提取响应完整正文文本(aiData);
         const openingVariablePlanText = typeof aiData?.t_var_plan === 'string' ? aiData.t_var_plan.trim() : '';
         const openingPlanText = 提取响应规划文本(aiData);
@@ -804,7 +810,7 @@ export const 执行开场剧情生成工作流 = async (
             ...aiData,
             tavern_commands: Array.isArray(aiData?.tavern_commands) ? [...aiData.tavern_commands] : []
         };
-        let simulatedOpeningState = deps.processResponseCommands(responseForExecution, commandBaseState, { applyState: false });
+        let simulatedOpeningState = 保护开局门派(deps.processResponseCommands(responseForExecution, commandBaseState, { applyState: false }));
         const 渲染开场结构化正文草稿 = () => {
             if (!useStreaming) return;
             const draftDisplayData: GameResponse = {
@@ -833,7 +839,7 @@ export const 执行开场剧情生成工作流 = async (
         };
         渲染开场结构化正文草稿();
         const 立即并入开局变量状态 = (nextResponse: GameResponse) => {
-            simulatedOpeningState = deps.processResponseCommands(nextResponse, commandBaseState);
+            simulatedOpeningState = 保护开局门派(deps.processResponseCommands(nextResponse, commandBaseState));
             const appliedTime = 环境时间转标准串(simulatedOpeningState.环境);
             if (appliedTime) {
                 deps.设置游戏初始时间(appliedTime);
@@ -961,7 +967,7 @@ export const 执行开场剧情生成工作流 = async (
                         variable_calibration_commands: responseForExecution.variable_calibration_commands,
                         variable_calibration_model: responseForExecution.variable_calibration_model
                     };
-                    simulatedOpeningState = deps.processResponseCommands(responseForExecution, commandBaseState, { applyState: false });
+                    simulatedOpeningState = 保护开局门派(deps.processResponseCommands(responseForExecution, commandBaseState, { applyState: false }));
                     立即并入开局变量状态(responseForExecution);
                     deps.设置开局变量生成进度({
                         phase: 'done',
@@ -1099,7 +1105,7 @@ export const 执行开场剧情生成工作流 = async (
                             ...worldResult.commands
                         ]
                     };
-                    simulatedOpeningState = deps.processResponseCommands(responseForExecution, commandBaseState, { applyState: false });
+                    simulatedOpeningState = 保护开局门派(deps.processResponseCommands(responseForExecution, commandBaseState, { applyState: false }));
                 }
             }
         } else {
@@ -1249,7 +1255,7 @@ export const 执行开场剧情生成工作流 = async (
                             ...planningCommands
                         ]
                     };
-                    simulatedOpeningState = deps.processResponseCommands(responseForExecution, commandBaseState, { applyState: false });
+                    simulatedOpeningState = 保护开局门派(deps.processResponseCommands(responseForExecution, commandBaseState, { applyState: false }));
                 }
             }
         } else {
@@ -1263,7 +1269,7 @@ export const 执行开场剧情生成工作流 = async (
             ...aiData,
             tavern_commands: Array.isArray(responseForExecution.tavern_commands) ? [...responseForExecution.tavern_commands] : []
         };
-        const openingStateAfterCommands = deps.processResponseCommands(responseForExecution, commandBaseState);
+        const openingStateAfterCommands = 保护开局门派(deps.processResponseCommands(responseForExecution, commandBaseState));
         const openingNewNpcList = deps.提取新增NPC列表(commandBaseState.社交, openingStateAfterCommands.社交);
         const hasOpeningCommands = Array.isArray(responseForExecution?.tavern_commands) && responseForExecution.tavern_commands.length > 0;
         if (!hasOpeningCommands) {

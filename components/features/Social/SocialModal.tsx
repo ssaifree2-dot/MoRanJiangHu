@@ -35,8 +35,11 @@ const SocialModal: React.FC<Props> = ({
 }) => {
     use图片资源回源预取(socialList);
     const 显示境界 = cultivationSystemEnabled !== false;
+    const 获取NPC稳定ID = React.useCallback((npc: any, index = 0): string => (
+        String(npc?.id || npc?.ID || npc?.姓名 || `npc-${index}`).trim()
+    ), []);
     const [selectedId, setSelectedId] = useState<string | null>(
-        socialList.length > 0 ? socialList[0].id : null
+        socialList.length > 0 ? 获取NPC稳定ID(socialList[0], 0) : null
     );
     const [香闺展示模式, set香闺展示模式] = useState<Record<string, 'text' | 'image'>>({});
     const [showFullBackground, setShowFullBackground] = useState(false);
@@ -47,23 +50,25 @@ const SocialModal: React.FC<Props> = ({
             setSelectedId(null);
             return;
         }
-        if (!selectedId || !socialList.some(item => item.id === selectedId)) {
-            setSelectedId(socialList[0].id);
+        if (!selectedId || !socialList.some((item, index) => 获取NPC稳定ID(item, index) === selectedId)) {
+            setSelectedId(获取NPC稳定ID(socialList[0], 0));
         }
-    }, [selectedId, socialList]);
+    }, [selectedId, socialList, 获取NPC稳定ID]);
 
     useEffect(() => {
         if (!selectedNpcId) return;
-        if (!socialList.some(item => item.id === selectedNpcId)) return;
-        setSelectedId(selectedNpcId);
-    }, [selectedNpcId, socialList]);
+        const matched = socialList.find((item, index) => 获取NPC稳定ID(item, index) === selectedNpcId || item?.姓名 === selectedNpcId);
+        if (!matched) return;
+        const matchedIndex = socialList.indexOf(matched);
+        setSelectedId(获取NPC稳定ID(matched, matchedIndex));
+    }, [selectedNpcId, socialList, 获取NPC稳定ID]);
 
     useEffect(() => {
         setShowFullBackground(false);
         setImageViewer(null);
     }, [selectedId]);
 
-    const currentNPC = socialList.find(n => n.id === selectedId);
+    const currentNPC = socialList.find((n, index) => 获取NPC稳定ID(n, index) === selectedId) || socialList[0];
     const 当前记忆展示 = React.useMemo(
         () => currentNPC ? 构建NPC记忆展示结果(currentNPC.总结记忆, currentNPC.记忆) : { 总结记忆: [], 记忆: [], 原始总数: 0 },
         [currentNPC]
@@ -165,18 +170,18 @@ const SocialModal: React.FC<Props> = ({
     const 当前子宫档案 = currentNPC ? 读取当前子宫档案(currentNPC) : undefined;
     const 切换重要角色状态 = (npc: NPC结构) => {
         if (!onToggleMajorRole) return;
-        onToggleMajorRole(npc.id, !Boolean(npc.是否主要角色));
+        onToggleMajorRole(String(npc.id || (npc as any).ID || npc.姓名), !Boolean(npc.是否主要角色));
     };
     const 切换在场状态 = (npc: NPC结构) => {
         if (!onTogglePresence) return;
-        onTogglePresence(npc.id, !Boolean(npc.是否在场));
+        onTogglePresence(String(npc.id || (npc as any).ID || npc.姓名), !Boolean(npc.是否在场));
     };
     const 删除角色 = (npc: NPC结构) => {
         if (!onDeleteNpc) return;
         if (npc.是否主要角色) return;
         const confirmed = window.confirm(`确认删除角色「${npc.姓名}」？此操作不可撤销。`);
         if (!confirmed) return;
-        onDeleteNpc(npc.id);
+        onDeleteNpc(String(npc.id || (npc as any).ID || npc.姓名));
     };
     const 获取NPC图片历史 = (npc: any) => {
         if (!npc) return [];
@@ -290,19 +295,21 @@ const SocialModal: React.FC<Props> = ({
                             Character Roster
                         </div>
                         <div className="flex gap-3 overflow-x-auto overflow-y-hidden custom-scrollbar px-5 pb-4 snap-x snap-mandatory">
-                        {socialList.map(npc => (
+                        {socialList.map((npc, index) => {
+                            const npcStableId = 获取NPC稳定ID(npc, index);
+                            return (
                             <button
-                                key={npc.id}
+                                key={npcStableId}
                                 onClick={() => {
-                                    setSelectedId(npc.id);
-                                    onSelectedNpcIdChange?.(npc.id);
+                                    setSelectedId(npcStableId);
+                                    onSelectedNpcIdChange?.(npcStableId);
                                 }}
-                                className={`w-[245px] h-[76px] shrink-0 snap-start text-left p-2.5 rounded-xl transition-all relative group overflow-hidden flex items-center gap-3 ${selectedId === npc.id
+                                className={`w-[245px] h-[76px] shrink-0 snap-start text-left p-2.5 rounded-xl transition-all relative group overflow-hidden flex items-center gap-3 ${selectedId === npcStableId
                                     ? 'bg-gradient-to-b from-wuxia-gold/18 to-wuxia-gold/5 border border-wuxia-gold/40 shadow-[0_0_15px_rgba(212,175,55,0.15)]'
                                     : 'border border-transparent hover:border-white/10 hover:bg-white/[0.03]'
                                     }`}
                             >
-                                {selectedId === npc.id && (
+                                {selectedId === npcStableId && (
                                     <div className="absolute left-3 right-3 bottom-0 h-0.5 bg-wuxia-gold shadow-[0_0_10px_rgba(212,175,55,0.8)] z-10"></div>
                                 )}
 
@@ -317,7 +324,7 @@ const SocialModal: React.FC<Props> = ({
                                 </div>
 
                                 <div className="flex-1 min-w-0">
-                                    <div className={`font-serif font-bold text-base truncate ${selectedId === npc.id ? 'text-wuxia-gold drop-shadow-sm' : 'text-gray-200'}`}>
+                                    <div className={`font-serif font-bold text-base truncate ${selectedId === npcStableId ? 'text-wuxia-gold drop-shadow-sm' : 'text-gray-200'}`}>
                                         {npc.姓名}
                                     </div>
                                     <div className="text-[10px] text-gray-500 flex items-center gap-1.5 mt-0.5">
@@ -344,7 +351,7 @@ const SocialModal: React.FC<Props> = ({
                                     )}
                                 </div>
                             </button>
-                        ))}
+                        );})}
                         {socialList.length === 0 && (
                             <div className="w-full text-center text-gray-600 text-xs py-6 font-serif flex flex-col items-center gap-2">
                                 <IconBeads size={24} className="opacity-50" />

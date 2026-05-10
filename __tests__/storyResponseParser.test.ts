@@ -39,4 +39,25 @@ describe('storyResponseParser', () => {
         ]);
         expect(parsed.shortTerm).toBe('忠伯在院中现身。');
     });
+
+    it('removes leaked opening initialization tables from rendered body', () => {
+        const parsed = parseStoryRawText([
+            '<正文>',
+            '### 1. 角色初始化',
+            '- **基础信息**：姓名“杨培强”，性别“男”。',
+            '- **天赋列表**（完整承接建档）：',
+            '- [0] 名称：福星高照｜描述：命数偏吉。',
+            '### 4. 门派与任务初始化',
+            '- **玩家门派**：ID: none, 名称: 无门无派。',
+            '- **任务列表**：',
+            '- [Task001] 晨间问安：当前状态“进行中”。',
+            '【旁白】窗纸被晨光照得微亮，院外传来木桶落地的轻响。',
+            '</正文>',
+            '<短期记忆>主角在晨间醒来。</短期记忆>'
+        ].join('\n'));
+
+        expect(parsed.logs).toEqual([
+            { sender: '旁白', text: '窗纸被晨光照得微亮，院外传来木桶落地的轻响。' }
+        ]);
+    });
 });

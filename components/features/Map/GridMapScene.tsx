@@ -216,14 +216,24 @@ const GridMapScene: React.FC<Props> = ({
     const mapWidth = Math.max(12, Number(selectedLayer?.网格宽度) || 24);
     const mapHeight = Math.max(12, Number(selectedLayer?.网格高度) || 24);
     const 约束标签X = (x: number, width: number) => Math.max(0.25, Math.min(mapWidth - width - 0.25, x - width / 2));
+    const 匹配社交人物 = (person: any) => {
+        const normalizedName = 归一化地图文本(person?.名称);
+        const linkedId = 取文本(person?.关联NPC || person?.关联NPCID || person?.npcId || person?.NPCID);
+        return (Array.isArray(socialList) ? socialList : []).find((npc: any) => {
+            const npcId = 取文本(npc?.id || npc?.ID);
+            const npcName = 归一化地图文本(npc?.姓名);
+            return (linkedId && npcId === linkedId) || (normalizedName && npcName === normalizedName);
+        });
+    };
     const 打开人物 = (person: any) => {
         setSelectedFeatureId(`person:${person.ID}`);
         if (person?.是否当前玩家 && person?.坐标) {
             setMapFocusPoint({ x: person.坐标.x, y: person.坐标.y });
             setMapPan({ x: 0, y: 0 });
-        } else {
-            onOpenPerson?.(person);
+            return;
         }
+        const matchedNpc = 匹配社交人物(person);
+        onOpenPerson?.(matchedNpc ? { ...matchedNpc, 地图人物: person } : person);
     };
     const currentPlace = 取文本(env?.具体地点, 取文本(env?.小地点, '未知地点'));
     const contourLines = useMemo(
@@ -568,7 +578,7 @@ const GridMapScene: React.FC<Props> = ({
 
                             {currentLayerPeople.map((person) => {
                                 const active = selectedFeatureId === `person:${person.ID}`;
-                                const showLabel = active || person.是否当前玩家;
+                                const showLabel = true;
                                 const labelText = person.名称.slice(0, 6);
                                 const labelWidth = Math.max(1.6, (labelText.length * 0.68 + 0.7) * labelScale);
                                 const labelX = 约束标签X(person.坐标.x, labelWidth);
@@ -644,7 +654,10 @@ const GridMapScene: React.FC<Props> = ({
                         {selectedFeature?.kind === 'person' && !selectedFeature.data?.是否当前玩家 && onOpenPerson && (
                             <button
                                 type="button"
-                                onClick={() => onOpenPerson(selectedFeature.data)}
+                                onClick={() => {
+                                    const matchedNpc = 匹配社交人物(selectedFeature.data);
+                                    onOpenPerson(matchedNpc ? { ...matchedNpc, 地图人物: selectedFeature.data } : selectedFeature.data);
+                                }}
                                 className="mt-3 rounded-lg border border-wuxia-gold/30 bg-wuxia-gold/10 px-3 py-2 text-xs font-bold text-wuxia-gold hover:bg-wuxia-gold hover:text-black"
                             >
                                 查看角色

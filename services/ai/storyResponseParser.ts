@@ -336,7 +336,50 @@ const 清理正文残留协议内容 = (body: string): string => {
         if (isNonBodyProtocolHeader) break;
         lines.push(rawLine);
     }
-    return lines.join('\n').trim();
+    return 清理正文初始化泄露内容(lines.join('\n')).trim();
+};
+
+const 初始化泄露标题规则 = /^#{1,6}\s*\d+[.、]\s*(角色初始化|环境初始化|社交初始化|门派与任务初始化)\s*$/;
+const 初始化泄露行规则 = /^(?:[-*]\s*)?(?:\*\*)?(基础信息|境界系统|属性数值|天赋列表|身体状态|资产与物品|坐标|时间|地点层级|天气|玩家门派|任务列表|NPC\d+|Item\d+)(?:\*\*)?[：:]/;
+const 初始化泄露列表行规则 = /^(?:[-*]\s*)?(?:\*\*[^*]+?\*\*|(?:生理|部位血量|金钱|物品列表|地点层级|天气|NPC\d+|Item\d+|Task\d+|玩家门派)\b|[\[\{]?(?:NPC|Item|Task)\d+)/;
+
+const 清理正文初始化泄露内容 = (body: string): string => {
+    const source = (body || '').replace(/\r\n/g, '\n');
+    if (!source.trim()) return '';
+    const lines = source.split('\n');
+    const result: string[] = [];
+    let inInitLeakBlock = false;
+    let removedCount = 0;
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        const startsInitSection = 初始化泄露标题规则.test(line);
+        if (startsInitSection) {
+            inInitLeakBlock = true;
+            removedCount += 1;
+            continue;
+        }
+
+        if (inInitLeakBlock) {
+            if (!line || /^#{1,6}\s*\d+[.、]\s*/.test(line) || 初始化泄露行规则.test(line) || 初始化泄露列表行规则.test(line)) {
+                removedCount += 1;
+                continue;
+            }
+            if (/^[-*]\s+/.test(line)) {
+                removedCount += 1;
+                continue;
+            }
+            inInitLeakBlock = false;
+        }
+
+        if (初始化泄露行规则.test(line) && removedCount > 0) {
+            removedCount += 1;
+            continue;
+        }
+        result.push(rawLine);
+    }
+
+    return result.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 };
 
 const 写入协议标签段 = (

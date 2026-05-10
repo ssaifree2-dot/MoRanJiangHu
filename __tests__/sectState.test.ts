@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { 创建空门派状态, 创建开场基础状态, 创建开场命令基态, 规范化门派状态, 是否无门派标识 } from '../hooks/useGame/storyState';
+import { 创建空门派状态, 创建开场基础状态, 创建开场命令基态, 规范化门派状态, 是否无门派标识, 保护开局生成门派状态 } from '../hooks/useGame/storyState';
 
 describe('门派状态规范化', () => {
     it('无门派语义不会补默认同门', () => {
@@ -73,5 +73,35 @@ describe('门派状态规范化', () => {
         expect(commandBase.玩家门派.名称).toBe('玄墨派');
         expect(commandBase.玩家门派.玩家职位).toBe('外门弟子');
         expect(commandBase.玩家门派.重要成员.length).toBeGreaterThanOrEqual(6);
+    });
+
+    it('开局生成门派不会被模型命令覆盖回无门无派', () => {
+        const base = 创建开场命令基态(创建开场基础状态(
+            {
+                姓名: '沈墨',
+                所属门派ID: '玄墨派',
+                门派职位: '外门弟子',
+                门派贡献: 100
+            } as any,
+            {} as any,
+            {
+                初始关系模板: '师门牵引',
+                关系侧重: ['师门'],
+                开局切入偏好: '门派起手',
+                开局生成门派: true,
+                开局生成同门: true
+            } as any
+        ));
+
+        const protectedState = 保护开局生成门派状态({
+            ...base,
+            角色: { ...base.角色, 所属门派ID: 'none', 门派职位: '无', 门派贡献: 0 },
+            玩家门派: { ID: 'none', 名称: '无门无派', 玩家职位: '无' }
+        }, base, { 开局生成门派: true } as any);
+
+        expect(protectedState.玩家门派.名称).toBe('玄墨派');
+        expect(protectedState.玩家门派.重要成员.length).toBeGreaterThanOrEqual(6);
+        expect(protectedState.角色.所属门派ID).toBe('玄墨派');
+        expect(protectedState.角色.门派职位).toBe('外门弟子');
     });
 });

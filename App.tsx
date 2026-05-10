@@ -3065,12 +3065,6 @@ const App: React.FC = () => {
             )}
             {desktopRightDetailPanelOpen && (
                 <>
-                    {latestChangedSections.length > 0 && (
-                        <div className="desktop-detail-turn-changes">
-                            <span className="text-wuxia-gold/70">本回合变化</span>
-                            <span className="truncate text-gray-200">{latestChangedSections.join('、')}</span>
-                        </div>
-                    )}
                     {!desktopDetailFullscreen && (
                         <div
                             className="desktop-detail-resize-handle"

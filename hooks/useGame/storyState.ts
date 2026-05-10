@@ -372,6 +372,38 @@ export const 规范化门派状态 = (raw?: any): 详细门派结构 => {
     };
 };
 
+export const 保护开局生成门派状态 = <T extends { 玩家门派?: any; 角色?: any }>(
+    nextState: T,
+    baseState: { 玩家门派?: any; 角色?: any },
+    openingConfig?: OpeningConfig
+): T => {
+    const baseSect = 规范化门派状态(baseState?.玩家门派);
+    const nextSect = 规范化门派状态(nextState?.玩家门派);
+    const shouldKeepGeneratedSect = openingConfig?.开局生成门派 !== false
+        && !是否无门派标识(baseSect.ID)
+        && 是否无门派标识(nextSect.ID);
+    if (!shouldKeepGeneratedSect) return nextState;
+
+    const nextRole = nextState?.角色 && typeof nextState.角色 === 'object'
+        ? {
+            ...nextState.角色,
+            所属门派ID: baseSect.ID,
+            门派职位: baseSect.玩家职位,
+            门派贡献: Math.max(
+                取数字(nextState.角色?.门派贡献),
+                取数字(baseSect.玩家贡献),
+                取数字(baseSect.累计贡献)
+            )
+        }
+        : nextState?.角色;
+
+    return {
+        ...nextState,
+        玩家门派: baseSect,
+        角色: nextRole
+    };
+};
+
 export const 创建开场空白环境 = (): 环境信息结构 => ({
     时间: '1:01:01:00:00',
     大地点: '',
