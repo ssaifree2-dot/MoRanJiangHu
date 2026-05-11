@@ -111,7 +111,7 @@ const 生成地貌区域 = (
     return {
         waterPath,
         hillPath,
-        showWater: waterBias || isSettlement,
+        showWater: waterBias,
         showHills: mountainBias || !isSettlement,
         showGreen: isSettlement
     };
@@ -365,16 +365,42 @@ const GridMapScene: React.FC<Props> = ({
     }, []);
     const inverseViewScale = Math.max(mapViewBox.width / 92, mapViewBox.height / 56);
     const buildingLabelFontSize = Math.max(0.76, 1.34 * inverseViewScale);
-    const personLabelFontSize = Math.max(0.68, 1.02 * inverseViewScale);
-    const personLabelHeight = Math.max(0.86, 1.34 * inverseViewScale);
-    const personMarkerRadius = Math.max(0.62, 0.9 * inverseViewScale);
-    const playerMarkerRadius = Math.max(0.82, 1.14 * inverseViewScale);
-    const personOuterRadius = Math.max(0.92, 1.32 * inverseViewScale);
+    const personLabelFontSize = Math.max(0.54, 0.82 * inverseViewScale);
+    const personLabelHeight = Math.max(0.66, 1.02 * inverseViewScale);
+    const personMarkerRadius = Math.max(0.34, 0.48 * inverseViewScale);
+    const playerMarkerRadius = Math.max(0.48, 0.64 * inverseViewScale);
+    const personOuterRadius = Math.max(0.48, 0.68 * inverseViewScale);
     const personLayouts = useMemo(() => {
         const placed: Array<{ x: number; y: number }> = [];
+        const labelBoxes: Array<{ x: number; y: number; width: number; height: number }> = [];
+        const intersects = (
+            a: { x: number; y: number; width: number; height: number },
+            b: { x: number; y: number; width: number; height: number }
+        ) => (
+            a.x < b.x + b.width
+            && a.x + a.width > b.x
+            && a.y < b.y + b.height
+            && a.y + a.height > b.y
+        );
+        const scoreBox = (box: { x: number; y: number; width: number; height: number }) => {
+            let score = 0;
+            for (const placedBox of labelBoxes) {
+                if (intersects(box, placedBox)) score += 1000;
+            }
+            for (const point of placed) {
+                const closestX = 约束数值(point.x, box.x, box.x + box.width);
+                const closestY = 约束数值(point.y, box.y, box.y + box.height);
+                const distance = Math.hypot(point.x - closestX, point.y - closestY);
+                if (distance < personOuterRadius * 1.5) score += 180;
+            }
+            if (box.x <= 0.25 || box.y <= 0.25 || box.x + box.width >= mapWidth - 0.25 || box.y + box.height >= mapHeight - 0.25) {
+                score += 20;
+            }
+            return score;
+        };
         return currentLayerPeople.map((person, index) => {
             const source = person?.坐标 || { x: 0, y: 0 };
-            const minGap = personOuterRadius * 2.24;
+            const minGap = personOuterRadius * 1.82;
             let x = 约束数值(Number(source.x) || 0, personOuterRadius, Math.max(personOuterRadius, mapWidth - personOuterRadius));
             let y = 约束数值(Number(source.y) || 0, personOuterRadius, Math.max(personOuterRadius, mapHeight - personOuterRadius));
             const overlaps = (candidateX: number, candidateY: number) => placed.some((point) => Math.hypot(point.x - candidateX, point.y - candidateY) < minGap);
@@ -397,9 +423,57 @@ const GridMapScene: React.FC<Props> = ({
                 }
             }
             placed.push({ x, y });
-            return { person, x, y, shifted: Math.hypot(x - (Number(source.x) || 0), y - (Number(source.y) || 0)) > 0.05 };
+            const labelText = String(person?.名称 || '').slice(0, 6);
+            const labelWidth = Math.max(2.35 * inverseViewScale, (labelText.length * 0.72 + 0.72) * inverseViewScale);
+            const offsets = [
+                { dx: 0, dy: -(personOuterRadius + personLabelHeight + 0.18 * inverseViewScale) },
+                { dx: 0, dy: personOuterRadius + 0.18 * inverseViewScale },
+                { dx: personOuterRadius + 0.2 * inverseViewScale, dy: -personLabelHeight / 2 },
+                { dx: -(personOuterRadius + labelWidth + 0.2 * inverseViewScale), dy: -personLabelHeight / 2 },
+                { dx: personOuterRadius + 0.2 * inverseViewScale, dy: -(personOuterRadius + personLabelHeight * 0.55) },
+                { dx: -(personOuterRadius + labelWidth + 0.2 * inverseViewScale), dy: -(personOuterRadius + personLabelHeight * 0.55) },
+                { dx: personOuterRadius + 0.2 * inverseViewScale, dy: personOuterRadius * 0.35 },
+                { dx: -(personOuterRadius + labelWidth + 0.2 * inverseViewScale), dy: personOuterRadius * 0.35 },
+            ];
+            let bestBox: { x: number; y: number; width: number; height: number } | null = null;
+            let bestScore = Number.POSITIVE_INFINITY;
+            offsets.forEach((offset, offsetIndex) => {
+                const rawX = offset.dx === 0 ? x - labelWidth / 2 : x + offset.dx;
+                const rawY = y + offset.dy;
+                const box = {
+                    x: 约束数值(rawX, 0.25, Math.max(0.25, mapWidth - labelWidth - 0.25)),
+                    y: 约束数值(rawY, 0.25, Math.max(0.25, mapHeight - personLabelHeight - 0.25)),
+                    width: labelWidth,
+                    height: personLabelHeight,
+                };
+                const score = scoreBox(box) + offsetIndex;
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestBox = box;
+                }
+            });
+            if (!bestBox) {
+                bestBox = {
+                    x: 约束标签X(x, labelWidth),
+                    y: 约束数值(y - personOuterRadius - personLabelHeight - 0.18 * inverseViewScale, 0.25, Math.max(0.25, mapHeight - personLabelHeight - 0.25)),
+                    width: labelWidth,
+                    height: personLabelHeight,
+                };
+            }
+            labelBoxes.push(bestBox);
+            return {
+                person,
+                x,
+                y,
+                labelText,
+                labelX: bestBox.x,
+                labelY: bestBox.y,
+                labelWidth: bestBox.width,
+                shifted: Math.hypot(x - (Number(source.x) || 0), y - (Number(source.y) || 0)) > 0.05,
+                labelShifted: Math.hypot((bestBox.x + bestBox.width / 2) - x, (bestBox.y + bestBox.height / 2) - y) > personOuterRadius + personLabelHeight * 0.85,
+            };
         });
-    }, [currentLayerPeople, mapHeight, mapWidth, personOuterRadius]);
+    }, [currentLayerPeople, inverseViewScale, mapHeight, mapWidth, personLabelHeight, personOuterRadius]);
 
     const npcDebugRows = useMemo(() => {
         const keys = [
@@ -469,6 +543,17 @@ const GridMapScene: React.FC<Props> = ({
                         <div className="absolute right-3 top-3 z-10 rounded-full border border-[#c7a56a]/55 bg-[#fffaf0]/95 px-3 py-1 text-xs font-mono text-[#7a3f12]">
                             缩放 {mapZoom.toFixed(1)}x
                         </div>
+                        <div className="absolute left-3 bottom-3 z-10 max-w-[calc(100%-1.5rem)] rounded-lg border border-[#c7a56a]/55 bg-[#fffaf0]/95 px-3 py-2 shadow-[0_8px_24px_rgba(92,45,10,0.12)]">
+                            <div className="mb-1 text-[10px] font-bold tracking-[0.18em] text-[#7a3f12]">图例</div>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#5f3a1e]">
+                                <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-4 rounded-sm border border-[#7e5824]/40 bg-[#c49d5c]/35" />地势</span>
+                                {terrainRegions.showWater && <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-4 rounded-sm border border-[#1d6384]/45 bg-[#4fafd3]/45" />水体</span>}
+                                <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-4 rounded-sm border border-[#5c2d0a]/70 bg-[#f5e7c6]" />建筑</span>
+                                <span className="inline-flex items-center gap-1.5"><i className="h-1 w-5 rounded-sm bg-[#1f1b13]" />道路</span>
+                                <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full border border-[#5b4b8a] bg-[#c4b5fd]" />人物</span>
+                                <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full border border-[#8a6a10] bg-[#f9d976]" />当前</span>
+                            </div>
+                        </div>
                         <svg
                             className="absolute inset-0 h-full w-full cursor-grab active:cursor-grabbing touch-none"
                             viewBox={`${mapViewBox.x} ${mapViewBox.y} ${mapViewBox.width} ${mapViewBox.height}`}
@@ -500,8 +585,8 @@ const GridMapScene: React.FC<Props> = ({
                             {terrainRegions.showWater && (
                                 <path
                                     d={terrainRegions.waterPath}
-                                    fill="rgba(125, 184, 205, 0.32)"
-                                    stroke="rgba(32, 91, 115, 0.42)"
+                                    fill="rgba(79, 175, 211, 0.36)"
+                                    stroke="rgba(29, 99, 132, 0.55)"
                                     strokeWidth={0.12}
                                     pointerEvents="none"
                                 />
@@ -630,17 +715,9 @@ const GridMapScene: React.FC<Props> = ({
                                 );
                             })}
 
-                            {personLayouts.map(({ person, x, y, shifted }) => {
+                            {personLayouts.map(({ person, x, y, labelText, labelX, labelY, labelWidth, shifted, labelShifted }) => {
                                 const active = selectedFeatureId === `person:${person.ID}`;
                                 const showLabel = true;
-                                const labelText = person.名称.slice(0, 6);
-                                const labelWidth = Math.max(3.1 * inverseViewScale, (labelText.length * 0.96 + 1.05) * inverseViewScale);
-                                const labelX = 约束标签X(x, labelWidth);
-                                const preferredLabelY = y - personOuterRadius - personLabelHeight - 0.18 * inverseViewScale;
-                                const fallbackLabelY = y + personOuterRadius + 0.18 * inverseViewScale;
-                                const labelY = preferredLabelY > 0.25
-                                    ? preferredLabelY
-                                    : Math.min(mapHeight - personLabelHeight - 0.25, fallbackLabelY);
                                 const markerRadius = person.是否当前玩家 ? playerMarkerRadius : personMarkerRadius;
                                 return (
                                     <g
@@ -689,11 +766,23 @@ const GridMapScene: React.FC<Props> = ({
                                         />
                                         {showLabel && (
                                             <>
+                                                {labelShifted && (
+                                                    <line
+                                                        x1={x}
+                                                        y1={y}
+                                                        x2={labelX + labelWidth / 2}
+                                                        y2={labelY + personLabelHeight / 2}
+                                                        stroke="rgba(15,23,42,0.32)"
+                                                        strokeWidth={0.05 * inverseViewScale}
+                                                        pointerEvents="none"
+                                                    />
+                                                )}
                                                 <rect
                                                     x={labelX}
                                                     y={labelY}
                                                     width={labelWidth}
                                                     height={personLabelHeight}
+                                                    data-map-person-label={person.ID}
                                                     rx={Math.max(0.12, 0.24 * inverseViewScale)}
                                                     fill={person.是否当前玩家 ? 'rgba(63, 49, 12, 0.92)' : 'rgba(5, 8, 14, 0.92)'}
                                                     stroke={active ? 'rgba(249, 217, 118, 0.86)' : 'rgba(255,255,255,0.28)'}
