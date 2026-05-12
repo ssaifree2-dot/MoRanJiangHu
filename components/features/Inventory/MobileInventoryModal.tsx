@@ -196,7 +196,7 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacter
     };
 
     return (
-        <div className="inventory-modal-body mobile-inventory-modal-body fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 animate-fadeIn">
+        <div className="inventory-modal-body mobile-inventory-modal-body fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fadeIn" style={{ backgroundColor: 'rgba(0,0,0,0.65)' }}>
             <div className="relative flex max-h-[85vh] w-full max-w-sm flex-col overflow-hidden rounded-xl border border-gray-700 bg-gray-900 shadow-2xl">
                 <div className="flex h-12 shrink-0 items-center justify-between border-b border-gray-800 bg-black/40 px-4">
                     <span className="font-bold tracking-wider text-gray-200">行囊</span>

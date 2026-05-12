@@ -326,7 +326,7 @@ const DetailMetricCard: React.FC<{ groupTitle: string; entry: any }> = ({ groupT
     };
 
     return (
-        <div className="inventory-modal-body fixed inset-0 z-[200] hidden items-center justify-center bg-black/90 p-3 backdrop-blur-sm animate-fadeIn md:flex">
+        <div className="inventory-modal-body fixed inset-0 z-[200] hidden items-center justify-center p-3 backdrop-blur-sm animate-fadeIn md:flex" style={{ backgroundColor: 'rgba(0,0,0,0.92)' }}>
             <div className="relative flex h-[92vh] max-h-[92vh] w-full max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-wuxia-gold/20 bg-ink-black/95 shadow-[0_0_80px_rgba(0,0,0,0.9)] shadow-wuxia-gold/10 2xl:max-w-[1780px]">
                 <div className="relative z-50 flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-gradient-to-r from-black/80 to-black/40 px-6">
                     <div className="flex items-center gap-3">
