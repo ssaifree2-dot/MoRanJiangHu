@@ -583,7 +583,10 @@ export const 创建开场空白世界 = (): 世界数据结构 => ({
     地图层级: [],
     地图建筑: [],
     地图道路: [],
-    地图人物: []
+    地图人物: [],
+    势力列表: [],
+    势力互动历史: [],
+    拍卖行待投放物品: []
 });
 
 export const 规范化世界状态 = (raw?: any): 世界数据结构 => {
@@ -715,7 +718,11 @@ export const 规范化世界状态 = (raw?: any): 世界数据结构 => {
         地图层级: Array.isArray(world?.地图层级) ? world.地图层级 : [],
         地图建筑: Array.isArray(world?.地图建筑) ? world.地图建筑 : [],
         地图道路: Array.isArray(world?.地图道路) ? world.地图道路 : [],
-        地图人物: Array.isArray(world?.地图人物) ? world.地图人物 : []
+        地图人物: Array.isArray(world?.地图人物) ? world.地图人物 : [],
+        // 势力系统（旧存档兼容：缺失时默认为空数组）
+        势力列表: Array.isArray(world?.势力列表) ? world.势力列表 : [],
+        势力互动历史: Array.isArray(world?.势力互动历史) ? world.势力互动历史 : [],
+        拍卖行待投放物品: Array.isArray(world?.拍卖行待投放物品) ? world.拍卖行待投放物品 : []
     };
 
     return 补齐世界地图空间字段(normalizedWorld);
