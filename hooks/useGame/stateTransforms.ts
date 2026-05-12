@@ -1557,6 +1557,29 @@ const 标准化单个NPC = (rawNpc: any, fallbackIndex: number): any => {
     const BUFF = 标准化NPC状态效果(npc?.BUFF ?? npc?.buff ?? npc?.增益);
     const DEBUFF = 标准化NPC状态效果(npc?.DEBUFF ?? npc?.debuff ?? npc?.负面状态);
     const 技艺 = 标准化NPC技艺(npc?.技艺);
+    // 兜底：NPC 技艺全为0时根据身份推断
+    const npc全部为零 = 技艺.every((s: any) => s.熟练度 === 0 && (s.等级 === '未入门' || !s.等级));
+    if (npc全部为零) {
+        const npc身份文本 = [npc?.身份, npc?.简介, npc?.姓名, npc?.境界].filter(Boolean).join(' ');
+        const npc推断 = (keywords: string[], skill: string, level: number) => {
+            if (keywords.some((kw) => npc身份文本.includes(kw))) {
+                const item = 技艺.find((s: any) => s.名称 === skill);
+                if (item) { item.等级 = '入门'; item.熟练度 = level; item.描述 = `因身份经历而具备。`; }
+            }
+        };
+        npc推断(['药', '医', '大夫', '郎中', '治', '伤'], '医术', 25);
+        npc推断(['铁', '锻', '匠', '器', '铸', '兵'], '炼器', 20);
+        npc推断(['丹', '炉', '药师', '炼丹'], '炼丹', 22);
+        npc推断(['猎', '山', '林', '野', '采', '农', '樵'], '采集', 20);
+        npc推断(['阵', '符', '术', '道', '玄', '法'], '阵法', 15);
+        npc推断(['鉴', '商', '当铺', '古玩', '宝', '掌柜'], '鉴定', 18);
+        npc推断(['机关', '工', '巧', '墨'], '机关', 15);
+        // NPC 如果有境界说明是修炼者，至少给一项
+        if (技艺.every((s: any) => s.熟练度 === 0) && npc身份文本.match(/境|修|武|剑|刀|拳|掌|气|内力/)) {
+            const fallback = 技艺.find((s: any) => s.名称 === '采集') || 技艺[0];
+            if (fallback) { fallback.等级 = '入门'; fallback.熟练度 = 10; fallback.描述 = '江湖历练所得。'; }
+        }
+    }
     const 基础属性 = 标准化NPC基础属性(npc);
     const 战斗数值 = 标准化NPC战斗数值(npc);
     const 核心性格特征 = 取首个非空文本(npc?.核心性格特征);
