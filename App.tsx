@@ -179,6 +179,7 @@ type 可选网络信息 = {
 
 const 桌面轻量预热目标 = [
     CharacterModal,
+    SettingsModal,
     InventoryModal,
     EquipmentModal,
     BattleModal,
@@ -193,11 +194,14 @@ const 桌面轻量预热目标 = [
     StoryModal,
     HeroinePlanModal,
     MemoryModal,
-    SaveLoadModal
+    SaveLoadModal,
+    AuctionHouseModal,
+    NovelExportModal
 ] as const;
 
 const 移动端轻量预热目标 = [
     MobileCharacter,
+    MobileSettingsModal,
     MobileInventoryModal,
     MobileBattleModal,
     MobileTeamModal,
@@ -210,7 +214,9 @@ const 移动端轻量预热目标 = [
     MobileAgreementModal,
     MobileStory,
     MobileHeroinePlanModal,
-    MobileMemory
+    MobileMemory,
+    SaveLoadModal,
+    AuctionHouseModal
 ] as const;
 
 const 网络较慢或节省流量 = (connection?: 可选网络信息 | null): boolean => {
@@ -226,7 +232,7 @@ const 网络较慢或节省流量 = (connection?: 可选网络信息 | null): bo
     return false;
 };
 const 懒加载占位: React.FC = () => (
-    <div className="lazy-scroll-loading fixed inset-0 z-[260] flex items-center justify-center bg-[#f8f4e8]/70 px-6 py-10 text-center backdrop-blur-[2px]">
+    <div className="lazy-scroll-loading pointer-events-none fixed inset-0 z-[260] flex items-center justify-center bg-[#f8f4e8]/70 px-6 py-10 text-center backdrop-blur-[2px]">
         <div
             className="lazy-scroll-shell rounded-2xl border border-wuxia-gold/35 bg-[#fffaf0]/95 px-6 py-5 text-[#7a4a1f] shadow-[0_18px_42px_rgba(120,82,38,0.18)]"
             style={{ fontSize: 'var(--ui-compact-font-size, 14px)' }}
@@ -720,18 +726,22 @@ const App: React.FC = () => {
 
         const warmup = () => {
             if (cancelled || preloadTargets.length === 0) return;
+            const priorityCount = isMobile ? 5 : 9;
             preloadTargets.forEach((target, index) => {
+                const delay = index < priorityCount
+                    ? 240 + index * 140
+                    : 1800 + (index - priorityCount) * 320;
                 window.setTimeout(() => {
                     if (cancelled) return;
                     void target.preload?.();
-                }, 1200 + index * 360);
+                }, delay);
             });
         };
 
         if (typeof idleWindow.requestIdleCallback === 'function') {
-            idleId = idleWindow.requestIdleCallback(() => warmup(), { timeout: 2400 });
+            idleId = idleWindow.requestIdleCallback(() => warmup(), { timeout: 900 });
         } else {
-            timerId = window.setTimeout(warmup, 1800);
+            timerId = window.setTimeout(warmup, 700);
         }
 
         return () => {

@@ -91,6 +91,14 @@ const 计时同步队列步骤 = <T,>(label: string, run: () => T, details: Reco
     }
 };
 
+const 让出主线程 = (): Promise<void> => new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+        setTimeout(resolve, 0);
+        return;
+    }
+    window.setTimeout(resolve, 0);
+});
+
 const 获取响应命令数量 = (response: Partial<GameResponse> | null | undefined): number => (
     Array.isArray(response?.tavern_commands) ? response.tavern_commands.length : 0
 );
@@ -762,7 +770,7 @@ export const 执行主剧情发送工作流 = async (
 
         const worldEvolutionSplitEnabled = 接口配置是否可用(获取世界演变接口配置(currentState.apiConfig));
         // 让出主线程，避免连续深拷贝 + processResponseCommands 阻塞 UI 导致"未响应"
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await 让出主线程();
         const mainCommandBaseState = {
             角色: deps.深拷贝(currentState.角色),
             环境: deps.深拷贝(currentState.环境),
@@ -775,7 +783,7 @@ export const 执行主剧情发送工作流 = async (
             剧情: deps.深拷贝(currentState.剧情),
             女主剧情规划: deps.深拷贝(currentState.女主剧情规划)
         };
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await 让出主线程();
         let aiData = 按世界演变分流净化响应(aiResult.response, worldEvolutionSplitEnabled).response;
         let displayAiData = aiData;
 
@@ -793,7 +801,7 @@ export const 执行主剧情发送工作流 = async (
             ...aiData,
             tavern_commands: Array.isArray(aiData.tavern_commands) ? [...aiData.tavern_commands] : []
         };
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await 让出主线程();
         let simulatedState = 计时同步队列步骤(
             "main.simulateResponseCommands",
             () => deps.processResponseCommands(responseForExecution, mainCommandBaseState, { applyState: false }),
@@ -843,6 +851,7 @@ export const 执行主剧情发送工作流 = async (
             );
             return simulatedState;
         };
+        await 让出主线程();
         const immediateState = 计时同步队列步骤(
             "main.applyImmediateResponseCommands",
             () => deps.processResponseCommands(finalParsedResponse, mainCommandBaseState),
@@ -1087,12 +1096,14 @@ export const 执行主剧情发送工作流 = async (
                     finalParsedResponse = variableGenerationResult.mergedParsed;
                     finalDisplayResponse = variableGenerationResult.mergedDisplayResponse;
                     displayAiData = variableGenerationResult.mergedDisplayResponse;
+                    await 让出主线程();
                     simulatedState = 计时同步队列步骤(
                         "variable.simulateMergedResponseCommands",
                         () => deps.processResponseCommands(responseForExecution, mainCommandBaseState, { applyState: false }),
                         { commandCount: 获取响应命令数量(responseForExecution) }
                     );
                     if (Array.isArray(responseForExecution.tavern_commands) && responseForExecution.tavern_commands.length > 0) {
+                        await 让出主线程();
                         立即并入变量生成状态(responseForExecution);
                     }
                     if (variableGenerationResult.variableCalibration) {
@@ -1195,6 +1206,7 @@ export const 执行主剧情发送工作流 = async (
                             ...worldEvolutionResult.commands
                         ]
                     };
+                    await 让出主线程();
                     simulatedState = 计时同步队列步骤(
                         "world.simulateMergedResponseCommands",
                         () => deps.processResponseCommands(responseForExecution, mainCommandBaseState, { applyState: false }),
@@ -1291,6 +1303,7 @@ export const 执行主剧情发送工作流 = async (
                                 ...planningResult.commands
                             ]
                         };
+                        await 让出主线程();
                         simulatedState = 计时同步队列步骤(
                             "planning.simulateMergedResponseCommands",
                             () => deps.processResponseCommands(responseForExecution, mainCommandBaseState, { applyState: false }),
@@ -1305,6 +1318,7 @@ export const 执行主剧情发送工作流 = async (
                     tavern_commands: Array.isArray(responseForExecution.tavern_commands) ? [...responseForExecution.tavern_commands] : []
                 };
 
+                await 让出主线程();
                 finalState = 计时同步队列步骤(
                     "queue.finalApplyResponseCommands",
                     () => deps.processResponseCommands(finalParsedResponse, mainCommandBaseState),
@@ -1316,20 +1330,11 @@ export const 执行主剧情发送工作流 = async (
                     currentGameTime: 环境时间转标准串(finalState.环境) || currentGameTime,
                     openingConfig: currentState.开局配置
                 });
-                const storyChanged = 计时同步队列步骤(
-                    "queue.storyDeepCompare",
-                    () => JSON.stringify(calibratedFinalStory) !== JSON.stringify(finalState.剧情 || {}),
-                    {
-                        nextStoryKeys: calibratedFinalStory && typeof calibratedFinalStory === "object" ? Object.keys(calibratedFinalStory as Record<string, unknown>).length : 0
-                    }
-                );
-                if (storyChanged) {
-                    finalState = {
-                        ...finalState,
-                        剧情: deps.规范化剧情状态(calibratedFinalStory, finalState.环境)
-                    };
-                    deps.设置剧情(finalState.剧情);
-                }
+                finalState = {
+                    ...finalState,
+                    剧情: deps.规范化剧情状态(calibratedFinalStory, finalState.环境)
+                };
+                deps.设置剧情(finalState.剧情);
 
                 const queuedAiMsg: 聊天记录结构 = {
                     ...newAiMsg,
@@ -1349,21 +1354,6 @@ export const 执行主剧情发送工作流 = async (
                     if (fallbackIndex < 0) return [...prev, { ...queuedAiMsg, autoScrollToTurnIcon: false }];
                     return prev.map((item, index) => {
                         if (index !== fallbackIndex) return item;
-
-                        const prevStructured = item.structuredResponse ?? null;
-                        const nextStructured = queuedAiMsg.structuredResponse ?? null;
-                        const structuredChanged = 计时同步队列步骤(
-                            "queue.historyStructuredDeepCompare",
-                            () => JSON.stringify(prevStructured) !== JSON.stringify(nextStructured),
-                            {
-                                hasPrevStructured: Boolean(prevStructured),
-                                nextCommandCount: 获取响应命令数量(nextStructured as Partial<GameResponse> | null | undefined)
-                            }
-                        );
-
-                        if (!structuredChanged && item.structuredResponse) {
-                            return item;
-                        }
 
                         return {
                             ...item,
@@ -1476,4 +1466,3 @@ export const 执行主剧情发送工作流 = async (
         deps.recallAbortControllerRef.current = null;
     }
 };
-

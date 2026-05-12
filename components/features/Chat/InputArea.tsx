@@ -262,14 +262,6 @@ const InputArea: React.FC<Props> = ({
     const handleSend = async () => {
         if (!content.trim()) return;
         if (loading || isPreparing) return;
-        if (postStoryQueueRunning) {
-            setErrorModal({
-                open: true,
-                title: '后台队列仍在处理',
-                content: '上一轮的后台队列还没结束，暂时不能继续下一次正文生成。请等待变量、世界和规划处理完成后再发送。'
-            });
-            return;
-        }
         setIsPreparing(true);
         setErrorModal(prev => ({ ...prev, open: false }));
         setParseRepairModal(prev => ({ ...prev, open: false, error: '' }));
@@ -562,7 +554,7 @@ const InputArea: React.FC<Props> = ({
         .map(normalizeOptionText)
         .filter(item => item.length > 0);
 
-    const busy = loading || isPreparing || variableGenerationRunning || postStoryQueueRunning;
+    const busy = loading || isPreparing || variableGenerationRunning;
     const recallRunning = isPreparing && !loading;
     const effectiveWorldEvolutionProgress = worldEvolutionProgress || openingWorldEvolutionProgress;
     const effectivePlanningProgress = planningProgress || openingPlanningProgress;
@@ -896,14 +888,6 @@ const InputArea: React.FC<Props> = ({
                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 sm:w-6 sm:h-6">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                          </svg>
-                    </button>
-                ) : postStoryQueueRunning ? (
-                    <button
-                        disabled
-                        className="w-10 sm:w-12 h-9 sm:h-11 shrink-0 bg-black/55 border border-wuxia-cyan/45 text-wuxia-cyan rounded-lg sm:rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.16)] cursor-wait"
-                        title="后台队列处理中"
-                    >
-                        <span className="inline-block w-5 h-5 border-2 border-wuxia-cyan/35 border-t-wuxia-cyan rounded-full animate-spin" />
                     </button>
                 ) : (
                     <button 

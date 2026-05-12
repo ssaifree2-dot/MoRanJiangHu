@@ -2776,13 +2776,6 @@ export const useGame = () => {
         isStreaming: boolean = true,
         options?: 发送选项
     ): Promise<发送结果> => {
-        if (后台队列处理中) {
-            return {
-                cancelled: true,
-                errorTitle: '后台队列仍在处理',
-                errorDetail: '上一轮的正文优化或变量生成还没完成，暂时不能继续下一次正文生成。动态世界和规划分析会转入后台，不再阻塞前台。'
-            };
-        }
         set开局变量生成进度(null);
         set开局世界演变进度(null);
         set开局规划进度(null);

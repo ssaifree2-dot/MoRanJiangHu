@@ -2,8 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useGitHubOAuth } from '../../../hooks/useGitHubOAuth';
 import {
     uploadToCloud,
+    uploadSettingsToCloud,
     downloadFromCloud,
+    downloadSettingsFromCloud,
     fetchSyncMetaData,
+    fetchSettingsSyncMetaData,
     getBoundRepoConfig,
     clearBoundRepoConfig,
     GITHUB_REPO_KEY
@@ -18,6 +21,8 @@ type GitHubSyncButtonProps = {
     className?: string;
     style?: React.CSSProperties;
 };
+
+type SyncMeta = { exists: boolean; updatedAt: string | null; url: string | null };
 
 const formatTime = (isoString: string | null) => {
     if (!isoString) return '从未同步';
@@ -79,7 +84,8 @@ export const GitHubSyncButton: React.FC<GitHubSyncButtonProps> = ({ floating = t
     } = useGitHubOAuth();
     const [isSyncing, setIsSyncing] = useState(false);
     const [showPanel, setShowPanel] = useState(false);
-    const [syncData, setSyncData] = useState<{ exists: boolean; updatedAt: string | null; url: string | null } | null>(null);
+    const [syncData, setSyncData] = useState<SyncMeta | null>(null);
+    const [settingsSyncData, setSettingsSyncData] = useState<SyncMeta | null>(null);
     const [isLoadingMeta, setIsLoadingMeta] = useState(false);
     const [repoName, setRepoName] = useState<string | null>(null);
     const [repoInput, setRepoInput] = useState('');
@@ -97,6 +103,7 @@ export const GitHubSyncButton: React.FC<GitHubSyncButtonProps> = ({ floating = t
         const repoToUse = validateRepoName(preferredRepo || '');
         if (!repoToUse) {
             setSyncData(null);
+            setSettingsSyncData(null);
             setIsLoadingMeta(false);
             return;
         }
@@ -104,8 +111,12 @@ export const GitHubSyncButton: React.FC<GitHubSyncButtonProps> = ({ floating = t
         setIsLoadingMeta(true);
         try {
             localStorage.setItem(GITHUB_REPO_KEY, repoToUse);
-            const data = await fetchSyncMetaData(token);
+            const [data, settingsData] = await Promise.all([
+                fetchSyncMetaData(token),
+                fetchSettingsSyncMetaData(token)
+            ]);
             setSyncData(data);
+            setSettingsSyncData(settingsData);
             setRepoName(getBoundRepoConfig());
         } finally {
             setIsLoadingMeta(false);
@@ -121,6 +132,7 @@ export const GitHubSyncButton: React.FC<GitHubSyncButtonProps> = ({ floating = t
             void refreshSyncMeta(cachedRepo);
         } else {
             setSyncData(null);
+            setSettingsSyncData(null);
         }
     }, [showPanel, token]);
 
@@ -175,6 +187,7 @@ export const GitHubSyncButton: React.FC<GitHubSyncButtonProps> = ({ floating = t
         setRepoName(null);
         setRepoInput('');
         setSyncData(null);
+        setSettingsSyncData(null);
     };
 
     const handleUpload = async () => {
@@ -218,6 +231,52 @@ export const GitHubSyncButton: React.FC<GitHubSyncButtonProps> = ({ floating = t
             }
         } catch (error: any) {
             alert(`同步失败: ${error.message || '未知错误'}`);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handleUploadSettings = async () => {
+        if (!(await saveRepoBinding())) return;
+        if (!window.confirm('这只会上传当前本机的全部设置和设置引用的素材，不会上传任何存档，确定继续吗？')) return;
+        setIsSyncing(true);
+        setProgress(null);
+        try {
+            const success = await uploadSettingsToCloud(token!, setProgress);
+            if (success) {
+                alert('云端设置上传完成。');
+                await refreshSyncMeta(normalizedRepoInput);
+            } else {
+                alert('云端设置上传失败，请稍后重试。');
+            }
+        } catch (error: any) {
+            alert(`设置上传失败: ${error.message || '未知错误'}`);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handleDownloadSettings = async () => {
+        if (!(await saveRepoBinding())) return;
+        if (!window.confirm('这只会下载云端设置并覆盖当前本机全部设置，不会下载或覆盖任何存档，且不可撤销，是否继续？')) return;
+        setIsSyncing(true);
+        setProgress(null);
+        try {
+            const result = await downloadSettingsFromCloud(token!, setProgress);
+            if (result.success) {
+                alert('云端设置恢复完成，页面即将刷新。');
+                window.location.reload();
+            } else {
+                alert(
+                    `云端设置同步失败\n` +
+                    `阶段: ${result.stageLabel}\n` +
+                    `原因: ${result.error || '未知错误'}\n` +
+                    `统计: 设置 ${result.importedSettingCount}/${result.settingCount}，资源 ${result.importedAssetCount}/${result.assetCount}\n` +
+                    `时间: ${result.timestamp}`
+                );
+            }
+        } catch (error: any) {
+            alert(`设置同步失败: ${error.message || '未知错误'}`);
         } finally {
             setIsSyncing(false);
         }
@@ -429,9 +488,22 @@ export const GitHubSyncButton: React.FC<GitHubSyncButtonProps> = ({ floating = t
                                                 </span>
                                             </div>
 
-                                            {syncData?.url && (
+                                            <div className="mt-3 flex justify-between items-end border-b border-[#d8c4a2] pb-3">
+                                                <span className="text-[#5f3a1e]">最近云端设置</span>
+                                                <span className={`text-right font-mono ${settingsSyncData?.exists ? 'text-[#7a3f12]' : 'text-[#9b8b74]'}`}>
+                                                    {activeRepoName
+                                                        ? isLoadingMeta
+                                                            ? '查询中...'
+                                                            : settingsSyncData?.exists
+                                                                ? formatTime(settingsSyncData.updatedAt)
+                                                                : '暂无单独设置备份'
+                                                        : '尚未绑定仓库'}
+                                                </span>
+                                            </div>
+
+                                            {(syncData?.url || settingsSyncData?.url) && (
                                                 <a
-                                                    href={syncData.url}
+                                                    href={syncData?.url || settingsSyncData?.url || '#'}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     className="mt-3 inline-flex text-xs text-[#7a3f12]/75 underline decoration-[#b88a4a]/50 underline-offset-2 transition-colors hover:text-[#5f230e]"
@@ -482,6 +554,17 @@ export const GitHubSyncButton: React.FC<GitHubSyncButtonProps> = ({ floating = t
 
                                                 <button
                                                     type="button"
+                                                    onClick={handleUploadSettings}
+                                                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-700/35 bg-amber-100/85 px-4 py-3 text-sm font-semibold tracking-[0.18em] text-amber-900 shadow-[0_10px_24px_rgba(146,64,14,0.10)] transition-all hover:border-amber-700 hover:bg-amber-200/75"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-4 w-4 text-amber-800">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5v-9m0 0l-3.75 3.75M12 7.5l3.75 3.75M6 19.5h12" />
+                                                    </svg>
+                                                    只上传设置
+                                                </button>
+
+                                                <button
+                                                    type="button"
                                                     onClick={handleDownload}
                                                     disabled={!syncData?.exists}
                                                     className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold tracking-[0.18em] transition-all ${
@@ -494,6 +577,22 @@ export const GitHubSyncButton: React.FC<GitHubSyncButtonProps> = ({ floating = t
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
                                                     </svg>
                                                     {syncData?.exists ? '下载并覆盖本地存档' : '当前仓库暂无可恢复的云端备份'}
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleDownloadSettings}
+                                                    disabled={!settingsSyncData?.exists}
+                                                    className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold tracking-[0.18em] transition-all ${
+                                                        !settingsSyncData?.exists
+                                                            ? 'cursor-not-allowed border-[#d8c4a2] bg-[#e8ddca] text-[#9b8b74]'
+                                                            : 'border-violet-700/35 bg-violet-100/85 text-violet-900 shadow-[0_10px_24px_rgba(91,33,182,0.10)] hover:border-violet-700 hover:bg-violet-200/75'
+                                                    }`}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`h-4 w-4 ${settingsSyncData?.exists ? 'text-violet-800' : 'text-[#9b8b74]'}`}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5v9m0 0l-3.75-3.75M12 16.5l3.75-3.75M6 4.5h12" />
+                                                    </svg>
+                                                    {settingsSyncData?.exists ? '只下载并覆盖本地设置' : '暂无可恢复的云端设置'}
                                                 </button>
                                             </div>
                                         )}
