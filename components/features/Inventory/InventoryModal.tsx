@@ -697,7 +697,8 @@ const DetailMetricCard: React.FC<{ groupTitle: string; entry: any }> = ({ groupT
             </div>
             {imageViewer && (
                 <div
-                    className="fixed inset-0 z-[360] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+                    className="fixed inset-0 z-[360] flex items-center justify-center p-4 backdrop-blur-sm"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.88)' }}
                     onClick={() => setImageViewer(null)}
                     role="dialog"
                     aria-label="物品图片预览"

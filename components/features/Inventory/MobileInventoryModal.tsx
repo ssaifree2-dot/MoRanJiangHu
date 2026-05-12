@@ -442,7 +442,8 @@ const MobileInventoryModal: React.FC<Props> = ({ character, onClose, onCharacter
             </div>
             {imageViewer && (
                 <div
-                    className="fixed inset-0 z-[360] flex items-center justify-center bg-black/85 p-3 backdrop-blur-sm"
+                    className="fixed inset-0 z-[360] flex items-center justify-center p-3 backdrop-blur-sm"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.88)' }}
                     onClick={() => setImageViewer(null)}
                     role="dialog"
                     aria-label="物品图片预览"
