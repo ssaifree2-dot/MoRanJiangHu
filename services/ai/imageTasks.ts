@@ -1621,9 +1621,15 @@ const 构建ComfyUI工作流 = (
     pngParams?: PNG解析参数结构
 ): Record<string, unknown> => {
     const hasNegativePlaceholder = /(__NEGATIVE_PROMPT__|\{\{negative_prompt\}\})/.test(workflowText || '');
+    const hasConditioningZeroOut = /ConditioningZeroOut/i.test(workflowText || '');
+    // If the workflow uses ConditioningZeroOut (Lumina2/Flux-like models), do NOT inject negative prompt
+    // into the positive prompt - these models don't understand "Negative prompt:" syntax and will
+    // treat it as positive content, causing watermarks/text to appear in generated images.
     const promptValue = hasNegativePlaceholder
         ? prompt
-        : 为不支持独立负面字段的模型附加负面提示词(prompt, negativePrompt);
+        : hasConditioningZeroOut
+            ? prompt
+            : 为不支持独立负面字段的模型附加负面提示词(prompt, negativePrompt);
     const isZImageTurboWorkflow = /mPMix_NSFW_V9_fp8|qwen_3_4b\.safetensors|qwen-image-2512-Q6_K|res_multistep|sgm_uniform/i.test(workflowText || '');
     const isQwenImageWorkflow = /qwen_image_fp8_e4m3fn|qwen_2\.5_vl_7b_fp8_scaled|qwen_image_vae/i.test(workflowText || '');
     const defaultSteps = isZImageTurboWorkflow ? 9 : (isQwenImageWorkflow ? 20 : 28);
@@ -1660,6 +1666,9 @@ const 构建ComfyUI工作流 = (
     };
     const parsed = 解析ComfyUI工作流(workflowText);
     const injected = 注入ComfyUI工作流占位符(parsed, replacements) as Record<string, unknown>;
+    // For workflows using ConditioningZeroOut (Lumina2/Flux-like models), do NOT inject a negative
+    // prompt node - these models don't support negative conditioning and the ZeroOut is intentional.
+    if (hasConditioningZeroOut) return injected;
     return 补齐ComfyUI负向提示词节点(injected, negativePrompt);
 };
 
