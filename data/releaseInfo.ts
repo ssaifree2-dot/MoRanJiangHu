@@ -3,7 +3,7 @@ export const RELEASE_INFO = {
     "versionCode": 122,
     "versionName": "1.0.121",
     "releaseChannel": "stable",
-    "releasePublishedAt": "2026-05-12T20:04:39+08:00",
+    "releasePublishedAt": "2026-05-12T20:27:21+08:00",
     "releaseNotes": [
         "v1.0.121 hotfix 合集：修复判定拆解白字白底、技艺全为0兆底、世界入口前移、物品生图中文名称翻译、预设图片误匹配修复。",
         "判定值拆解细节中的标签和描述文字在白色主题下不再看不清。",
