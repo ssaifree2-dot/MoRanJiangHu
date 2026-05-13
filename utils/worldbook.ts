@@ -21,6 +21,7 @@ import type { 剧情风格类型, NTL后宫档位 } from '../models/system';
 import { 默认文章优化提示词 } from '../prompts/runtime/defaults';
 import { 核心_文章优化思维链 } from '../prompts/core/cotPolish';
 import { 剧情回忆检索COT提示词, 剧情回忆检索输出格式提示词 } from '../prompts/runtime/recall';
+import { 记忆精炼系统提示词 } from '../prompts/runtime/memoryRefine';
 import { 世界演变系统提示词 } from '../prompts/runtime/worldEvolution';
 import { 世界演变COT提示词 } from '../prompts/runtime/worldEvolutionCot';
 import { 变量校准COT提示词 } from '../prompts/runtime/variableCot';
@@ -648,6 +649,15 @@ export const 创建内置预设世界书 = (): 世界书结构 => {
                 类型: 'system_rule',
                 作用域: ['recall'],
                 内容: `${剧情回忆检索COT提示词}\n\n${剧情回忆检索输出格式提示词}`
+            }),
+            创建内置预设条目({
+                id: 'builtin_memory_refine_system_prompt',
+                内置槽位: 'builtin_memory_refine_system_prompt',
+                标题: '回忆 · 记忆精炼提示词',
+                内置分类: '回忆',
+                类型: 'system_rule',
+                作用域: [],
+                内容: 记忆精炼系统提示词
             }),
             创建内置预设条目({
                 id: 'builtin_world_evolution_system_prompt',
