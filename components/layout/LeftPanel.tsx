@@ -142,7 +142,7 @@ const MiniBodyPart: React.FC<{ name: string; current: number; max: number; statu
     const delta = use数值变化提示(current);
 
     return (
-        <div className={`flex items-center justify-between gap-2 w-full h-[22px] border-b border-gray-800/20 last:border-0 hover:bg-white/5 transition-colors px-1 group/part ${delta !== null ? (delta >= 0 ? 'bg-emerald-400/10' : 'bg-red-500/15') : ''}`}>
+        <div className={`flex items-center justify-between gap-2 w-full h-[18px] border-b border-gray-800/20 last:border-0 hover:bg-white/5 transition-colors px-1 group/part ${delta !== null ? (delta >= 0 ? 'bg-emerald-400/10' : 'bg-red-500/15') : ''}`}>
             <span className="leading-none whitespace-nowrap text-right w-8" style={{ ...areaStyle, fontSize: `${名称字号}px`, opacity: 0.85 }}>{name}</span>
             <div className="flex-1 self-center">
                 <WuxiaProgressBar pct={pct} baseColor={color} height="4px" showGlow={false} delta={delta} max={max} />
@@ -261,14 +261,14 @@ const LeftPanel: React.FC<Props> = ({ 角色, onOpenCharacter, onOpenVariableMan
                 className="hidden"
                 onChange={handleAvatarFileChange}
             />
-            <div className="mb-4 h-[152px] border-b border-gray-800/50 pb-4 shrink-0 flex flex-col items-center justify-center">
+            <div className="mb-2 h-[120px] border-b border-gray-800/50 pb-2 shrink-0 flex flex-col items-center justify-center">
                 <div className="w-full flex items-center justify-between gap-3">
                     <div className="min-w-0 flex flex-col items-center justify-center flex-1">
                         <div className="w-full text-wuxia-gold/70 italic text-center leading-tight whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 缩放字号(1, 14) }}>{角色.称号 || '无称号'}</div>
                         <button
                             type="button"
                             onClick={onOpenCharacter}
-                            className="relative border border-wuxia-gold/40 px-3 py-3 bg-ink-black/50 shadow-[0_0_15px_rgba(230,200,110,0.05)] transition-all duration-300 hover:border-wuxia-gold hover:bg-black/70 hover:shadow-[0_0_20px_rgba(230,200,110,0.12)] focus:outline-none focus:ring-1 focus:ring-wuxia-gold/60 disabled:cursor-default disabled:hover:border-wuxia-gold/40 disabled:hover:bg-ink-black/50 disabled:hover:shadow-[0_0_15px_rgba(230,200,110,0.05)]"
+                            className="relative border border-wuxia-gold/40 px-3 py-2 bg-ink-black/50 shadow-[0_0_15px_rgba(230,200,110,0.05)] transition-all duration-300 hover:border-wuxia-gold hover:bg-black/70 hover:shadow-[0_0_20px_rgba(230,200,110,0.12)] focus:outline-none focus:ring-1 focus:ring-wuxia-gold/60 disabled:cursor-default disabled:hover:border-wuxia-gold/40 disabled:hover:bg-ink-black/50 disabled:hover:shadow-[0_0_15px_rgba(230,200,110,0.05)]"
                             title="查看角色档案"
                             disabled={!onOpenCharacter}
                         >
@@ -276,7 +276,7 @@ const LeftPanel: React.FC<Props> = ({ 角色, onOpenCharacter, onOpenVariableMan
                             <div className="absolute top-0 right-0 w-0.5 h-0.5 bg-wuxia-gold"></div>
                             <div className="absolute bottom-0 left-0 w-0.5 h-0.5 bg-wuxia-gold"></div>
                             <div className="absolute bottom-0 right-0 w-0.5 h-0.5 bg-wuxia-gold"></div>
-                            <div className="text-wuxia-gold font-bold tracking-[0.3em] vertical-text text-center select-none drop-shadow-md min-h-[80px] flex items-center justify-center w-full leading-none" style={{ fontFamily: areaStyle.fontFamily, fontStyle: areaStyle.fontStyle, fontSize: 缩放字号(1.5, 22) }}>
+                            <div className="text-wuxia-gold font-bold tracking-[0.3em] vertical-text text-center select-none drop-shadow-md min-h-[60px] flex items-center justify-center w-full leading-none" style={{ fontFamily: areaStyle.fontFamily, fontStyle: areaStyle.fontStyle, fontSize: 缩放字号(1.5, 22) }}>
                                 {角色.姓名}
                             </div>
                         </button>
@@ -284,7 +284,7 @@ const LeftPanel: React.FC<Props> = ({ 角色, onOpenCharacter, onOpenVariableMan
                             <div className="mt-2 bg-wuxia-red/90 border border-red-800/50 text-white px-2 py-0.5 rounded-sm whitespace-nowrap shadow-sm" style={{ fontSize: 缩放字号(1, 14) }}>{角色.境界}</div>
                         )}
                     </div>
-                    <div className="mx-2 h-[122px] w-px shrink-0 self-center bg-gradient-to-b from-transparent via-wuxia-gold/55 to-transparent"></div>
+                    <div className="mx-2 h-[90px] w-px shrink-0 self-center bg-gradient-to-b from-transparent via-wuxia-gold/55 to-transparent"></div>
                     <button
                         type="button"
                         onClick={handleAvatarButtonClick}
