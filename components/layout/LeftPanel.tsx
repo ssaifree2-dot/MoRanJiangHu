@@ -112,8 +112,8 @@ const FlatBar: React.FC<{ label: string; current: number; max: number; type: 'st
     const delta = commandDelta ?? liveDelta;
 
     return (
-        <div className={`mb-2 group last:mb-0 rounded px-1 py-0.5 transition-all duration-300 ${delta !== null ? (delta >= 0 ? 'bg-emerald-400/10 ring-1 ring-emerald-300/40' : 'bg-red-500/10 ring-1 ring-red-400/45') : ''}`}>
-            <div className="flex justify-between items-end mb-1 px-0.5">
+        <div className={`group last:mb-0 rounded px-1 py-px transition-all duration-300 ${delta !== null ? (delta >= 0 ? 'bg-emerald-400/10 ring-1 ring-emerald-300/40' : 'bg-red-500/10 ring-1 ring-red-400/45') : ''}`}>
+            <div className="flex justify-between items-end px-0.5">
                 <span className="tracking-widest group-hover:text-wuxia-gold transition-colors font-medium flex items-center gap-1" style={{ ...areaStyle, fontSize: `${标题字号}px`, lineHeight: 1.2 }}>
                     <span className="w-1 h-1 rounded-full bg-wuxia-gold/40"></span>
                     {label}
@@ -127,7 +127,7 @@ const FlatBar: React.FC<{ label: string; current: number; max: number; type: 'st
                     {current}/{max}
                 </span>
             </div>
-            <WuxiaProgressBar pct={pct} baseColor={baseColor} height="4px" delta={delta} max={max} />
+            <WuxiaProgressBar pct={pct} baseColor={baseColor} height="3px" delta={delta} max={max} />
         </div>
     );
 };
@@ -314,7 +314,7 @@ const LeftPanel: React.FC<Props> = ({ 角色, onOpenCharacter, onOpenVariableMan
                 </div>
             </div>
 
-            <div className="mb-3 shrink-0 flex flex-col gap-1">
+            <div className="mb-2 shrink-0 flex flex-col gap-0.5">
                 <FlatBar label="总气血" current={总气血.当前} max={总气血.最大} type="hp" visualConfig={visualConfig} commandDelta={总气血变化} />
                 <FlatBar label="精力" current={角色.当前精力} max={角色.最大精力} type="stamina" visualConfig={visualConfig} commandDelta={读取本回合数值变化(latestCommands, '角色.当前精力')} />
                 {启用修炼体系 && (
@@ -328,7 +328,7 @@ const LeftPanel: React.FC<Props> = ({ 角色, onOpenCharacter, onOpenVariableMan
                 )}
                 <FlatBar label="经验" current={角色.当前经验} max={角色.升级经验} type="exp" visualConfig={visualConfig} commandDelta={读取本回合数值变化(latestCommands, '角色.当前经验')} />
             </div>
-            <div className="mb-3 shrink-0 border border-gray-800/60 bg-black/30 px-2 py-1.5 flex items-center justify-between font-mono" style={{ color: 'rgba(209,213,219,1)', fontSize: 缩放字号(1, 14) }}>
+            <div className="mb-2 shrink-0 border border-gray-800/60 bg-black/30 px-2 py-1 flex items-center justify-between font-mono" style={{ color: 'rgba(209,213,219,1)', fontSize: 缩放字号(1, 14) }}>
                 <span className="text-gray-500">钱财</span>
                 <span className="text-right">
                     元宝 {金钱变化.金元宝 !== null && <span className={金钱变化.金元宝 >= 0 ? 'text-emerald-200' : 'text-red-200'}>({金钱变化.金元宝 > 0 ? '+' : ''}{金钱变化.金元宝})</span>} {金钱.金元宝}
@@ -348,9 +348,9 @@ const LeftPanel: React.FC<Props> = ({ 角色, onOpenCharacter, onOpenVariableMan
                 </button>
             )}
 
-            <div className="shrink-0 flex flex-col mb-2">
-                <div className="border border-gray-800 bg-white/5 p-2 flex flex-col relative group hover:border-gray-700 transition-colors">
-                    <h3 className="text-wuxia-gold/70 mb-2 uppercase tracking-[0.2em] text-center bg-black/80 -mt-4 mx-auto px-2 w-fit border border-gray-900 shadow-sm" style={{ fontSize: 缩放字号(1.02, 14) }}>身躯</h3>
+            <div className="shrink-0 flex flex-col mb-1">
+                <div className="border border-gray-800 bg-white/5 p-1.5 flex flex-col relative group hover:border-gray-700 transition-colors">
+                    <h3 className="text-wuxia-gold/70 mb-1 uppercase tracking-[0.2em] text-center bg-black/80 -mt-3 mx-auto px-2 w-fit border border-gray-900 shadow-sm" style={{ fontSize: 缩放字号(1.02, 14) }}>身躯</h3>
                     <div className="flex-col pr-1 space-y-0.5">
                         {bodyParts.map((part) => (
                             <MiniBodyPart key={part.name} name={part.name} current={part.current} max={part.max} status={part.status} visualConfig={visualConfig} />
