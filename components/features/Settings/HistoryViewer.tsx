@@ -4,7 +4,8 @@ import { 聊天记录结构, 记忆系统结构 } from '../../../types';
 interface Props {
     history?: 聊天记录结构[];
     memorySystem?: 记忆系统结构;
-    onDeleteMemory?: (round: number) => void; // 新增：删除记忆的回调函数，传入要删除的回合数
+    onDeleteMemory?: (round: number) => void;
+    onRefineMemories?: (rounds: number[]) => Promise<void>;
 }
 
 type 回忆展示结构 = {
@@ -32,12 +33,14 @@ const 拆分即时与短期 = (entry: string): { 即时内容: string; 短期摘
 const 格式化回忆名称 = (round: number): string => `【回忆${String(Math.max(1, round)).padStart(3, '0')}】`;
 const 格式化回合显示 = (round: number): string => (round === 1 ? '开场剧情' : `回合：${round}`);
 
-const HistoryViewer: React.FC<Props> = ({ history = [], memorySystem, onDeleteMemory }) => {
+const HistoryViewer: React.FC<Props> = ({ history = [], memorySystem, onDeleteMemory, onRefineMemories }) => {
     const [query, setQuery] = useState('');
     const [expandedKey, setExpandedKey] = useState<string | null>(null);
+    const [selectedRounds, setSelectedRounds] = useState<Set<number>>(new Set());
+    const [refining, setRefining] = useState(false);
 
     const allMemories = useMemo<回忆展示结构[]>(() => {
-        if (Array.isArray(memorySystem?.回忆档案)) {
+        if (Array.isArray(memorySystem?.回忆档案) && memorySystem!.回忆档案.length > 0) {
             return memorySystem!.回忆档案
                 .map((item, idx) => ({
                     名称: typeof item?.名称 === 'string' && item.名称.trim() ? item.名称.trim() : 格式化回忆名称(idx + 1),
@@ -101,12 +104,61 @@ const HistoryViewer: React.FC<Props> = ({ history = [], memorySystem, onDeleteMe
         });
     }, [allMemories, query]);
 
-    // 新增：处理删除点击事件
+    const toggleSelect = (round: number) => {
+        setSelectedRounds(prev => {
+            const next = new Set(prev);
+            if (next.has(round)) {
+                next.delete(round);
+            } else {
+                next.add(round);
+            }
+            return next;
+        });
+    };
+
+    const selectAll = () => {
+        const allRounds = new Set(filteredMemories.map(m => m.回合));
+        setSelectedRounds(allRounds);
+    };
+
+    const deselectAll = () => {
+        setSelectedRounds(new Set());
+    };
+
+    const handleRefine = async () => {
+        if (selectedRounds.size < 2) return;
+        const rounds = Array.from(selectedRounds);
+        setRefining(true);
+        try {
+            await onRefineMemories?.(rounds);
+            setSelectedRounds(new Set());
+        } finally {
+            setRefining(false);
+        }
+    };
+
     const handleDeleteClick = (e: React.MouseEvent, round: number) => {
-        e.stopPropagation(); // 阻止事件冒泡，防止点击删除按钮时触发展开/收起
+        e.stopPropagation();
         if (window.confirm(`确定要删除回合 ${round} 的记忆吗？此操作不可逆！`)) {
             onDeleteMemory?.(round);
         }
+    };
+
+    const handleCheckboxClick = (e: React.MouseEvent, round: number) => {
+        e.stopPropagation();
+        toggleSelect(round);
+    };
+
+    const [quickCount, setQuickCount] = useState('');
+
+    const selectOldest = () => {
+        const n = parseInt(quickCount, 10);
+        if (!n || n <= 0) return;
+        const normal = allMemories.filter(m => !m.名称.includes('精炼'));
+        const sorted = [...normal].sort((a, b) => a.回合 - b.回合);
+        const selected = sorted.slice(0, n).map(m => m.回合);
+        setSelectedRounds(new Set(selected));
+        setQuickCount('');
     };
 
     return (
@@ -123,24 +175,101 @@ const HistoryViewer: React.FC<Props> = ({ history = [], memorySystem, onDeleteMe
                 />
             </div>
 
+            {onRefineMemories && (
+                <div className="shrink-0 mb-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <button
+                                type="button"
+                                onClick={selectAll}
+                                className="text-wuxia-cyan hover:text-wuxia-gold transition-colors"
+                            >
+                                全选当前
+                            </button>
+                            {selectedRounds.size > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={deselectAll}
+                                    className="text-red-400/70 hover:text-red-400 transition-colors"
+                                >
+                                    取消
+                                </button>
+                            )}
+                            <span>
+                                已选 {selectedRounds.size} 条
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            disabled={selectedRounds.size < 2 || refining}
+                            onClick={handleRefine}
+                            className={`px-3 py-1.5 text-xs border rounded transition-colors ${
+                                selectedRounds.size >= 2 && !refining
+                                    ? 'border-wuxia-gold/60 text-wuxia-gold hover:bg-wuxia-gold/10'
+                                    : 'border-gray-700 text-gray-600 cursor-not-allowed'
+                            }`}
+                        >
+                            {refining ? '正在精炼中...' : `AI 精炼总结 (${selectedRounds.size}条)`}
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-500">快速选择最早</span>
+                        <input
+                            type="number"
+                            value={quickCount}
+                            onChange={(e) => setQuickCount(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') selectOldest(); }}
+                            placeholder="条数"
+                            className="w-16 bg-black/40 border border-gray-700 px-2 py-1 text-white rounded text-xs outline-none focus:border-wuxia-gold"
+                            min={1}
+                        />
+                        <span className="text-gray-500">条</span>
+                        <button
+                            type="button"
+                            onClick={selectOldest}
+                            disabled={!quickCount}
+                            className="px-2 py-1 text-xs border border-gray-600 text-gray-400 rounded hover:border-wuxia-gold/50 hover:text-wuxia-gold transition-colors disabled:opacity-30"
+                        >
+                            选择
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-black/20 border border-gray-800 rounded-lg p-3 space-y-2">
                 {filteredMemories.map((item) => {
                     const key = `${item.名称}-${item.回合}`;
                     const isExpanded = expandedKey === key;
+                    const isSelected = selectedRounds.has(item.回合);
                     return (
-                        <div key={key} className="border border-gray-800/70 rounded-lg bg-black/35 overflow-hidden">
-                            <button
-                                onClick={() => setExpandedKey(prev => prev === key ? null : key)}
-                                className={`w-full text-left px-3 py-2.5 transition-colors ${isExpanded ? 'bg-wuxia-gold/10' : 'hover:bg-white/5'}`}
-                            >
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className={`font-mono text-xs truncate ${isExpanded ? 'text-wuxia-gold' : 'text-gray-200'}`}>{item.名称}</div>
-                                    <div className={`text-[10px] ${isExpanded ? 'text-wuxia-gold' : 'text-gray-500'}`}>{isExpanded ? '收起' : '展开'}</div>
-                                </div>
-                                <div className={`mt-1 text-[11px] truncate ${isExpanded ? 'text-gray-200' : 'text-gray-500'}`}>
-                                    {item.概括 || '（无概括）'}
-                                </div>
-                            </button>
+                        <div key={key} className={`border rounded-lg overflow-hidden transition-colors ${isSelected ? 'border-wuxia-gold/50 bg-wuxia-gold/5' : 'border-gray-800/70 bg-black/35'}`}>
+                            <div className="flex items-center">
+                                {onRefineMemories && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => handleCheckboxClick(e, item.回合)}
+                                        className={`shrink-0 w-6 h-6 flex items-center justify-center ml-2 rounded border text-xs transition-colors ${
+                                            isSelected
+                                                ? 'border-wuxia-gold bg-wuxia-gold/20 text-wuxia-gold'
+                                                : 'border-gray-600 text-gray-600 hover:border-gray-400'
+                                        }`}
+                                    >
+                                        {isSelected ? '✓' : ''}
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setExpandedKey(prev => prev === key ? null : key)}
+                                    className={`flex-1 text-left px-3 py-2.5 transition-colors ${isExpanded ? 'bg-wuxia-gold/10' : 'hover:bg-white/5'}`}
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className={`font-mono text-xs truncate ${isExpanded ? 'text-wuxia-gold' : 'text-gray-200'}`}>{item.名称}</div>
+                                        <div className={`text-[10px] ${isExpanded ? 'text-wuxia-gold' : 'text-gray-500'}`}>{isExpanded ? '收起' : '展开'}</div>
+                                    </div>
+                                    <div className={`mt-1 text-[11px] truncate ${isExpanded ? 'text-gray-200' : 'text-gray-500'}`}>
+                                        {item.概括 || '（无概括）'}
+                                    </div>
+                                </button>
+                            </div>
 
                             {isExpanded && (
                                 <div className="border-t border-gray-800 px-3 py-3 space-y-3">
@@ -156,7 +285,6 @@ const HistoryViewer: React.FC<Props> = ({ history = [], memorySystem, onDeleteMe
                                         <div className="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed">{item.原文 || '（无原文）'}</div>
                                     </div>
 
-                                    {/* 新增：删除按钮区域 */}
                                     {onDeleteMemory && (
                                         <div className="border-t border-gray-800/50 pt-3 flex justify-end">
                                             <button

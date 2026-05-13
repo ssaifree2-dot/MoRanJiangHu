@@ -178,6 +178,8 @@ const LeftPanel: React.FC<Props> = ({ 角色, onOpenCharacter, onOpenVariableMan
     const 基础字号 = Number(areaStyle.fontSize) || 13;
     const 缩放字号 = (ratio: number, min = 13) => `${Math.max(min, Math.round(基础字号 * ratio))}px`;
     const avatarInputRef = React.useRef<HTMLInputElement | null>(null);
+    const [身躯折叠, set身躯折叠] = React.useState(false);
+    const [行头折叠, set行头折叠] = React.useState(false);
     const 玩家头像地址 = React.useMemo(() => {
         const archive = 角色?.图片档案;
         const selectedAvatarId = typeof archive?.已选头像图片ID === 'string' ? archive.已选头像图片ID.trim() : '';
@@ -350,12 +352,22 @@ const LeftPanel: React.FC<Props> = ({ 角色, onOpenCharacter, onOpenVariableMan
 
             <div className="shrink-0 flex flex-col mb-2">
                 <div className="border border-gray-800 bg-white/5 p-2 flex flex-col relative group hover:border-gray-700 transition-colors">
-                    <h3 className="text-wuxia-gold/70 mb-2 uppercase tracking-[0.2em] text-center bg-black/80 -mt-4 mx-auto px-2 w-fit border border-gray-900 shadow-sm" style={{ fontSize: 缩放字号(1.02, 14) }}>身躯</h3>
-                    <div className="flex-col pr-1 space-y-0.5">
-                        {bodyParts.map((part) => (
-                            <MiniBodyPart key={part.name} name={part.name} current={part.current} max={part.max} status={part.status} visualConfig={visualConfig} />
-                        ))}
-                    </div>
+                    <button
+                        type="button"
+                        onClick={() => set身躯折叠(prev => !prev)}
+                        className="text-wuxia-gold/70 mb-2 uppercase tracking-[0.2em] text-center bg-black/80 -mt-4 mx-auto px-2 w-fit border border-gray-900 shadow-sm hover:text-wuxia-gold transition-colors cursor-pointer flex items-center gap-1"
+                        style={{ fontSize: 缩放字号(1.02, 14) }}
+                    >
+                        身躯
+                        <span className={`transition-transform ${身躯折叠 ? '' : 'rotate-180'}`} style={{ fontSize: 缩放字号(0.75, 10) }}>▼</span>
+                    </button>
+                    {!身躯折叠 && (
+                        <div className="flex-col pr-1 space-y-0.5">
+                            {bodyParts.map((part) => (
+                                <MiniBodyPart key={part.name} name={part.name} current={part.current} max={part.max} status={part.status} visualConfig={visualConfig} />
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -377,14 +389,26 @@ const LeftPanel: React.FC<Props> = ({ 角色, onOpenCharacter, onOpenVariableMan
             )}
 
             <div className="shrink-0 pt-2 border-t border-gray-800/50 flex-1 overflow-y-auto no-scrollbar">
-                <h3 className="text-wuxia-gold/70 mb-2 uppercase tracking-[0.2em] text-center" style={{ fontSize: 缩放字号(1.02, 14) }}>行头</h3>
-                <div className="space-y-1">
-                    {equipmentOrder.map((item) => (
-                        <div key={item.key} className="flex justify-between items-center group cursor-help border-b border-gray-800/30 pb-0.5 last:border-0 hover:bg-white/5 px-1" style={{ fontSize: 缩放字号(1, 14) }}>
-                            <span className="text-gray-500 group-hover:text-wuxia-gold transition-colors w-8">{item.label}</span>
-                            <span className="truncate text-right flex-1" title={getEquipName(item.key)} style={{ color: areaStyle.color }}>{getEquipName(item.key)}</span>
+                <div className="border border-gray-800 bg-white/5 p-2 flex flex-col relative group hover:border-gray-700 transition-colors">
+                    <button
+                        type="button"
+                        onClick={() => set行头折叠(prev => !prev)}
+                        className="text-wuxia-gold/70 mb-2 uppercase tracking-[0.2em] text-center bg-black/80 -mt-4 mx-auto px-2 w-fit border border-gray-900 shadow-sm hover:text-wuxia-gold transition-colors cursor-pointer flex items-center gap-1"
+                        style={{ fontSize: 缩放字号(1.02, 14) }}
+                    >
+                        行头
+                        <span className={`transition-transform ${行头折叠 ? '' : 'rotate-180'}`} style={{ fontSize: 缩放字号(0.75, 10) }}>▼</span>
+                    </button>
+                    {!行头折叠 && (
+                        <div className="space-y-1">
+                            {equipmentOrder.map((item) => (
+                                <div key={item.key} className="flex justify-between items-center group cursor-help border-b border-gray-800/30 pb-0.5 last:border-0 hover:bg-white/5 px-1" style={{ fontSize: 缩放字号(1, 14) }}>
+                                    <span className="text-gray-500 group-hover:text-wuxia-gold transition-colors w-8">{item.label}</span>
+                                    <span className="truncate text-right flex-1" title={getEquipName(item.key)} style={{ color: areaStyle.color }}>{getEquipName(item.key)}</span>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
 

@@ -241,6 +241,10 @@ export interface 功能模型占位配置结构 {
     记忆总结使用模型: string;
     记忆总结API地址: string;
     记忆总结API密钥: string;
+    记忆精炼独立模型开关: boolean;
+    记忆精炼使用模型: string;
+    记忆精炼API地址: string;
+    记忆精炼API密钥: string;
     世界演变使用模型: string;
     世界演变API地址: string;
     世界演变API密钥: string;

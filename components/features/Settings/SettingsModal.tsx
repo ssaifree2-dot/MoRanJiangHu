@@ -23,6 +23,7 @@ const ContextViewer = React.lazy(() => lazyImportWithReload('settings-context-vi
 const LogViewer = React.lazy(() => lazyImportWithReload('settings-log-viewer', () => import('./LogViewer')));
 const RecallModelSettings = React.lazy(() => lazyImportWithReload('settings-recall-model', () => import('./RecallModelSettings')));
 const MemorySummaryModelSettings = React.lazy(() => lazyImportWithReload('settings-memory-summary-model', () => import('./MemorySummaryModelSettings')));
+const MemoryRefineModelSettings = React.lazy(() => lazyImportWithReload('settings-memory-refine-model', () => import('./MemoryRefineModelSettings')));
 const PolishModelSettings = React.lazy(() => lazyImportWithReload('settings-polish-model', () => import('./PolishModelSettings')));
 const WorldEvolutionModelSettings = React.lazy(() => lazyImportWithReload('settings-world-evolution-model', () => import('./WorldEvolutionModelSettings')));
 const VariableModelSettings = React.lazy(() => lazyImportWithReload('settings-variable-model', () => import('./VariableModelSettings')));
@@ -34,7 +35,7 @@ const MusicSettings = React.lazy(() => lazyImportWithReload('settings-music', ()
 const NpcManager = React.lazy(() => lazyImportWithReload('settings-npc-manager', () => import('./NpcManager')));
 const VariableManager = React.lazy(() => lazyImportWithReload('settings-variable-manager', () => import('./VariableManager')));
 
-type SettingsTab = 'api' | 'image_generation' | 'recall' | 'memory_summary_model' | 'polish' | 'world_evolution' | 'variable_model' | 'planning_model' | 'independent_api_gpt' | 'novel_decomposition' | 'novel_decomposition_runtime' | 'prompt' | 'storage' | 'theme' | 'visual' | 'world' | 'game' | 'reality' | 'tavern_preset' | 'memory' | 'history' | 'context' | 'logs' | 'music' | 'npc_management' | 'variable_manager';
+type SettingsTab = 'api' | 'image_generation' | 'recall' | 'memory_summary_model' | 'memory_refine_model' | 'polish' | 'world_evolution' | 'variable_model' | 'planning_model' | 'independent_api_gpt' | 'novel_decomposition' | 'novel_decomposition_runtime' | 'prompt' | 'storage' | 'theme' | 'visual' | 'world' | 'game' | 'reality' | 'tavern_preset' | 'memory' | 'history' | 'context' | 'logs' | 'music' | 'npc_management' | 'variable_manager';
 type RuntimeStateSections = Record<'角色' | '环境' | '社交' | '世界' | '战斗' | '剧情' | '女主剧情规划' | '玩家门派' | '任务列表' | '约定列表' | '记忆系统', unknown>;
 
 type ContextSection = {
@@ -86,7 +87,8 @@ interface Props {
     onSaveVisual: (config: 视觉设置结构) => void;
     onSaveGame?: (config: 游戏设置结构) => void; 
     onSaveMemory?: (config: 记忆配置结构) => void;
-    onDeleteMemory?: (round: number) => void; // 新增：删除单条记忆的回调
+    onDeleteMemory?: (round: number) => void;
+    onRefineMemories?: (rounds: number[]) => Promise<void>;
     onCreateNpc: (seed?: Partial<NPC结构>) => NPC结构 | void;
     onSaveNpc: (npcId: string, npc: NPC结构) => void;
     onDeleteNpc: (npcId: string) => void;
@@ -107,7 +109,7 @@ interface Props {
 const SettingsModal: React.FC<Props> = ({ 
     activeTab, onTabChange, onClose,
     apiConfig, visualConfig, gameConfig, memoryConfig, prompts, festivals, currentTheme, history, memorySystem, socialList, runtimeState, currentStory, openingConfig, contextSnapshot,
-    onSaveApi, onSaveVisual, onSaveGame, onSaveMemory, onDeleteMemory,onCreateNpc, onSaveNpc, onDeleteNpc, onStartNpcMemorySummary, onUploadNpcImage, onReplaceVariableSection, onApplyVariableCommand, onUpdatePrompts, onUpdateFestivals, onThemeChange,
+    onSaveApi, onSaveVisual, onSaveGame, onSaveMemory, onDeleteMemory, onRefineMemories, onCreateNpc, onSaveNpc, onDeleteNpc, onStartNpcMemorySummary, onUploadNpcImage, onReplaceVariableSection, onApplyVariableCommand, onUpdatePrompts, onUpdateFestivals, onThemeChange,
     onReturnToHome, isHome, requestConfirm
 }) => {
     const tabItems = [
@@ -127,6 +129,7 @@ const SettingsModal: React.FC<Props> = ({
         { id: 'image_generation', label: '文生图' },
         { id: 'recall', label: '剧情回忆' },
         { id: 'memory_summary_model', label: '记忆总结' },
+        { id: 'memory_refine_model', label: '记忆精炼' },
         { id: 'polish', label: '文章优化' },
         { id: 'world_evolution', label: '世界演变' },
         { id: 'variable_model', label: '变量生成' },
@@ -154,6 +157,7 @@ const SettingsModal: React.FC<Props> = ({
         if (activeTab === 'image_generation') return <ImageGenerationSettings settings={apiConfig} onSave={onSaveApi} />;
         if (activeTab === 'recall') return <RecallModelSettings settings={apiConfig} onSave={onSaveApi} />;
         if (activeTab === 'memory_summary_model') return <MemorySummaryModelSettings settings={apiConfig} onSave={onSaveApi} />;
+        if (activeTab === 'memory_refine_model') return <MemoryRefineModelSettings settings={apiConfig} onSave={onSaveApi} />;
         if (activeTab === 'polish') return <PolishModelSettings settings={apiConfig} onSave={onSaveApi} />;
         if (activeTab === 'world_evolution') return <WorldEvolutionModelSettings settings={apiConfig} onSave={onSaveApi} />;
         if (activeTab === 'variable_model') return <VariableModelSettings settings={apiConfig} onSave={onSaveApi} />;
@@ -198,7 +202,7 @@ const SettingsModal: React.FC<Props> = ({
         }
         if (activeTab === 'music') return <MusicSettings />;
         if (activeTab === 'storage') return <StorageManager requestConfirm={requestConfirm} />;
-        if (activeTab === 'history') return <HistoryViewer history={history} memorySystem={memorySystem} onDeleteMemory={onDeleteMemory} />;
+        if (activeTab === 'history') return <HistoryViewer history={history} memorySystem={memorySystem} onDeleteMemory={onDeleteMemory} onRefineMemories={onRefineMemories} />;
         if (activeTab === 'logs') return <LogViewer />;
         if (activeTab === 'context' && contextSnapshot) {
             return (

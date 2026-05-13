@@ -11,7 +11,9 @@ import InAppConfirmModal, { ConfirmOptions } from './components/ui/InAppConfirmM
 import ReleaseNotesModal from './components/ui/ReleaseNotesModal';
 import { useGame } from './hooks/useGame';
 import { 环境时间转标准串 } from './hooks/useGame/timeUtils';
-import { 获取文生图接口配置, 获取生图词组转化器接口配置, 接口配置是否可用 } from './utils/apiConfig';
+import { 获取文生图接口配置, 获取生图词组转化器接口配置, 获取记忆精炼接口配置, 接口配置是否可用 } from './utils/apiConfig';
+import { 请求模型文本 } from './services/ai/chatCompletionClient';
+import { 记忆精炼系统提示词 } from './prompts/runtime/memoryRefine';
 import { 构建字体注入样式文本, 构建UI文字CSS变量 } from './utils/visualSettings';
 import { 获取图片资源文本地址 } from './utils/imageAssets';
 import { 生成物品图标 } from './services/ai/itemImageGeneration';
@@ -1581,6 +1583,82 @@ const App: React.FC = () => {
         void actions.performAutoSave?.({ memory: nextMemorySystem, force: true });
         actions.pushNotification({ title: '记忆已删除', message: `回合 ${round} 的回忆档案已被移除。`, tone: 'success' });
     }, [actions, setters, state.记忆系统]);
+    const handleRefineMemories = React.useCallback(async (rounds: number[]) => {
+        const prevMemorySystem = state.记忆系统;
+        if (!prevMemorySystem) return;
+        const sortedRounds = [...rounds].sort((a, b) => a - b);
+        const allArchives = Array.isArray(prevMemorySystem.回忆档案) ? prevMemorySystem.回忆档案 : [];
+        const selectedEntries = allArchives.filter(item => sortedRounds.includes(typeof item?.回合 === 'number' ? item.回合 : 0));
+        if (selectedEntries.length < 2) {
+            actions.pushNotification({ title: '精炼取消', message: '至少需要选择 2 条记忆。', tone: 'info' });
+            return;
+        }
+        actions.pushNotification({ title: '正在精炼', message: `正在对 ${selectedEntries.length} 条记忆进行 AI 精炼总结...`, tone: 'info' });
+
+        const memoryRefineApi = 获取记忆精炼接口配置(apiConfigRef.current);
+        if (!接口配置是否可用(memoryRefineApi)) {
+            actions.pushNotification({ title: '精炼失败', message: '记忆精炼接口未配置，请先在设置中配置。', tone: 'error' });
+            return;
+        }
+
+        const entriesText = selectedEntries.map((item, i) => {
+            const name = typeof item?.名称 === 'string' ? item.名称 : `【回忆${sortedRounds[i]}】`;
+            const summary = typeof item?.概括 === 'string' ? item.概括 : '';
+            const raw = typeof item?.原文 === 'string' ? item.原文 : '';
+            return `${name}\n概括：${summary}\n原文：${raw}\n---`;
+        }).join('\n');
+
+        const systemPrompt = 记忆精炼系统提示词;
+        const userPrompt = `请精炼总结以下 ${selectedEntries.length} 条记忆，生成一份可用于后续剧情检索的历史纪要：\n\n${entriesText}`;
+
+        try {
+            const refinedText = await 请求模型文本(
+                memoryRefineApi,
+                [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                { temperature: 0.7 }
+            );
+            if (!refinedText || refinedText.trim().length < 20) {
+                throw new Error('AI 返回内容过短');
+            }
+            const minRound = sortedRounds[0];
+            const maxRound = sortedRounds[sortedRounds.length - 1];
+            const rawText = refinedText.trim();
+            const summaryMatch = rawText.match(/概况摘要[：:]\s*([\s\S]*?)(?=\n\s*正文[：:])/);
+            const bodyMatch = rawText.match(/正文[：:]\s*([\s\S]*)/);
+            const summaryText = summaryMatch ? summaryMatch[1].trim() : '';
+            const bodyText = bodyMatch ? bodyMatch[1].trim() : rawText;
+            const cleanSummary = summaryText || rawText.slice(0, 800);
+            const refinedEntry = {
+                名称: `【精炼纪要 ${minRound}-${maxRound}】`,
+                概括: cleanSummary,
+                原文: bodyText,
+                回合: maxRound,
+                记录时间: selectedEntries[selectedEntries.length - 1]?.记录时间 || '未知时间',
+                时间戳: selectedEntries[selectedEntries.length - 1]?.时间戳 || new Date().toISOString()
+            };
+            const remainingArchives = allArchives.filter(item => !sortedRounds.includes(typeof item?.回合 === 'number' ? item.回合 : 0));
+            const nextArchives = [refinedEntry, ...remainingArchives].sort((a, b) => (b.回合 ?? 0) - (a.回合 ?? 0));
+
+            const nextMemorySystem = {
+                ...prevMemorySystem,
+                回忆档案: nextArchives
+            };
+            actions.updateMemorySystem(nextMemorySystem);
+            void actions.performAutoSave?.({ memory: nextMemorySystem, force: true });
+            actions.pushNotification({ title: '精炼完成', message: `${selectedEntries.length} 条记忆已精炼为 1 条纪要（回合 ${minRound}-${maxRound}）。`, tone: 'success' });
+        } catch (error: any) {
+            const errorMsg = error?.message || '未知错误';
+            actions.pushNotification({ title: '精炼失败', message: `AI 精炼失败：${errorMsg}`, tone: 'error' });
+        }
+    }, [actions, state.记忆系统]);
+    const handleRefineMemoriesRef = React.useRef(handleRefineMemories);
+    handleRefineMemoriesRef.current = handleRefineMemories;
+    const stableRefineMemories = React.useCallback((rounds: number[]) =>
+        handleRefineMemoriesRef.current(rounds)
+    , []);
     const openNovelExport = React.useCallback(() => {
         closeAllPanels();
         setShowNovelExport(true);
@@ -1894,6 +1972,8 @@ const App: React.FC = () => {
     ]);
 
     const mobileBackNavigationRef = React.useRef(handleNativeBackNavigation);
+    const apiConfigRef = React.useRef(state.apiConfig);
+    apiConfigRef.current = state.apiConfig;
 
     React.useEffect(() => {
         mobileBackNavigationRef.current = handleNativeBackNavigation;
@@ -2445,6 +2525,7 @@ const App: React.FC = () => {
                             onSaveGame={actions.saveGameSettings}
                             onSaveMemory={actions.saveMemorySettings}
                             onDeleteMemory={handleDeleteMemory}
+                            onRefineMemories={stableRefineMemories}
                             onCreateNpc={actions.createNpcManually}
                             onSaveNpc={actions.updateNpcManually}
                             onDeleteNpc={actions.deleteNpcManually}
@@ -2483,6 +2564,7 @@ const App: React.FC = () => {
                             onSaveGame={actions.saveGameSettings}
                             onSaveMemory={actions.saveMemorySettings}
                             onDeleteMemory={handleDeleteMemory}
+                            onRefineMemories={handleRefineMemories}
                             onCreateNpc={actions.createNpcManually}
                             onSaveNpc={actions.updateNpcManually}
                             onDeleteNpc={actions.deleteNpcManually}
