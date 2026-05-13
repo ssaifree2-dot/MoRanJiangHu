@@ -45,6 +45,7 @@ export const 预置物品图片列表: 预置物品图片条目[] = [
     { 名称: '软猬甲', 类型: '防具', 品质: '绝世', 图片URL: 'https://cdn.nodeimage.com/i/q8baHJP4UTg6KwfZT4j9RTr0hpCDNX1L.png' },
     { 名称: '布衣', 类型: '防具', 品质: '凡品', 图片URL: 'https://cdn.nodeimage.com/i/nmOqWbgYbQJ6B1tDdKTKZG88K7rtH83O.png' },
     { 名称: '青衫', 类型: '防具', 品质: '良品', 图片URL: 'https://cdn.nodeimage.com/i/V80OIatPzWKYvVTlKGy5SkTOhEFcCYXX.png' },
+    { 名称: '粗布青衫', 类型: '防具', 品质: '凡品', 图片URL: 'https://cdn.nodeimage.com/i/nmOqWbgYbQJ6B1tDdKTKZG88K7rtH83O.png' },
     { 名称: '青色练功服', 类型: '防具', 品质: '凡品', 图片URL: '/assets/item-presets/青色练功服.svg' },
     { 名称: '粗布长裤', 类型: '防具', 品质: '凡品', 图片URL: '/assets/item-presets/粗布长裤.svg' },
     { 名称: '旧布鞋', 类型: '防具', 品质: '凡品', 图片URL: '/assets/item-presets/旧布鞋.svg' },

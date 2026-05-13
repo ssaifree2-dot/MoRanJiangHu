@@ -221,19 +221,25 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 cmd.action
             );
             charBuffer = result.char;
-            envBuffer = deps.规范化环境信息(result.env);
-            socialBuffer = deps.规范化社交列表(result.social, { 合并同名: false });
-            worldBuffer = deps.规范化世界状态(result.world);
-            battleBuffer = deps.规范化战斗状态(result.battle);
-            sectBuffer = deps.规范化门派状态(result.sect);
+            envBuffer = result.env;
+            socialBuffer = result.social;
+            worldBuffer = result.world;
+            battleBuffer = result.battle;
+            sectBuffer = result.sect;
             tasksBuffer = Array.isArray(result.tasks) ? result.tasks : [];
             agreementsBuffer = Array.isArray(result.agreements) ? result.agreements : [];
-            storyBuffer = deps.规范化剧情状态(result.story, envBuffer);
-            storyPlanBuffer = deps.规范化剧情规划状态(result.storyPlan);
-            heroinePlanBuffer = deps.规范化女主剧情规划状态(result.heroinePlan);
-            fandomStoryPlanBuffer = deps.规范化同人剧情规划状态(result.fandomStoryPlan);
-            fandomHeroinePlanBuffer = deps.规范化同人女主剧情规划状态(result.fandomHeroinePlan);
+            storyBuffer = result.story;
+            storyPlanBuffer = result.storyPlan;
+            heroinePlanBuffer = result.heroinePlan;
+            fandomStoryPlanBuffer = result.fandomStoryPlan;
+            fandomHeroinePlanBuffer = result.fandomHeroinePlan;
         });
+
+        envBuffer = deps.规范化环境信息(envBuffer);
+        socialBuffer = deps.规范化社交列表(socialBuffer, { 合并同名: false });
+        worldBuffer = deps.规范化世界状态(worldBuffer);
+        battleBuffer = deps.规范化战斗状态(battleBuffer);
+        sectBuffer = deps.规范化门派状态(sectBuffer);
 
         return {
             story: deps.规范化剧情状态(storyBuffer, envBuffer),

@@ -287,19 +287,19 @@ export const applyStateCommand = (
     const parsed = 提取根路径(normalizedKey);
 
     const result: 命令结果结构 = {
-        char: 深拷贝(rootCharacter),
-        env: 深拷贝(rootEnv),
-        social: 深拷贝(rootSocial),
-        world: 深拷贝(rootWorld),
-        battle: 深拷贝(rootBattle),
-        story: 深拷贝(rootStory),
-        storyPlan: 深拷贝(rootStoryPlan),
-        heroinePlan: rootHeroinePlan === undefined ? undefined : 深拷贝(rootHeroinePlan),
-        fandomStoryPlan: rootFandomStoryPlan === undefined ? undefined : 深拷贝(rootFandomStoryPlan),
-        fandomHeroinePlan: rootFandomHeroinePlan === undefined ? undefined : 深拷贝(rootFandomHeroinePlan),
-        sect: 深拷贝(rootSect),
-        tasks: 深拷贝(rootTasks),
-        agreements: 深拷贝(rootAgreements)
+        char: rootCharacter,
+        env: rootEnv,
+        social: rootSocial,
+        world: rootWorld,
+        battle: rootBattle,
+        story: rootStory,
+        storyPlan: rootStoryPlan,
+        heroinePlan: rootHeroinePlan,
+        fandomStoryPlan: rootFandomStoryPlan,
+        fandomHeroinePlan: rootFandomHeroinePlan,
+        sect: rootSect,
+        tasks: rootTasks,
+        agreements: rootAgreements
     };
 
     if (!parsed) {

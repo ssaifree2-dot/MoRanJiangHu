@@ -104,19 +104,28 @@ export const 执行响应命令处理 = (
                 cmd.action
             );
             charBuffer = result.char;
-            envBuffer = deps.规范化环境信息(result.env);
-            socialBuffer = deps.规范化社交列表(result.social, { 合并同名: false });
-            worldBuffer = deps.规范化世界状态(result.world);
+            envBuffer = result.env;
+            socialBuffer = result.social;
+            worldBuffer = result.world;
             battleBuffer = result.battle;
-            sectBuffer = deps.规范化门派状态(result.sect);
+            sectBuffer = result.sect;
             tasksBuffer = Array.isArray(result.tasks) ? result.tasks : [];
             agreementsBuffer = Array.isArray(result.agreements) ? result.agreements : [];
             storyBuffer = result.story;
-            storyPlanBuffer = deps.规范化剧情规划状态(result.storyPlan);
-            heroinePlanBuffer = deps.规范化女主剧情规划状态(result.heroinePlan);
-            fandomStoryPlanBuffer = deps.规范化同人剧情规划状态(result.fandomStoryPlan);
-            fandomHeroinePlanBuffer = deps.规范化同人女主剧情规划状态(result.fandomHeroinePlan);
+            storyPlanBuffer = result.storyPlan;
+            heroinePlanBuffer = result.heroinePlan;
+            fandomStoryPlanBuffer = result.fandomStoryPlan;
+            fandomHeroinePlanBuffer = result.fandomHeroinePlan;
         });
+
+        envBuffer = deps.规范化环境信息(envBuffer);
+        socialBuffer = deps.规范化社交列表(socialBuffer, { 合并同名: false });
+        worldBuffer = deps.规范化世界状态(worldBuffer);
+        sectBuffer = deps.规范化门派状态(sectBuffer);
+        storyPlanBuffer = deps.规范化剧情规划状态(storyPlanBuffer);
+        heroinePlanBuffer = deps.规范化女主剧情规划状态(heroinePlanBuffer);
+        fandomStoryPlanBuffer = deps.规范化同人剧情规划状态(fandomStoryPlanBuffer);
+        fandomHeroinePlanBuffer = deps.规范化同人女主剧情规划状态(fandomHeroinePlanBuffer);
 
         battleBuffer = deps.战斗结束自动清空(battleBuffer, storyBuffer);
         charBuffer = deps.规范化角色物品容器映射(charBuffer);

@@ -1337,10 +1337,23 @@ export const useGame = () => {
         同步接口配置: (config) => {
             apiConfigRef.current = config;
             setApiConfig(config);
-            const registryUrl = (config as any)?.功能模型占位?.图片后端注册表地址;
-            const registryConnectToken = (config as any)?.功能模型占位?.图片后端自动连接口令;
+            const feature = (config as any)?.功能模型占位;
+            const registryUrl = feature?.图片后端注册表地址;
+            const registryConnectToken = feature?.图片后端自动连接口令;
             if (registryUrl || registryConnectToken) {
-                刷新已发现ComfyUI后端缓存(registryUrl, registryConnectToken).catch(() => {});
+                刷新已发现ComfyUI后端缓存(registryUrl, registryConnectToken).then((backends) => {
+                    if (!backends?.length) return;
+                    const bestUrl = backends[0]?.url;
+                    if (!bestUrl) return;
+                    const cur = apiConfigRef.current as any;
+                    const f = cur?.功能模型占位;
+                    if (f?.文生图后端类型 === 'comfyui' && !f?.文生图模型API地址?.trim()) {
+                        const next = { ...cur, 功能模型占位: { ...f, 文生图模型API地址: bestUrl } };
+                        apiConfigRef.current = next;
+                        setApiConfig(next);
+                        dbService.保存设置(设置键.API配置, next).catch(() => {});
+                    }
+                }).catch(() => {});
             }
         },
         设置内置提示词列表: set内置提示词列表,
