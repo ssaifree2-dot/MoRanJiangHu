@@ -24,6 +24,8 @@ type 流式草稿显示结构 = {
     是否思考中: boolean;
     正文内容: string;
     原始内容: string;
+    是否状态提示: boolean;
+    是否失败提示: boolean;
 };
 
 const 解析流式草稿显示 = (content: string): 流式草稿显示结构 => {
@@ -32,7 +34,22 @@ const 解析流式草稿显示 = (content: string): 流式草稿显示结构 => 
         return {
             是否思考中: false,
             正文内容: '',
-            原始内容: ''
+            原始内容: '',
+            是否状态提示: false,
+            是否失败提示: false
+        };
+    }
+
+    const trimmedSource = source.trim();
+    const 是否状态提示 = /^【(?:生成中|自动重试中)】/.test(trimmedSource);
+    const 是否失败提示 = /^(?:【(?:生成失败|开局生成失败|开局剧情重生成失败)】|\[(?:开局生成失败|开局剧情重生成失败)\])/.test(trimmedSource);
+    if (是否状态提示 || 是否失败提示) {
+        return {
+            是否思考中: false,
+            正文内容: trimmedSource,
+            原始内容: source,
+            是否状态提示,
+            是否失败提示
         };
     }
 
@@ -57,14 +74,18 @@ const 解析流式草稿显示 = (content: string): 流式草稿显示结构 => 
         return {
             是否思考中: false,
             正文内容: 提取正文片段(afterThinking),
-            原始内容: source
+            原始内容: source,
+            是否状态提示: false,
+            是否失败提示: false
         };
     }
 
     return {
         是否思考中: source.trim().length > 0,
         正文内容: '',
-        原始内容: source
+        原始内容: source,
+        是否状态提示: false,
+        是否失败提示: false
     };
 };
 
@@ -341,6 +362,12 @@ const ChatList: React.FC<Props> = ({ history, loading, scrollRef, onUpdateHistor
                         const displayText = shouldCollapseThinking
                             ? (streamDisplay.正文内容 || liveDraftText || (msg.content || '...'))
                             : (msg.content || '...');
+                        const footerLabel = streamDisplay.是否失败提示
+                            ? 'FAILED'
+                            : (streamDisplay.是否状态提示 ? 'WAITING' : 'STREAMING');
+                        const footerLabelClass = streamDisplay.是否失败提示
+                            ? 'text-red-300/85 font-mono tracking-[0.12em]'
+                            : 'text-wuxia-cyan/75 font-mono tracking-[0.12em]';
 
                         return (
                             <div key={absoluteIdx} className="flex w-full justify-center animate-slide-in mb-6">
@@ -366,7 +393,7 @@ const ChatList: React.FC<Props> = ({ history, loading, scrollRef, onUpdateHistor
                                             {displayText || (shouldCollapseThinking && streamDisplay.是否思考中 ? '...' : '...')}
                                         </p>
                                         <div className="mt-2 flex items-center justify-between">
-                                            <span className="text-wuxia-cyan/75 font-mono tracking-[0.12em]" style={{ fontSize: 微字号 }}>STREAMING</span>
+                                            <span className={footerLabelClass} style={{ fontSize: 微字号 }}>{footerLabel}</span>
                                             <span className="inline-flex items-center gap-1 text-wuxia-cyan/70">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-wuxia-cyan/70 animate-pulse"></span>
                                                 <span className="w-1.5 h-1.5 rounded-full bg-wuxia-cyan/55 animate-pulse [animation-delay:120ms]"></span>

@@ -44,6 +44,16 @@ lerna-debug.log*
 *.orig
 *.rej
 
+# Local UI verification screenshots and generated item-image scratch files
+/.tmp-screenshot*.webp
+/cnb主页.png
+/output/playwright/*.png
+/output/test-*.png
+/preset-items-preview.html
+/scripts/.tmp-*.png
+/scripts/gen-4-missing-preset-items.mjs
+/scripts/gen-audited-item-images.mjs
+
 # Local tooling state
 /.wrangler/
 /.codex/

@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     获取NSFW文生图接口配置,
     生图接口支持NSFW,
     获取文生图接口配置,
     获取场景文生图接口配置,
     用已发现ComfyUI后端替换地址,
+    刷新已发现ComfyUI后端缓存,
+    清空已发现ComfyUI后端缓存,
     接口配置是否可用,
     规范化接口设置,
     创建空接口设置,
@@ -68,6 +70,33 @@ const 构建测试接口设置 = (overrides?: Partial<{
             场景生图后端类型: (overrides?.场景生图后端类型 as any) || 'sd_webui'
         }
     };
+};
+
+afterEach(() => {
+    清空已发现ComfyUI后端缓存();
+    vi.restoreAllMocks();
+});
+
+const 模拟已发现ComfyUI后端 = async (items: Array<{ id: string; url: string; lastHeartbeatAt: string }>) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        json: async () => ({
+            ok: true,
+            items: items.map((item) => ({
+                id: item.id,
+                customerId: 'test',
+                label: item.id,
+                backendType: 'comfyui',
+                port: 8188,
+                url: item.url,
+                detectedAt: item.lastHeartbeatAt,
+                lastHeartbeatAt: item.lastHeartbeatAt,
+                source: 'registry'
+            }))
+        }),
+        text: async () => ''
+    } as Response);
+    await 刷新已发现ComfyUI后端缓存('https://registry.example', 'token');
 };
 
 describe('生图接口支持NSFW', () => {
@@ -298,6 +327,58 @@ describe('获取NSFW文生图接口配置', () => {
         expect(result?.图片接口路径).toBe('/prompt');
         expect(result?.ComfyUI工作流JSON).toBe(current?.ComfyUI工作流JSON);
         expect(result?.自动切换提示).toContain('已自动切换到在线 ComfyUI 后端');
+    });
+
+    it('prefers selected discovered ComfyUI URL over stale saved main URL', async () => {
+        await 模拟已发现ComfyUI后端([
+            { id: 'backend-old', url: 'https://old-8188.cnb.run', lastHeartbeatAt: '2026-05-13T16:00:00.000Z' },
+            { id: 'backend-new', url: 'https://new-8188.cnb.run/', lastHeartbeatAt: '2026-05-13T17:00:00.000Z' }
+        ]);
+        const settings = 构建测试接口设置({
+            文生图后端类型: 'comfyui',
+            文生图模型API地址: 'https://old-8188.cnb.run'
+        });
+        settings.功能模型占位.当前图片后端发现ID = 'backend-new';
+
+        const result = 获取文生图接口配置(settings);
+
+        expect(result?.baseUrl).toBe('https://new-8188.cnb.run');
+    });
+
+    it('prefers selected discovered ComfyUI URL for independent scene image config', async () => {
+        await 模拟已发现ComfyUI后端([
+            { id: 'scene-new', url: 'https://scene-new-8188.cnb.run/', lastHeartbeatAt: '2026-05-13T17:00:00.000Z' }
+        ]);
+        const settings = 构建测试接口设置({
+            文生图后端类型: 'comfyui',
+            文生图模型API地址: 'https://main-old-8188.cnb.run',
+            场景生图独立接口启用: true,
+            场景生图后端类型: 'comfyui'
+        });
+        settings.功能模型占位.当前场景图片后端发现ID = 'scene-new';
+        settings.功能模型占位.场景生图模型API地址 = 'https://scene-old-8188.cnb.run';
+
+        const result = 获取场景文生图接口配置(settings);
+
+        expect(result?.baseUrl).toBe('https://scene-new-8188.cnb.run');
+    });
+
+    it('prefers selected discovered ComfyUI URL for independent NSFW image config', async () => {
+        await 模拟已发现ComfyUI后端([
+            { id: 'nsfw-new', url: 'https://nsfw-new-8188.cnb.run/', lastHeartbeatAt: '2026-05-13T17:00:00.000Z' }
+        ]);
+        const settings = 构建测试接口设置({
+            文生图后端类型: 'sd_webui',
+            文生图模型API地址: 'http://localhost:7860',
+            NSFW生图独立接口启用: true,
+            NSFW生图后端类型: 'comfyui',
+            NSFW生图模型API地址: 'https://nsfw-old-8188.cnb.run'
+        });
+        settings.功能模型占位.当前NSFW图片后端发现ID = 'nsfw-new';
+
+        const result = 获取NSFW文生图接口配置(settings);
+
+        expect(result?.baseUrl).toBe('https://nsfw-new-8188.cnb.run');
     });
 
     it('uses scene config as fallback for NSFW when scene backend supports it', () => {

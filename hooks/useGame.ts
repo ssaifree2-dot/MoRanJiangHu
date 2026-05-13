@@ -1343,12 +1343,39 @@ export const useGame = () => {
             if (registryUrl || registryConnectToken) {
                 刷新已发现ComfyUI后端缓存(registryUrl, registryConnectToken).then((backends) => {
                     if (!backends?.length) return;
-                    const bestUrl = backends[0]?.url;
+                    const normalizeUrl = (value: unknown) => String(value || '').trim().replace(/\/+$/, '');
+                    const bestUrl = normalizeUrl(backends[0]?.url);
                     if (!bestUrl) return;
                     const cur = apiConfigRef.current as any;
                     const f = cur?.功能模型占位;
-                    if (f?.文生图后端类型 === 'comfyui' && !f?.文生图模型API地址?.trim()) {
-                        const next = { ...cur, 功能模型占位: { ...f, 文生图模型API地址: bestUrl } };
+                    if (!f) return;
+                    const isCnbUrl = (value: string) => /\.cnb\.run(?:[/:]|$)/i.test(value);
+                    let nextFeature = f;
+                    const syncComfyDiscoveredUrl = (
+                        enabled: boolean,
+                        backendType: unknown,
+                        idKey: string,
+                        urlKey: string
+                    ) => {
+                        if (!enabled || backendType !== 'comfyui') return;
+                        const currentUrl = normalizeUrl(nextFeature?.[urlKey]);
+                        const selectedId = String(nextFeature?.[idKey] || '').trim();
+                        const matched = selectedId ? backends.find((item) => item.id === selectedId) : null;
+                        const nextUrl = normalizeUrl(matched?.url || (!currentUrl || isCnbUrl(currentUrl) ? bestUrl : ''));
+                        if (!nextUrl || nextUrl === currentUrl) return;
+                        nextFeature = {
+                            ...nextFeature,
+                            [urlKey]: nextUrl,
+                            ...(matched?.id ? { [idKey]: matched.id } : {})
+                        };
+                    };
+
+                    syncComfyDiscoveredUrl(true, f.文生图后端类型, '当前图片后端发现ID', '文生图模型API地址');
+                    syncComfyDiscoveredUrl(Boolean(f.场景生图独立接口启用), f.场景生图后端类型, '当前场景图片后端发现ID', '场景生图模型API地址');
+                    syncComfyDiscoveredUrl(Boolean(f.NSFW生图独立接口启用), f.NSFW生图后端类型, '当前NSFW图片后端发现ID', 'NSFW生图模型API地址');
+
+                    if (nextFeature !== f) {
+                        const next = { ...cur, 功能模型占位: nextFeature };
                         apiConfigRef.current = next;
                         setApiConfig(next);
                         dbService.保存设置(设置键.API配置, next).catch(() => {});

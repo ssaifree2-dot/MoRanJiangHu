@@ -964,6 +964,50 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
         setTimeout(() => setShowSuccess(false), 2000);
     };
 
+    const 构建已发现后端同步设置 = (source: 接口设置结构): 接口设置结构 => {
+        const feature = source.功能模型占位;
+        const nextFeature: 功能模型占位配置结构 = { ...feature };
+        const findDiscoveredUrl = (id?: string): string => {
+            const normalizedId = (id || '').trim();
+            if (!normalizedId) return '';
+            const backend = discoveredBackends.find((item) => item.id === normalizedId);
+            return backend ? normalizeDiscoveredBackendUrl(backend.url) : '';
+        };
+        const syncComfyUrl = (
+            enabled: boolean,
+            backendType: unknown,
+            idKey: keyof 功能模型占位配置结构,
+            urlKey: keyof 功能模型占位配置结构
+        ) => {
+            if (!enabled || backendType !== 'comfyui') return;
+            const url = findDiscoveredUrl(String((nextFeature as any)[idKey] || ''));
+            if (url) {
+                (nextFeature as any)[urlKey] = url;
+            }
+        };
+
+        syncComfyUrl(true, nextFeature.文生图后端类型, '当前图片后端发现ID', '文生图模型API地址');
+        syncComfyUrl(Boolean(nextFeature.场景生图独立接口启用), nextFeature.场景生图后端类型, '当前场景图片后端发现ID', '场景生图模型API地址');
+        syncComfyUrl(Boolean(nextFeature.NSFW生图独立接口启用), nextFeature.NSFW生图后端类型, '当前NSFW图片后端发现ID', 'NSFW生图模型API地址');
+
+        return 规范化接口设置({
+            ...source,
+            功能模型占位: nextFeature
+        });
+    };
+
+    const 保存生图设置 = (source: 接口设置结构, options?: { showSuccess?: boolean }): 接口设置结构 => {
+        const normalized = 构建已发现后端同步设置(source);
+        onSave(normalized);
+        setForm(normalized);
+        setSelectedConfigId(normalized.activeConfigId || normalized.configs[0]?.id || null);
+        if (options?.showSuccess) {
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 2000);
+        }
+        return normalized;
+    };
+
     const handleTestImageConnection = async () => {
         if (testingImageConnection) return;
         const feature = form.功能模型占位;
@@ -990,7 +1034,20 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
                     || normalizeDiscoveredBackendUrl(item.url) === base
                 ));
                 setBackendConnectionStats(recordImageBackendConnectionSuccess('main', matchedBackend || base));
-                setMainConnectionMessage('ComfyUI 连接成功：后端在线，可以继续生图。');
+                if (matchedBackend) {
+                    const saved = 保存生图设置({
+                        ...form,
+                        activeConfigId: selectedConfigId || form.activeConfigId,
+                        功能模型占位: {
+                            ...feature,
+                            当前图片后端发现ID: matchedBackend.id,
+                            文生图模型API地址: normalizeDiscoveredBackendUrl(matchedBackend.url)
+                        }
+                    }, { showSuccess: true });
+                    setMainConnectionMessage(`ComfyUI 连接成功：后端在线，已同步为当前生图地址：${saved.功能模型占位.文生图模型API地址}`);
+                    return;
+                }
+                setMainConnectionMessage('ComfyUI 连接成功：后端在线，可以继续生图。若要用于自动生图，请保存当前文生图配置。');
                 return;
             }
             if (backend === 'sd_webui') {
@@ -1254,7 +1311,7 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
     };
 
     const handleSave = () => {
-        const normalized = 规范化接口设置({
+        保存生图设置({
             ...form,
             activeConfigId: selectedConfigId || form.activeConfigId,
             功能模型占位: {
@@ -1262,12 +1319,7 @@ const ImageGenerationSettings: React.FC<Props> = ({ settings, onSave }) => {
                 词组转化器提示词: '',
                 NPC生图使用词组转化器: 当前后端 === 'novelai' ? true : form.功能模型占位.NPC生图使用词组转化器
             }
-        });
-        onSave(normalized);
-        setForm(normalized);
-        setSelectedConfigId(normalized.activeConfigId || normalized.configs[0]?.id || null);
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 2000);
+        }, { showSuccess: true });
     };
 
     const renderNSFWIndependentImageApiCard = () => (

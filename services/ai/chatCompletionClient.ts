@@ -820,7 +820,10 @@ const 写入流式诊断日志 = (message: string, detail?: Record<string, unkno
 };
 
 const 非流式回填流式回调 = (text: string, streamOptions?: 通用流式选项) => {
-    return;
+    if (!streamOptions?.stream || typeof streamOptions.onDelta !== 'function') return;
+    const finalText = typeof text === 'string' ? text : '';
+    if (!finalText) return;
+    streamOptions.onDelta(finalText, finalText);
 };
 
 const 解析可能是JSON字符串 = (text: string): any | null => {
