@@ -656,6 +656,163 @@ const InputArea: React.FC<Props> = ({
 
     return (
         <div className="shrink-0 relative z-20 bg-gradient-to-t from-ink-black/90 via-ink-black/75 to-transparent pb-2 px-2 sm:px-4 flex flex-col gap-1 backdrop-blur-[2px]">
+            {queueVisible && (
+                <div className="w-full px-2 md:px-4">
+                    <div className="mx-auto w-full max-w-5xl space-y-1">
+                        {queueVisible && (
+                            <>
+                        {!queueCollapsed && (
+                            <div className="flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setQueueCollapsed(true)}
+                                    className={`h-7 w-40 border text-sm tracking-[0.18em] transition hover:bg-neutral-950 ${queueBadgeClass}`}
+                                    style={{ clipPath: 'polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)' }}
+                                    title="收起独立更新阶段队列"
+                                >
+                                    <span className="inline-flex items-center justify-center gap-2">
+                                        {queueRunning && <span className="inline-block w-3 h-3 border-2 border-wuxia-cyan/40 border-t-wuxia-cyan rounded-full animate-spin" />}
+                                        <span>{queueRunning ? `${currentRunningStage?.label || ''}运行中` : '收起队列'}</span>
+                                    </span>
+                                </button>
+                            </div>
+                        )}
+                        {queueCollapsed ? (
+                            <div className="flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setQueueCollapsed(false)}
+                                    className={`h-8 px-4 min-w-[8rem] border text-sm tracking-[0.18em] transition hover:bg-neutral-950 ${queueBadgeClass}`}
+                                    style={{ clipPath: 'polygon(12% 0%, 88% 0%, 100% 100%, 0% 100%)' }}
+                                    title="展开独立更新阶段队列"
+                                >
+                                    <span className="inline-flex items-center justify-center gap-2">
+                                        {queueRunning && <span className="inline-block w-3 h-3 border-2 border-wuxia-cyan/40 border-t-wuxia-cyan rounded-full animate-spin" />}
+                                        <span>{queueRunning ? `${currentRunningStage?.label || '队列'}运行中` : '队列'}</span>
+                                    </span>
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="rounded-lg border border-wuxia-gold/25 bg-black p-3 space-y-2 shadow-[0_18px_60px_rgba(0,0,0,0.45)] max-h-[32svh] sm:max-h-[40vh] md:max-h-[58vh] overflow-y-auto no-scrollbar">
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                    <div className="text-wuxia-gold">独立更新阶段队列</div>
+                                    <div className="text-gray-400">
+                                        当前阶段：{currentRunningStage?.label || '无'}
+                                        {' | '}
+                                        上一阶段结果：{latestFinishedStage ? `${latestFinishedStage.label} ${取阶段状态文案(latestFinishedStage.progress?.phase)}` : '无'}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {pipelineStages.map((stage, index) => {
+                                        const phase = stage.progress?.phase;
+                                        const rawText = 截断队列展示文本(stage.progress?.rawText, QUEUE_RAW_RENDER_LIMIT, `${stage.label}原始回复`);
+                                        const progressText = 截断队列展示文本(stage.progress?.text, QUEUE_TEXT_RENDER_LIMIT, `${stage.label}状态文本`);
+                                        const originalCommandTexts = Array.isArray((stage.progress as { commandTexts?: string[] } | null)?.commandTexts)
+                                            ? ((stage.progress as { commandTexts?: string[] }).commandTexts || [])
+                                            : [];
+                                        const commandTexts = 截断队列命令列表(originalCommandTexts) || [];
+                                        const commandDisplayText = 合并队列命令展示(commandTexts);
+                                        const rawExpanded = expandedRawStageId === stage.id;
+                                        const commandExpanded = expandedCommandStageId === stage.id;
+                                        const isVariableStage = stage.id === 'variable';
+                                        return (
+                                            <div key={stage.id} className="rounded border border-gray-800/80 bg-neutral-950 p-2">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className="text-gray-500 text-xs">{index + 1}.</span>
+                                                        {phase === 'start' ? (
+                                                            <span className="inline-block w-3 h-3 border-2 border-wuxia-cyan/40 border-t-wuxia-cyan rounded-full animate-spin" />
+                                                        ) : (
+                                                            <span className={取阶段状态色(phase)}>●</span>
+                                                        )}
+                                                        <span className="text-sm text-gray-100">{stage.label}</span>
+                                                        <span className={`text-xs ${取阶段状态色(phase)}`}>
+                                                            {取阶段状态文案(phase)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {isVariableStage && phase === 'start' && variableGenerationRunning && onCancelVariableGeneration && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={onCancelVariableGeneration}
+                                                                className="text-xs px-2 py-1 border border-teal-400/40 text-teal-100 rounded hover:bg-teal-500/10"
+                                                            >
+                                                                取消生成
+                                                            </button>
+                                                        )}
+                                                        {isVariableStage && phase !== 'start' && !variableGenerationRunning && onRetryLatestVariableGeneration && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { void handleRetryVariableGeneration(); }}
+                                                                className="text-xs px-2 py-1 border border-cyan-400/40 text-cyan-100 rounded hover:bg-cyan-500/10"
+                                                            >
+                                                                继续生成
+                                                            </button>
+                                                        )}
+                                                        {commandTexts.length > 0 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setExpandedCommandStageId(commandExpanded ? null : stage.id)}
+                                                                className="text-xs px-2 py-1 border border-gray-700 text-gray-300 rounded hover:border-wuxia-gold/40 hover:text-white"
+                                                            >
+                                                                {commandExpanded ? '收起命令' : '查看命令'}
+                                                            </button>
+                                                        )}
+                                                        {rawText && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setExpandedRawStageId(rawExpanded ? null : stage.id)}
+                                                                className="text-xs px-2 py-1 border border-gray-700 text-gray-300 rounded hover:border-wuxia-gold/40 hover:text-white"
+                                                            >
+                                                                {rawExpanded ? '收起原始回复' : '查看原始回复'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {progressText && (
+                                                    <pre className="mt-2 text-sm whitespace-pre-wrap text-gray-300 leading-relaxed max-h-24 sm:max-h-32 overflow-y-auto no-scrollbar">
+                                                        {progressText}
+                                                    </pre>
+                                                )}
+                                                {commandExpanded && commandTexts.length > 0 && (
+                                                    <div className="mt-2 rounded border border-wuxia-gold/20 bg-black/55 p-2">
+                                                        <div className="text-xs text-wuxia-gold/80 mb-1">本回合命令列表</div>
+                                                        <pre className="text-sm whitespace-pre-wrap text-sky-100 leading-relaxed max-h-32 sm:max-h-44 overflow-y-auto no-scrollbar">
+                                                            {commandDisplayText}
+                                                        </pre>
+                                                    </div>
+                                                )}
+                                                {rawExpanded && rawText && (
+                                                    <pre className="mt-2 text-sm whitespace-pre-wrap text-emerald-200 leading-relaxed max-h-36 sm:max-h-56 overflow-y-auto no-scrollbar border border-emerald-500/20 bg-black/60 rounded p-2">
+                                                        {rawText}
+                                                    </pre>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {historyStages.length > 0 && (
+                                    <div className="rounded border border-wuxia-gold/20 bg-neutral-950 p-2 space-y-2 max-h-36 sm:max-h-64 overflow-y-auto no-scrollbar">
+                                        <div className="text-sm text-wuxia-gold">独立链命令历史面板</div>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {historyStages.map((stage) => (
+                                                <div key={`history_${stage.id}`} className="rounded border border-gray-800/80 bg-black/50 p-2">
+                                                    <div className="text-sm text-gray-100 mb-1">{stage.label}</div>
+                                                    <pre className="text-sm whitespace-pre-wrap text-sky-100 leading-relaxed max-h-28 sm:max-h-40 overflow-y-auto no-scrollbar">
+                                                        {合并队列命令展示(截断队列命令列表(((stage.progress as { commandTexts?: string[] } | null)?.commandTexts) || []) || [])}
+                                                    </pre>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
             {/* Quick Actions Chips (Fixed Box Size, Scrolling Text) */}
             {normalizedOptions.length > 0 && (
                 <div
@@ -1012,163 +1169,6 @@ const InputArea: React.FC<Props> = ({
                 </div>
             ), document.body)}
 
-            {queueVisible && (
-                <div className="pointer-events-none absolute left-2 right-2 bottom-full mb-2 z-40 sm:left-4 sm:right-4">
-                    <div className="mx-auto w-full max-w-5xl pointer-events-auto space-y-1">
-                        {queueVisible && (
-                            <>
-                        {!queueCollapsed && (
-                            <div className="flex justify-center">
-                                <button
-                                    type="button"
-                                    onClick={() => setQueueCollapsed(true)}
-                                    className={`h-7 w-40 border text-sm tracking-[0.18em] transition hover:bg-neutral-950 ${queueBadgeClass}`}
-                                    style={{ clipPath: 'polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)' }}
-                                    title="收起独立更新阶段队列"
-                                >
-                                    <span className="inline-flex items-center justify-center gap-2">
-                                        {queueRunning && <span className="inline-block w-3 h-3 border-2 border-wuxia-cyan/40 border-t-wuxia-cyan rounded-full animate-spin" />}
-                                        <span>{queueRunning ? `${currentRunningStage?.label || ''}运行中` : '收起队列'}</span>
-                                    </span>
-                                </button>
-                            </div>
-                        )}
-                        {queueCollapsed ? (
-                            <div className="flex justify-center">
-                                <button
-                                    type="button"
-                                    onClick={() => setQueueCollapsed(false)}
-                                    className={`h-8 px-4 min-w-[8rem] border text-sm tracking-[0.18em] transition hover:bg-neutral-950 ${queueBadgeClass}`}
-                                    style={{ clipPath: 'polygon(12% 0%, 88% 0%, 100% 100%, 0% 100%)' }}
-                                    title="展开独立更新阶段队列"
-                                >
-                                    <span className="inline-flex items-center justify-center gap-2">
-                                        {queueRunning && <span className="inline-block w-3 h-3 border-2 border-wuxia-cyan/40 border-t-wuxia-cyan rounded-full animate-spin" />}
-                                        <span>{queueRunning ? `${currentRunningStage?.label || '队列'}运行中` : '队列'}</span>
-                                    </span>
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="rounded-lg border border-wuxia-gold/25 bg-black p-3 space-y-2 shadow-[0_18px_60px_rgba(0,0,0,0.45)] max-h-[32svh] sm:max-h-[40vh] md:max-h-[58vh] overflow-y-auto no-scrollbar">
-                                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                                    <div className="text-wuxia-gold">独立更新阶段队列</div>
-                                    <div className="text-gray-400">
-                                        当前阶段：{currentRunningStage?.label || '无'}
-                                        {' | '}
-                                        上一阶段结果：{latestFinishedStage ? `${latestFinishedStage.label} ${取阶段状态文案(latestFinishedStage.progress?.phase)}` : '无'}
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {pipelineStages.map((stage, index) => {
-                                        const phase = stage.progress?.phase;
-                                        const rawText = 截断队列展示文本(stage.progress?.rawText, QUEUE_RAW_RENDER_LIMIT, `${stage.label}原始回复`);
-                                        const progressText = 截断队列展示文本(stage.progress?.text, QUEUE_TEXT_RENDER_LIMIT, `${stage.label}状态文本`);
-                                        const originalCommandTexts = Array.isArray((stage.progress as { commandTexts?: string[] } | null)?.commandTexts)
-                                            ? ((stage.progress as { commandTexts?: string[] }).commandTexts || [])
-                                            : [];
-                                        const commandTexts = 截断队列命令列表(originalCommandTexts) || [];
-                                        const commandDisplayText = 合并队列命令展示(commandTexts);
-                                        const rawExpanded = expandedRawStageId === stage.id;
-                                        const commandExpanded = expandedCommandStageId === stage.id;
-                                        const isVariableStage = stage.id === 'variable';
-                                        return (
-                                            <div key={stage.id} className="rounded border border-gray-800/80 bg-neutral-950 p-2">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <span className="text-gray-500 text-xs">{index + 1}.</span>
-                                                        {phase === 'start' ? (
-                                                            <span className="inline-block w-3 h-3 border-2 border-wuxia-cyan/40 border-t-wuxia-cyan rounded-full animate-spin" />
-                                                        ) : (
-                                                            <span className={取阶段状态色(phase)}>●</span>
-                                                        )}
-                                                        <span className="text-sm text-gray-100">{stage.label}</span>
-                                                        <span className={`text-xs ${取阶段状态色(phase)}`}>
-                                                            {取阶段状态文案(phase)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {isVariableStage && phase === 'start' && variableGenerationRunning && onCancelVariableGeneration && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={onCancelVariableGeneration}
-                                                                className="text-xs px-2 py-1 border border-teal-400/40 text-teal-100 rounded hover:bg-teal-500/10"
-                                                            >
-                                                                取消生成
-                                                            </button>
-                                                        )}
-                                                        {isVariableStage && phase !== 'start' && !variableGenerationRunning && onRetryLatestVariableGeneration && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => { void handleRetryVariableGeneration(); }}
-                                                                className="text-xs px-2 py-1 border border-cyan-400/40 text-cyan-100 rounded hover:bg-cyan-500/10"
-                                                            >
-                                                                继续生成
-                                                            </button>
-                                                        )}
-                                                        {commandTexts.length > 0 && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setExpandedCommandStageId(commandExpanded ? null : stage.id)}
-                                                                className="text-xs px-2 py-1 border border-gray-700 text-gray-300 rounded hover:border-wuxia-gold/40 hover:text-white"
-                                                            >
-                                                                {commandExpanded ? '收起命令' : '查看命令'}
-                                                            </button>
-                                                        )}
-                                                        {rawText && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setExpandedRawStageId(rawExpanded ? null : stage.id)}
-                                                                className="text-xs px-2 py-1 border border-gray-700 text-gray-300 rounded hover:border-wuxia-gold/40 hover:text-white"
-                                                            >
-                                                                {rawExpanded ? '收起原始回复' : '查看原始回复'}
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                {progressText && (
-                                                    <pre className="mt-2 text-sm whitespace-pre-wrap text-gray-300 leading-relaxed max-h-24 sm:max-h-32 overflow-y-auto no-scrollbar">
-                                                        {progressText}
-                                                    </pre>
-                                                )}
-                                                {commandExpanded && commandTexts.length > 0 && (
-                                                    <div className="mt-2 rounded border border-wuxia-gold/20 bg-black/55 p-2">
-                                                        <div className="text-xs text-wuxia-gold/80 mb-1">本回合命令列表</div>
-                                                        <pre className="text-sm whitespace-pre-wrap text-sky-100 leading-relaxed max-h-32 sm:max-h-44 overflow-y-auto no-scrollbar">
-                                                            {commandDisplayText}
-                                                        </pre>
-                                                    </div>
-                                                )}
-                                                {rawExpanded && rawText && (
-                                                    <pre className="mt-2 text-sm whitespace-pre-wrap text-emerald-200 leading-relaxed max-h-36 sm:max-h-56 overflow-y-auto no-scrollbar border border-emerald-500/20 bg-black/60 rounded p-2">
-                                                        {rawText}
-                                                    </pre>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {historyStages.length > 0 && (
-                                    <div className="rounded border border-wuxia-gold/20 bg-neutral-950 p-2 space-y-2 max-h-36 sm:max-h-64 overflow-y-auto no-scrollbar">
-                                        <div className="text-sm text-wuxia-gold">独立链命令历史面板</div>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {historyStages.map((stage) => (
-                                                <div key={`history_${stage.id}`} className="rounded border border-gray-800/80 bg-black/50 p-2">
-                                                    <div className="text-sm text-gray-100 mb-1">{stage.label}</div>
-                                                    <pre className="text-sm whitespace-pre-wrap text-sky-100 leading-relaxed max-h-28 sm:max-h-40 overflow-y-auto no-scrollbar">
-                                                        {合并队列命令展示(截断队列命令列表(((stage.progress as { commandTexts?: string[] } | null)?.commandTexts) || []) || [])}
-                                                    </pre>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
