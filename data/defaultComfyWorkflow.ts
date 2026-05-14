@@ -153,7 +153,7 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     },
     "class_type": "SaveImage",
     "_meta": {
-      "title": "Save Image"
+      "title": "保存图像"
     }
   },
   "39": {
@@ -164,16 +164,16 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     },
     "class_type": "CLIPLoader",
     "_meta": {
-      "title": "Load CLIP"
+      "title": "加载CLIP"
     }
   },
   "40": {
     "inputs": {
-      "vae_name": "Flux_ae.safetensors"
+      "vae_name": "ae.safetensors"
     },
     "class_type": "VAELoader",
     "_meta": {
-      "title": "Load VAE"
+      "title": "加载VAE"
     }
   },
   "41": {
@@ -184,7 +184,7 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     },
     "class_type": "EmptySD3LatentImage",
     "_meta": {
-      "title": "Empty SD3 Latent Image"
+      "title": "空Latent图像（SD3）"
     }
   },
   "42": {
@@ -196,7 +196,7 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     },
     "class_type": "ConditioningZeroOut",
     "_meta": {
-      "title": "Zero Out Negative Conditioning"
+      "title": "条件零化"
     }
   },
   "43": {
@@ -212,7 +212,7 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE Decode"
+      "title": "VAE解码"
     }
   },
   "44": {
@@ -242,7 +242,7 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler"
+      "title": "K采样器"
     }
   },
   "45": {
@@ -255,7 +255,7 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "Positive Prompt"
+      "title": "CLIP文本编码"
     }
   },
   "46": {
@@ -265,7 +265,7 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     },
     "class_type": "UNETLoader",
     "_meta": {
-      "title": "Load UNet"
+      "title": "UNet加载器"
     }
   },
   "47": {
@@ -278,7 +278,7 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     },
     "class_type": "ModelSamplingAuraFlow",
     "_meta": {
-      "title": "AuraFlow Sampling"
+      "title": "采样算法（AuraFlow）"
     }
   },
   "49": {
@@ -287,7 +287,7 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     },
     "class_type": "UnetLoaderGGUF",
     "_meta": {
-      "title": "Unet Loader GGUF"
+      "title": "Unet Loader (GGUF)"
     }
   }
 };

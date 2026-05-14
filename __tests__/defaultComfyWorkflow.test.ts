@@ -26,6 +26,15 @@ describe('默认 ComfyUI 生图配置', () => {
         expect(workflow['13'].inputs.model_name).toBe('svdq-int4_r32-qwen-image.safetensors');
         expect(workflow['7'].inputs.clip_name).toBe('qwen_2.5_vl_7b_fp8_scaled.safetensors');
         expect(nsfwWorkflow['46'].inputs.unet_name).toBe('mPMix_NSFW_V9_fp8.safetensors');
+        expect(nsfwWorkflow['40'].inputs.vae_name).toBe('ae.safetensors');
+        expect(nsfwWorkflow['45'].inputs.text).toBe('__PROMPT__');
+        expect(nsfwWorkflow['41'].inputs.width).toBe('__WIDTH__');
+        expect(nsfwWorkflow['41'].inputs.height).toBe('__HEIGHT__');
+        expect(nsfwWorkflow['44'].inputs.seed).toBe('__SEED__');
+        expect(nsfwWorkflow['44'].inputs.steps).toBe('__STEPS__');
+        expect(nsfwWorkflow['44'].inputs.cfg).toBe('__CFG__');
+        expect(nsfwWorkflow['44'].inputs.sampler_name).toBe('__SAMPLER__');
+        expect(nsfwWorkflow['44'].inputs.scheduler).toBe('__SCHEDULER__');
     });
 
     it('fills the default workflow when old settings have no ComfyUI workflow', () => {
