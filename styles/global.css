@@ -1076,7 +1076,7 @@ html[data-theme="day"] .right-panel-bottom-fade {
     position: absolute;
     right: calc(12px + var(--desktop-right-detail-width) - 0.95rem);
     top: 50%;
-    z-index: 520;
+    z-index: 90;
     display: inline-flex;
     height: 1.9rem;
     width: 1.9rem;
@@ -1098,7 +1098,7 @@ html[data-theme="day"] .right-panel-bottom-fade {
     position: absolute;
     right: calc(12px + var(--desktop-right-detail-width) - 0.95rem);
     top: calc(50% + 2.35rem);
-    z-index: 520;
+    z-index: 90;
     display: inline-flex;
     height: 1.9rem;
     width: 1.9rem;
@@ -1151,7 +1151,7 @@ html[data-theme="day"] .right-panel-bottom-fade {
     right: calc(12px + var(--desktop-right-detail-width) - 3px);
     top: 0;
     bottom: 0;
-    z-index: 515;
+    z-index: 85;
     width: 10px;
     cursor: ew-resize;
     touch-action: none;

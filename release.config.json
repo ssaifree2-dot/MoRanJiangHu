@@ -1,16 +1,24 @@
 {
-  "versionCode": 154,
-  "versionName": "1.0.153",
+  "versionCode": 155,
+  "versionName": "1.0.154",
   "releaseChannel": "stable",
-  "releasePublishedAt": "2026-05-15T20:19:17.406+08:00",
+  "releasePublishedAt": "2026-05-15T21:02:24.733+08:00",
   "releaseNotes": [
-    "v1.0.153 正式发布：修复 ComfyUI 默认工作流触发 NunchakuZImageDiTLoader KeyError: weight，以及桌面端右侧栏按钮残留问题。",
-    "普通 ComfyUI 默认工作流改用已验证稳定的 mPMix_NSFW_V9_fp8 + Qwen-Image-2512-Lightning 链路，避免 z_image_turbo_bf16 被 Nunchaku loader 误加载。",
-    "旧配置中保存过 NunchakuZImageDiTLoader 或 z_image_turbo_bf16.safetensors 的 workflow 会自动迁移回当前默认工作流，减少升级后继续报错。",
-    "桌面端右侧详情栏的展开、收起和拖拽按钮现在只在游戏界面内显示，返回首页后不会再残留。",
-    "网页端、APK 包和更新清单同步提升到 v1.0.153 / CODE 154。"
+    "v1.0.154 正式发布：修复返回首页确认弹窗被右侧详情栏按钮遮挡的问题。",
+    "桌面端右侧详情栏的展开、收起和拖拽按钮现在会停留在游戏界面层内，返回首页、设置确认、更新提示等弹窗会正确显示在最上层。",
+    "网页端、APK 包和更新清单同步提升到 v1.0.154 / CODE 155。"
   ],
   "releaseHistory": [
+    {
+      "versionCode": 155,
+      "versionName": "1.0.154",
+      "publishedAt": "2026-05-15T21:02:24.733+08:00",
+      "changes": [
+        "v1.0.154 正式发布：修复返回首页确认弹窗被右侧详情栏按钮遮挡的问题。",
+        "桌面端右侧详情栏的展开、收起和拖拽按钮现在会停留在游戏界面层内，返回首页、设置确认、更新提示等弹窗会正确显示在最上层。",
+        "网页端、APK 包和更新清单同步提升到 v1.0.154 / CODE 155。"
+      ]
+    },
     {
       "versionCode": 154,
       "versionName": "1.0.153",
