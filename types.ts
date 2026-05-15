@@ -86,6 +86,7 @@ export interface 聊天记录结构 {
     responseDurationSec?: number; // Request start -> final reply duration (seconds)
     outputTokens?: number; // Estimated AI output tokens
     autoScrollToTurnIcon?: boolean;
+    autoScrollToTurnStart?: boolean;
 }
 
 export interface 天赋结构 {

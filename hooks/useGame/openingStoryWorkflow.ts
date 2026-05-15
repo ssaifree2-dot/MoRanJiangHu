@@ -152,14 +152,21 @@ type 开场剧情生成依赖 = {
     setWorldEvents: (value: string[]) => void;
     应用并同步记忆系统: (memory: 记忆系统结构) => void;
     performAutoSave: (snapshot?: 自动存档快照结构) => Promise<void>;
-    构建系统提示词: (promptPool: 提示词结构[], memoryData: 记忆系统结构, socialData: any[], statePayload: any, options?: any) => 酒馆上下文结构 & {
+    构建系统提示词: (promptPool: 提示词结构[], memoryData: 记忆系统结构, socialData: any[], statePayload: any, options?: any) => Promise<酒馆上下文结构 & {
         contextPieces: 酒馆上下文结构['contextPieces'] & {
             AI角色声明?: string;
             输出协议提示词?: string;
             字数要求提示词?: string;
             免责声明输出提示词?: string;
         };
-    };
+    }> | (酒馆上下文结构 & {
+        contextPieces: 酒馆上下文结构['contextPieces'] & {
+            AI角色声明?: string;
+            输出协议提示词?: string;
+            字数要求提示词?: string;
+            免责声明输出提示词?: string;
+        };
+    });
     processResponseCommands: (response: GameResponse, baseState?: 开场命令基态, options?: { applyState?: boolean }) => 开场命令基态;
     规范化环境信息: (envLike?: any) => 环境信息结构;
     规范化剧情状态: (raw?: any, envLike?: any) => 剧情系统结构;
@@ -619,7 +626,7 @@ export const 执行开场剧情生成工作流 = async (
             ? `【小说分解章节锚点】\n${filteredOpeningNovelDecompositionPrompt}`
             : '';
 
-        const openingContext = deps.构建系统提示词(
+        const openingContext = await deps.构建系统提示词(
             openingPromptSnapshot,
             openingMem,
             contextData.社交 || [],

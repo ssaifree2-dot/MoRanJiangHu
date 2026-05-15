@@ -259,6 +259,22 @@ const InputArea: React.FC<Props> = ({
         setter(压缩队列进度用于渲染(progress));
     };
 
+    const 清空剧情回忆提示 = () => {
+        setPendingRecallTag('');
+        setAttachedRecallPreview('');
+        setShowAttachedRecall(false);
+        setRecallProgress(null);
+    };
+
+    const 显示剧情回忆附件 = (preview: string, tag?: string) => {
+        if (tag) {
+            setPendingRecallTag(tag);
+        }
+        setAttachedRecallPreview(preview);
+        setShowAttachedRecall(false);
+        setRecallProgress(prev => prev?.phase === 'done' ? null : prev);
+    };
+
     const handleSend = async () => {
         if (!content.trim()) return;
         if (loading || isPreparing) return;
@@ -306,11 +322,6 @@ const InputArea: React.FC<Props> = ({
             });
             if (result?.cancelled && result.needRecallConfirm && result.preparedRecallTag) {
                 recallAutoRetried = true;
-                setPendingRecallTag(result.preparedRecallTag);
-                if (result.attachedRecallPreview) {
-                    setAttachedRecallPreview(result.attachedRecallPreview);
-                    setShowAttachedRecall(false);
-                }
                 const retryPayload = `${content}\n<剧情回忆>\n${result.preparedRecallTag}\n</剧情回忆>`;
                 result = await onSend(retryPayload, isStreaming, {
                     onRecallProgress: (progress) => 记录并设置队列进度('recall.retry', progress, setRecallProgress),
@@ -362,14 +373,13 @@ const InputArea: React.FC<Props> = ({
                         })
                         : false;
                     if (confirmed) {
-                        setPendingRecallTag(result.preparedRecallTag);
                         if (result.attachedRecallPreview) {
-                            setAttachedRecallPreview(result.attachedRecallPreview);
-                            setShowAttachedRecall(false);
+                            显示剧情回忆附件(result.attachedRecallPreview, result.preparedRecallTag);
+                        } else {
+                            setPendingRecallTag(result.preparedRecallTag);
                         }
                     } else if (result.attachedRecallPreview) {
-                        setAttachedRecallPreview(result.attachedRecallPreview);
-                        setShowAttachedRecall(false);
+                        显示剧情回忆附件(result.attachedRecallPreview);
                     }
                     return;
                 }
@@ -377,8 +387,7 @@ const InputArea: React.FC<Props> = ({
                     setPendingRecallTag(result.preparedRecallTag);
                 }
                 if (result.attachedRecallPreview) {
-                    setAttachedRecallPreview(result.attachedRecallPreview);
-                    setShowAttachedRecall(false);
+                    显示剧情回忆附件(result.attachedRecallPreview);
                 }
                 if (result.errorDetail) {
                     setErrorModal({
@@ -391,15 +400,7 @@ const InputArea: React.FC<Props> = ({
             }
             setLastSentContent(content);
             setContent('');
-            setPendingRecallTag('');
-            if (result?.attachedRecallPreview) {
-                setAttachedRecallPreview(result.attachedRecallPreview);
-                setShowAttachedRecall(false);
-            } else {
-                setAttachedRecallPreview('');
-                setShowAttachedRecall(false);
-            }
-            setRecallProgress(null);
+            清空剧情回忆提示();
         } finally {
             setIsPreparing(false);
         }

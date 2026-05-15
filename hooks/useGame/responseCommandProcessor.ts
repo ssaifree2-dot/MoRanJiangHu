@@ -11,7 +11,7 @@ import {
     同人剧情规划结构,
     同人女主剧情规划结构
 } from '../../types';
-import { applyStateCommand } from '../../utils/stateHelpers';
+import { applyStateCommand, normalizeStateCommandKey } from '../../utils/stateHelpers';
 import { 规范化任务列表自动结算 } from '../../utils/taskCompat';
 
 export type 响应命令处理状态 = {
@@ -141,6 +141,85 @@ const 补入对白发送者到社交 = (
     return [...markedSocialList, ...inferredNpcs];
 };
 
+const 装备槽位列表 = ['头部', '胸部', '盔甲', '内衬', '腿部', '手部', '足部', '主武器', '副武器', '暗器', '背部', '腰部', '坐骑'] as const;
+type 装备槽位 = typeof 装备槽位列表[number];
+const 装备槽位集合 = new Set<string>(装备槽位列表);
+
+const 是空装备值 = (value: unknown): boolean => (
+    value === undefined
+    || value === null
+    || (typeof value === 'string' && /^(?:|无|空置|空|none|null|undefined)$/i.test(value.trim()))
+);
+
+const 提取响应事实文本 = (response: GameResponse): string => {
+    const parts: string[] = [];
+    if (typeof (response as any)?.body === 'string') parts.push((response as any).body);
+    if (typeof (response as any)?.正文 === 'string') parts.push((response as any).正文);
+    if (typeof (response as any)?.summary === 'string') parts.push((response as any).summary);
+    if (Array.isArray(response?.logs)) {
+        response.logs.forEach((log: any) => {
+            if (typeof log?.content === 'string') parts.push(log.content);
+            if (typeof log?.text === 'string') parts.push(log.text);
+            if (typeof log?.message === 'string') parts.push(log.message);
+        });
+    }
+    return parts.join('\n');
+};
+
+const 装备移除触发正则 = /(卸下|脱下|取下|摘下|换下|换装|更换|丢弃|扔掉|遗弃|卖出|售卖|出售|卖给|卖了|卖掉|上架|典当|赠予|交给|交出|缴械|被夺|夺走|抢走|没收|遗失|失落|掉落|损坏|毁坏|破碎|断裂|烧毁|腐蚀|消耗|报废|解除装备|卸除装备)/;
+
+const 命令是否有装备移除触发 = (cmd: any, responseFactText: string): boolean => {
+    const commandText = [
+        cmd?.key,
+        typeof cmd?.value === 'string' ? cmd.value : '',
+        typeof cmd?.reason === 'string' ? cmd.reason : '',
+        typeof cmd?.原因 === 'string' ? cmd.原因 : '',
+        typeof cmd?.说明 === 'string' ? cmd.说明 : '',
+        responseFactText
+    ].filter(Boolean).join('\n');
+    return 装备移除触发正则.test(commandText);
+};
+
+const 净化角色装备命令 = (
+    cmd: any,
+    currentEquipment: Record<string, any>,
+    responseFactText: string
+): any | null => {
+    const normalizedKey = normalizeStateCommandKey(typeof cmd?.key === 'string' ? cmd.key : '');
+    if (!normalizedKey.startsWith('gameState.角色.装备')) return cmd;
+    const action = (cmd?.action || 'set') as string;
+    const allowRemoval = 命令是否有装备移除触发(cmd, responseFactText);
+    if (allowRemoval) return cmd;
+
+    const rest = normalizedKey.slice('gameState.角色.装备'.length).replace(/^\./, '');
+    if (!rest) {
+        if (action === 'delete') return null;
+        if (cmd?.value && typeof cmd.value === 'object' && !Array.isArray(cmd.value)) {
+            const nextValue = { ...cmd.value };
+            let changed = false;
+            装备槽位列表.forEach((slot) => {
+                if (!(slot in nextValue)) return;
+                if (!是空装备值(nextValue[slot])) return;
+                if (是空装备值(currentEquipment?.[slot])) return;
+                nextValue[slot] = currentEquipment[slot];
+                changed = true;
+            });
+            return changed ? { ...cmd, value: nextValue } : cmd;
+        }
+        if (是空装备值(cmd?.value) && Object.values(currentEquipment || {}).some((value) => !是空装备值(value))) {
+            return null;
+        }
+        return cmd;
+    }
+
+    const slot = rest.split(/[.\[]/, 1)[0];
+    if (!装备槽位集合.has(slot)) return cmd;
+    if ((action === 'delete' || 是空装备值(cmd?.value)) && !是空装备值(currentEquipment?.[slot])) {
+        return null;
+    }
+    return cmd;
+};
+
 export const 执行响应命令处理 = (
     response: GameResponse,
     currentState: 响应命令处理状态,
@@ -166,7 +245,10 @@ export const 执行响应命令处理 = (
     let fandomHeroinePlanBuffer = deps.规范化同人女主剧情规划状态(baseState?.同人女主剧情规划 ?? currentState.同人女主剧情规划);
 
     if (Array.isArray(response.tavern_commands)) {
+        const responseFactText = 提取响应事实文本(response);
         response.tavern_commands.forEach(cmd => {
+            const safeCmd = 净化角色装备命令(cmd, charBuffer?.装备 || {}, responseFactText);
+            if (!safeCmd) return;
             const result = applyStateCommand(
                 charBuffer,
                 envBuffer,
@@ -181,9 +263,9 @@ export const 执行响应命令处理 = (
                 sectBuffer,
                 tasksBuffer,
                 agreementsBuffer,
-                cmd.key,
-                cmd.value,
-                cmd.action
+                safeCmd.key,
+                safeCmd.value,
+                safeCmd.action
             );
             charBuffer = result.char;
             envBuffer = result.env;

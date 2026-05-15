@@ -144,6 +144,7 @@ import { 合并变量校准结果到响应 as 合并变量生成结果到响应 
 import { 获取图片展示地址, 压缩图片资源字段 } from '../utils/imageAssets';
 import { 设置键 } from '../utils/settingsSchema';
 import { countOpenAIChatMessagesTokens, countOpenAITextTokens } from '../utils/tokenEstimate';
+import { 执行游戏后台重计算 } from '../utils/gameHeavyWorkerClient';
 
 const 加载图片AI服务 = () => import('../services/ai/image/runtime');
 const 加载NPC生图工作流 = () => import('./useGame/npcImageWorkflow');
@@ -2402,19 +2403,26 @@ export const useGame = () => {
             世界书附加文本?: string[];
             openingConfig?: OpeningConfig;
         }
-    ) => 构建系统提示词工作流({
-        promptPool,
-        memoryData,
-        socialData,
-        statePayload,
-        gameConfig,
-        memoryConfig,
-        fallbackPlayerName: 角色?.姓名,
-        builtinPromptEntries: 内置提示词列表,
-        worldbooks: 世界书列表,
-        worldEvolutionEnabled: 世界演变功能已开启(),
-        options
-    });
+    ) => {
+        const payload = {
+            promptPool,
+            memoryData,
+            socialData,
+            statePayload,
+            gameConfig,
+            memoryConfig,
+            fallbackPlayerName: 角色?.姓名,
+            builtinPromptEntries: 内置提示词列表,
+            worldbooks: 世界书列表,
+            worldEvolutionEnabled: 世界演变功能已开启(),
+            options
+        };
+        return 执行游戏后台重计算(
+            'buildSystemPrompt',
+            payload,
+            () => 构建系统提示词工作流(payload)
+        );
+    };
 
     const processResponseCommands = (
         response: GameResponse,

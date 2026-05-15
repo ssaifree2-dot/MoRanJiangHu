@@ -72,3 +72,47 @@ describe('responseCommandProcessor dialogue social sync', () => {
         expect(result.社交[0].自动补全头像).toBe(true);
     });
 });
+
+describe('responseCommandProcessor equipment guard', () => {
+    it('blocks silent equipment clearing without an explicit removal trigger', () => {
+        const state = 构建基础状态();
+        state.角色 = {
+            姓名: '杨培强',
+            装备: {
+                头部: '青布头巾',
+                主武器: '青钢剑',
+                坐骑: '黑马'
+            }
+        } as any;
+
+        const result = 执行响应命令处理({
+            logs: [{ sender: '旁白', text: '他继续赶路，并未整理行装。' }],
+            tavern_commands: [
+                { action: 'set', key: '角色.装备', value: { 头部: '无', 主武器: '无', 坐骑: '无' } }
+            ]
+        } as any, state, deps, undefined, { applyState: false });
+
+        expect((result.角色 as any).装备.头部).toBe('青布头巾');
+        expect((result.角色 as any).装备.主武器).toBe('青钢剑');
+        expect((result.角色 as any).装备.坐骑).toBe('黑马');
+    });
+
+    it('allows equipment clearing when the story explicitly says the item was sold or removed', () => {
+        const state = 构建基础状态();
+        state.角色 = {
+            姓名: '杨培强',
+            装备: {
+                主武器: '青钢剑'
+            }
+        } as any;
+
+        const result = 执行响应命令处理({
+            logs: [{ sender: '旁白', text: '他把青钢剑卖给铁匠，换了几两碎银。' }],
+            tavern_commands: [
+                { action: 'set', key: '角色.装备.主武器', value: '无' }
+            ]
+        } as any, state, deps, undefined, { applyState: false });
+
+        expect((result.角色 as any).装备.主武器).toBe('无');
+    });
+});

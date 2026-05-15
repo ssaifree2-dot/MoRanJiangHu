@@ -125,6 +125,30 @@ const 物品是否布鞋 = (item: any): boolean => {
     return /布鞋|旧布鞋|千层底|布靴|麻鞋|草鞋/.test(text);
 };
 
+const 物品是否坐骑生物 = (item: any): boolean => {
+    const text = [
+        item?.名称,
+        item?.类型,
+        item?.装备位置,
+        item?.当前装备部位,
+        item?.描述,
+        item?.视觉描述,
+        Array.isArray(item?.视觉标签) ? item.视觉标签.join(' ') : ''
+    ].map((value) => 读取文本(value)).join(' ');
+    return /坐骑|骏马|马匹|马\b|黑马|白马|赤兔|的卢|汗血|乌骓|青骢|黄骠|驴|骡|骆驼|牦牛/.test(text);
+};
+
+const 物品是否古代药物 = (item: any): boolean => {
+    const text = [
+        item?.名称,
+        item?.类型,
+        item?.描述,
+        item?.视觉描述,
+        Array.isArray(item?.视觉标签) ? item.视觉标签.join(' ') : ''
+    ].map((value) => 读取文本(value)).join(' ');
+    return /丹药|药丸|药散|散剂|药粉|药膏|膏药|药液|伤药|止血|凝血|金疮|解毒|疗伤|丸|散\b|膏\b/.test(text);
+};
+
 const 物品品质转英文 = (quality: string): string => {
     const map: Record<string, string> = {
         '传说': 'legendary', '绝世': 'mythic', '极品': 'top grade',
@@ -166,6 +190,24 @@ const 物品名称转英文描述 = (name: string): string => {
         '灯笼': 'paper lantern', '火折子': 'fire starter flint',
         '绳索': 'hemp rope', '包袱': 'cloth bundle',
         '银两': 'silver ingots', '铜钱': 'copper coins',
+        '凝血散': 'ancient hemostatic medicinal powder in a small folded paper packet or ceramic medicine vial, herbal powder for stopping bleeding',
+        '金疮药': 'ancient wound medicine powder in a small ceramic medicine bottle or folded paper packet',
+        '止血散': 'ancient hemostatic powder in a folded paper packet, herbal medicinal powder',
+        '解毒散': 'ancient antidote powder in a folded paper packet or ceramic medicine vial',
+        '骏马': 'real living horse, full body animal, natural coat and mane',
+        '马匹': 'real living horse, full body animal, natural coat and mane',
+        '黑马': 'real living black horse, full body animal, natural coat and mane',
+        '白马': 'real living white horse, full body animal, natural coat and mane',
+        '赤兔': 'real living chestnut red horse, full body animal, natural coat and mane',
+        '的卢': 'real living horse, full body animal, natural coat and mane',
+        '汗血': 'real living Akhal-Teke style horse, full body animal, natural coat and mane',
+        '乌骓': 'real living dark horse, full body animal, natural coat and mane',
+        '青骢': 'real living dapple gray horse, full body animal, natural coat and mane',
+        '黄骠': 'real living dun horse, full body animal, natural coat and mane',
+        '驴': 'real living donkey, full body animal, natural fur',
+        '骡': 'real living mule, full body animal, natural fur',
+        '骆驼': 'real living camel, full body animal, natural fur',
+        '牦牛': 'real living yak, full body animal, natural fur',
     };
     for (const [cn, en] of Object.entries(map)) {
         if (name.includes(cn)) return en;
@@ -176,14 +218,17 @@ const 物品名称转英文描述 = (name: string): string => {
     if (/匣|盒|箱/.test(name)) return 'wooden box or case';
     if (/书|卷|册|经/.test(name)) return 'ancient book or scroll';
     if (/袋|囊|包/.test(name)) return 'cloth pouch or bag';
+    if (/丹|药|散|丸|膏/.test(name)) return 'ancient medicinal item, herbal powder or pills stored in a folded paper packet, cloth sachet, or small ceramic medicine vial';
     if (物品名称是否柔性服装(name)) return 'soft cloth martial arts garment, folded fabric clothing';
     return '';
 };
 
 const 构建物品视觉主体描述 = (item: any): string => {
     const name = 读取文本(item?.名称);
+    const isLivingMount = 物品是否坐骑生物(item);
     const isSoftGarment = 物品是否柔性服装(item);
-    const typeEn = isSoftGarment ? 'cloth garment' : 物品类型转英文(读取文本(item?.类型, '物品'));
+    const isAncientMedicine = 物品是否古代药物(item);
+    const typeEn = isLivingMount ? 'living mount animal' : isSoftGarment ? 'cloth garment' : isAncientMedicine ? 'ancient medicinal powder or pills' : 物品类型转英文(读取文本(item?.类型, '物品'));
     const qualityEn = 物品品质转英文(读取文本(item?.品质, '普通'));
     const nameEn = 物品名称转英文描述(name);
     const description = 读取文本(item?.视觉描述 || item?.描述);
@@ -191,8 +236,12 @@ const 构建物品视觉主体描述 = (item: any): string => {
         ? item.视觉标签.map((tag: unknown) => 读取文本(tag)).filter(Boolean).join(', ')
         : '';
     return [
-        nameEn ? `a single ${qualityEn} ${nameEn}` : `a single ${qualityEn} ${typeEn} prop`,
+        isLivingMount
+            ? (nameEn ? `a single real living ${qualityEn} mount animal, ${nameEn}` : `a single real living ${qualityEn} ${typeEn}`)
+            : (nameEn ? `a single ${qualityEn} ${nameEn}` : `a single ${qualityEn} ${typeEn} prop`),
+        isLivingMount ? 'alive organic animal anatomy, natural fur coat, visible eyes, nostrils, mane or tail, standing on real ground, full body animal portrait' : '',
         isSoftGarment ? 'soft textile clothing item, fabric seams, cloth folds, woven texture, flexible silhouette' : '',
+        isAncientMedicine ? 'ancient Chinese medicine presentation, herbal powder or pills, folded paper packet, cloth sachet, small ceramic medicine vial, apothecary prop, pre-modern wuxia era' : '',
         description ? `form and materials: ${description}` : '',
         tags ? `material cues: ${tags}` : ''
     ].filter(Boolean).join('\n');
@@ -201,12 +250,18 @@ const 构建物品视觉主体描述 = (item: any): string => {
 export const 构建物品负面提示词 = (item: any): string => {
     const isSoftGarment = 物品是否柔性服装(item);
     const isClothShoe = 物品是否布鞋(item);
+    const isLivingMount = 物品是否坐骑生物(item);
+    const isAncientMedicine = 物品是否古代药物(item);
     return [
-        'person, human, face, hand',
+        isLivingMount ? 'rider, saddle covering the body, harness covering the body, cart, carriage, vehicle, boat' : 'person, human, face, hand',
+        isLivingMount ? 'toy horse, plastic horse, resin figurine, statue, sculpture, ceramic, porcelain, model horse, miniature, collectible figurine, carousel horse, rocking horse, fake animal, mannequin, doll, glossy plastic, product prop, studio toy photography' : '',
+        isLivingMount ? '' : 'toy, plastic figurine, resin model, statue, sculpture, mannequin',
         'text, typography, letters, words, numbers, caption, label, plaque, sign, inscription, Chinese characters, English letters, calligraphy, seal, stamp, logo, watermark, signature, title, poster text',
+        'modern weapon, firearm, gun, rifle, pistol, shotgun, assault rifle, sniper rifle, machine gun, firearm stock, trigger guard, gun barrel, magazine, bullet, ammunition, grenade, rocket launcher, cannon, sci-fi weapon, futuristic weapon, tactical gear, modern military, plastic gun, mechanical firearm',
         'item card, game card, trading card, UI overlay, interface, badge, quality badge, rarity badge, speech bubble, dialogue box, border frame, decorative frame',
         'white background, cluttered background, ink wash, guofeng illustration, Chinese painting, brush strokes, anime, cartoon, flat illustration',
         isSoftGarment ? 'armor, cuirass, breastplate, metal armor, metal plates, gauntlet, shield, helmet, hard shell, leather jacket, shiny leather garment' : '',
+        isAncientMedicine ? 'weapon, blade, sword, dagger, knife, armor plate, metal weapon, hardware tool, industrial object, modern container, syringe, capsule bottle, plastic medical bottle, laboratory vial' : '',
         isClothShoe ? 'leather dress shoe, polished leather shoe, oxford shoe, loafer, business shoe, high heel, glossy leather, hard stacked heel' : ''
     ].filter(Boolean).join(', ');
 };
@@ -217,10 +272,21 @@ export const 构建物品图提示词 = (
 ): string => {
     const style = options?.画风 || '写实';
     const renderStyle = options?.渲染风格 || '写实道具';
+    const isLivingMount = 物品是否坐骑生物(item);
     const isSoftGarment = 物品是否柔性服装(item);
+    const isAncientMedicine = 物品是否古代药物(item);
     const softGarmentGuard = isSoftGarment
         ? 'for clothing items: soft fabric garment laid flat or neatly folded, visible cloth weave, seams, wrinkles, flexible drape'
         : '';
+    if (isLivingMount) {
+        return [
+            'photorealistic full-body portrait of one real living mount animal, alive animal, standing naturally on real ground, no rider',
+            'natural animal anatomy, organic body, realistic fur coat, real eyes, nostrils, mane and tail, subtle muscle structure, natural posture',
+            'outdoor natural light or neutral stable-yard light, clean background, clear silhouette, documentary animal photography',
+            style === '写实' ? 'photorealistic' : style,
+            构建物品视觉主体描述(item)
+        ].filter(Boolean).join('\n');
+    }
     // 精简 prompt：正向只描述目标画面，排除项交给独立负面提示词。
     return [
         renderStyle === '写实道具'
@@ -228,6 +294,7 @@ export const 构建物品图提示词 = (
             : 'single game prop asset on a plain neutral background, centered composition, clean silhouette',
         获取渲染风格要求(renderStyle),
         style === '写实' ? 'photorealistic' : style,
+        isAncientMedicine ? 'strict ancient wuxia medicine prop only: folded paper medicine packet, small cloth sachet, ceramic medicine vial, herbal powder or pills; absolutely pre-modern, no modern technology' : '',
         构建物品视觉主体描述(item),
         softGarmentGuard,
         'plain neutral background, centered object, clear silhouette, product catalog lighting'
@@ -254,6 +321,8 @@ export const 生成物品图标 = async (
         视觉描述: 读取文本((item as any)?.视觉描述) || 构建物品视觉描述(item),
     };
     const enrichedItemIsSoftGarment = 物品是否柔性服装(enrichedItem);
+    const enrichedItemIsLivingMount = 物品是否坐骑生物(enrichedItem);
+    const enrichedItemIsAncientMedicine = 物品是否古代药物(enrichedItem);
     const prompt = 构建物品图提示词(enrichedItem, {
         画风: style,
         渲染风格: renderStyle,
@@ -262,7 +331,11 @@ export const 生成物品图标 = async (
     const rawResult = await generateImageByPrompt(prompt, imageApi, options?.signal, {
         构图: '物品图标',
         尺寸: size,
-        附加正向提示词: renderStyle === '写实道具'
+        附加正向提示词: enrichedItemIsLivingMount
+            ? 'real living animal, alive mount, full body animal portrait, natural fur, organic anatomy, standing on real ground, no toy, no statue'
+            : enrichedItemIsAncientMedicine
+            ? 'ancient Chinese medicine prop, folded paper medicine packet, ceramic medicine vial, herbal powder or pills, pre-modern wuxia era, single physical object, photorealistic product photo, neutral matte studio background'
+            : renderStyle === '写实道具'
             ? `single physical object, photorealistic product photo, centered product composition, neutral matte studio background, clean silhouette, realistic material${enrichedItemIsSoftGarment ? ', soft fabric garment, cloth folds, flexible drape' : ''}`
             : 'single physical object, centered composition, clean silhouette, plain asset presentation',
         附加负面提示词: 构建物品负面提示词(enrichedItem),
