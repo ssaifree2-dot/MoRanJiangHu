@@ -21,6 +21,7 @@ import { 获取激活小说拆分注入文本 } from '../../services/novelDecomp
 import { 按功能开关过滤提示词内容, 裁剪修炼体系上下文数据 } from '../../utils/promptFeatureToggles';
 import { 同步剧情小说分解时间校准 } from '../../services/novelDecompositionCalibration';
 import { 创建工作流性能诊断 } from '../../utils/performanceDebug';
+import { 后台分段执行, 后台让出主线程 } from '../../utils/backgroundScheduling';
 
 type 规划更新工作流依赖 = {
     apiConfig: any;
@@ -385,7 +386,8 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 : [])
         ]);
 
-        const worldbookExtra = probe.time('构建规划世界书注入', () => 按功能开关过滤提示词内容(构建世界书注入文本({
+        await 后台让出主线程();
+        const worldbookExtra = await 后台分段执行(() => probe.time('构建规划世界书注入', () => 按功能开关过滤提示词内容(构建世界书注入文本({
             books: Array.isArray(deps.worldbooks) ? deps.worldbooks : [],
             scopes: heroineEnabled ? ['story_plan', 'heroine_plan'] : ['story_plan'],
             environment: params.state.环境,
@@ -396,7 +398,7 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
         }).combinedText, normalizedGameConfig), {
             worldbookCount: Array.isArray(deps.worldbooks) ? deps.worldbooks.length : 0,
             auditFocusCount: auditFocus.length
-        });
+        }));
         const novelDecompositionPrompt = await probe.timeAsync('构建规划小说拆分注入', async () => 按功能开关过滤提示词内容(await 获取激活小说拆分注入文本(
             deps.apiConfig,
             'planning',
@@ -424,23 +426,24 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             normalizedGameConfig
         );
 
-        const currentStoryJson = probe.time('序列化剧情规划载荷', () => JSON.stringify(planningStoryPayload, null, 2));
-        const currentHeroinePlanJson = probe.time('序列化女主规划载荷', () => JSON.stringify(planningHeroinePayload, null, 2));
-        const worldJson = probe.time('序列化世界载荷', () => JSON.stringify(
+        await 后台让出主线程();
+        const currentStoryJson = await 后台分段执行(() => probe.time('序列化剧情规划载荷', () => JSON.stringify(planningStoryPayload, null, 2)));
+        const currentHeroinePlanJson = await 后台分段执行(() => probe.time('序列化女主规划载荷', () => JSON.stringify(planningHeroinePayload, null, 2)));
+        const worldJson = await 后台分段执行(() => probe.time('序列化世界载荷', () => JSON.stringify(
             裁剪修炼体系上下文数据(deps.规范化世界状态(params.state.世界), normalizedGameConfig),
             null,
             2
-        ));
-        const socialJson = probe.time('序列化社交载荷', () => JSON.stringify(
+        )));
+        const socialJson = await 后台分段执行(() => probe.time('序列化社交载荷', () => JSON.stringify(
             裁剪修炼体系上下文数据(deps.规范化社交列表(params.state.社交), normalizedGameConfig),
             null,
             2
-        ));
-        const envJson = probe.time('序列化环境载荷', () => JSON.stringify(
+        )));
+        const envJson = await 后台分段执行(() => probe.time('序列化环境载荷', () => JSON.stringify(
             裁剪修炼体系上下文数据(deps.规范化环境信息(params.state.环境), normalizedGameConfig),
             null,
             2
-        ));
+        )));
         probe.mark('规划分析请求载荷准备完成', {
             storyJsonLength: currentStoryJson.length,
             heroineJsonLength: currentHeroinePlanJson.length,
@@ -513,7 +516,8 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             };
         }
 
-        const patched = probe.time('应用规划补丁命令', () => 应用规划补丁命令({
+        await 后台让出主线程();
+        const patched = await 后台分段执行(() => probe.time('应用规划补丁命令', () => 应用规划补丁命令({
             commands,
             env: params.state.环境,
             social: params.state.社交,
@@ -523,7 +527,7 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             heroinePlan: params.state.女主剧情规划,
             fandomStoryPlan: params.state.同人剧情规划,
             fandomHeroinePlan: params.state.同人女主剧情规划
-        }), { commandCount: commands.length });
+        }), { commandCount: commands.length }));
         const syncedPatchedStory = await probe.timeAsync('同步小说分解时间校准', () => 同步剧情小说分解时间校准({
             previousStory: params.state.剧情,
             nextStory: patched.story,
@@ -542,6 +546,7 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 heroinePlanCommands: []
             };
         }
+        await 后台让出主线程();
         probe.time('写入规划分析状态', () => {
             deps.设置剧情(syncedPatchedStory);
             if (fandomEnabled) {

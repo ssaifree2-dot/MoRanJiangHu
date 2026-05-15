@@ -46,6 +46,67 @@ type 世界生成工作流依赖 = {
 
 const 世界观阶段超时毫秒 = 120000;
 const 境界阶段超时毫秒 = 120000;
+const 开局流式预览最小间隔毫秒 = 700;
+
+const 创建开局流式历史更新器 = (
+    设置历史记录: 世界生成工作流依赖['设置历史记录']
+) => {
+    let lastFlushAt = 0;
+    let pendingContent = '';
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const 写入 = (content: string) => {
+        设置历史记录(prev => prev.map(item => {
+            if (
+                item.role === 'assistant'
+                && !item.structuredResponse
+                && typeof item.content === 'string'
+                && item.content.startsWith('【生成中】')
+            ) {
+                if (item.content === content) return item;
+                return {
+                    ...item,
+                    content
+                };
+            }
+            return item;
+        }));
+    };
+
+    const 刷新 = () => {
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
+        }
+        if (!pendingContent) return;
+        lastFlushAt = Date.now();
+        const content = pendingContent;
+        pendingContent = '';
+        写入(content);
+    };
+
+    const 更新 = (content: string, options?: { immediate?: boolean }) => {
+        pendingContent = content;
+        if (options?.immediate) {
+            刷新();
+            return;
+        }
+        const elapsed = Date.now() - lastFlushAt;
+        if (elapsed >= 开局流式预览最小间隔毫秒) {
+            刷新();
+            return;
+        }
+        if (!timer) {
+            timer = setTimeout(刷新, Math.max(80, 开局流式预览最小间隔毫秒 - elapsed));
+        }
+    };
+
+    const 停止 = () => {
+        刷新();
+    };
+
+    return { 更新, 停止 };
+};
 
 const 创建阶段超时错误 = (stageLabel: string, timeoutMs: number): Error => {
     const error = new Error(`${stageLabel}超时（${Math.max(1, Math.ceil(timeoutMs / 1000))} 秒），请检查模型服务或稍后重试。`);
@@ -169,6 +230,9 @@ export const 执行世界生成工作流 = async (
     let worldDeltaReceived = false;
     let realmStreamHeartbeat: ReturnType<typeof setInterval> | null = null;
     let realmDeltaReceived = false;
+    const 开局流式历史更新器 = openingStreaming
+        ? 创建开局流式历史更新器(deps.设置历史记录)
+        : null;
     try {
         const worldPromptSeed = 按功能开关过滤提示词内容(
             构建世界观种子提示词(worldConfig, charData),
@@ -215,57 +279,18 @@ export const 执行世界生成工作流 = async (
 
         if (useManualRealmPrompt) {
             if (openingStreaming) {
-                deps.设置历史记录(prev => prev.map(item => {
-                    if (
-                        item.role === 'assistant'
-                        && !item.structuredResponse
-                        && typeof item.content === 'string'
-                        && item.content.startsWith('【生成中】')
-                    ) {
-                        return {
-                            ...item,
-                            content: '【生成中】校验手动境界提示词...'
-                        };
-                    }
-                    return item;
-                }));
+                开局流式历史更新器?.更新('【生成中】校验手动境界提示词...', { immediate: true });
             }
             realmPromptContent = textAIService.解析境界体系提示词内容(normalizedManualRealmPrompt);
         } else if (启用修炼体系 && fandomEnabled) {
             if (openingStreaming) {
-                deps.设置历史记录(prev => prev.map(item => {
-                    if (
-                        item.role === 'assistant'
-                        && !item.structuredResponse
-                        && typeof item.content === 'string'
-                        && item.content.startsWith('【生成中】')
-                    ) {
-                        return {
-                            ...item,
-                            content: '【生成中】同人境界体系生成...'
-                        };
-                    }
-                    return item;
-                }));
+                开局流式历史更新器?.更新('【生成中】同人境界体系生成...', { immediate: true });
                 let pulse = 0;
                 realmStreamHeartbeat = setInterval(() => {
                     if (realmDeltaReceived) return;
                     pulse = (pulse + 1) % 4;
                     const dots = '.'.repeat(pulse) || '.';
-                    deps.设置历史记录(prev => prev.map(item => {
-                        if (
-                            item.role === 'assistant'
-                            && !item.structuredResponse
-                            && typeof item.content === 'string'
-                            && item.content.startsWith('【生成中】')
-                        ) {
-                            return {
-                                ...item,
-                                content: `【生成中】同人境界体系生成${dots}`
-                            };
-                        }
-                        return item;
-                    }));
+                    开局流式历史更新器?.更新(`【生成中】同人境界体系生成${dots}`);
                 }, 420);
             }
 
@@ -284,20 +309,7 @@ export const 执行世界生成工作流 = async (
                                 ? `...${normalized.slice(-420)}`
                                 : normalized;
                             const preview = tail.split('\n').slice(-10).join('\n').trim();
-                            deps.设置历史记录(prev => prev.map(item => {
-                                if (
-                                    item.role === 'assistant'
-                                    && !item.structuredResponse
-                                    && typeof item.content === 'string'
-                                    && item.content.startsWith('【生成中】')
-                                ) {
-                                    return {
-                                        ...item,
-                                        content: `【生成中】同人境界体系生成（流式预览）\n${preview || '...'}\n\n已接收 ${normalized.length} 字符`
-                                    };
-                                }
-                                return item;
-                            }));
+                            开局流式历史更新器?.更新(`【生成中】同人境界体系生成（流式预览）\n${preview || '...'}\n\n已接收 ${normalized.length} 字符`);
                         }
                     }
                     : undefined,
@@ -307,6 +319,7 @@ export const 执行世界生成工作流 = async (
                 signal
             ));
             if (realmStreamHeartbeat) clearInterval(realmStreamHeartbeat);
+            开局流式历史更新器?.停止();
         }
 
         updatedPrompts = 启用修炼体系
@@ -348,40 +361,17 @@ export const 执行世界生成工作流 = async (
             .trim(), normalizedGameConfig);
 
         if (openingStreaming) {
-            deps.设置历史记录(prev => prev.map(item => {
-                if (
-                    item.role === 'assistant'
-                    && !item.structuredResponse
-                    && typeof item.content === 'string'
-                    && item.content.startsWith('【生成中】')
-                ) {
-                    return {
-                        ...item,
-                        content: useManualWorldPrompt ? '【生成中】校验手动世界观提示词...' : '【生成中】世界观生成...'
-                    };
-                }
-                return item;
-            }));
+            开局流式历史更新器?.更新(
+                useManualWorldPrompt ? '【生成中】校验手动世界观提示词...' : '【生成中】世界观生成...',
+                { immediate: true }
+            );
             if (!useManualWorldPrompt) {
                 let pulse = 0;
                 worldStreamHeartbeat = setInterval(() => {
                     if (worldDeltaReceived) return;
                     pulse = (pulse + 1) % 4;
                     const dots = '.'.repeat(pulse) || '.';
-                    deps.设置历史记录(prev => prev.map(item => {
-                        if (
-                            item.role === 'assistant'
-                            && !item.structuredResponse
-                            && typeof item.content === 'string'
-                            && item.content.startsWith('【生成中】')
-                        ) {
-                            return {
-                                ...item,
-                                content: `【生成中】世界观生成${dots}`
-                            };
-                        }
-                        return item;
-                    }));
+                    开局流式历史更新器?.更新(`【生成中】世界观生成${dots}`);
                 }, 420);
             }
         }
@@ -402,20 +392,7 @@ export const 执行世界生成工作流 = async (
                                 ? `...${normalized.slice(-480)}`
                                 : normalized;
                             const preview = tail.split('\n').slice(-10).join('\n').trim();
-                            deps.设置历史记录(prev => prev.map(item => {
-                                if (
-                                    item.role === 'assistant'
-                                    && !item.structuredResponse
-                                    && typeof item.content === 'string'
-                                    && item.content.startsWith('【生成中】')
-                                ) {
-                                    return {
-                                        ...item,
-                                        content: `【生成中】世界观生成（流式预览）\n${preview || '...'}\n\n已接收 ${normalized.length} 字符`
-                                    };
-                                }
-                                return item;
-                            }));
+                            开局流式历史更新器?.更新(`【生成中】世界观生成（流式预览）\n${preview || '...'}\n\n已接收 ${normalized.length} 字符`);
                         }
                     }
                     : undefined,
@@ -427,6 +404,7 @@ export const 执行世界生成工作流 = async (
                 }
             ));
         if (worldStreamHeartbeat) clearInterval(worldStreamHeartbeat);
+        开局流式历史更新器?.停止();
 
         const worldPromptContent = generatedWorldPrompt?.trim() || worldPromptSeed;
 
@@ -479,6 +457,7 @@ export const 执行世界生成工作流 = async (
     } catch (error: any) {
         if (worldStreamHeartbeat) clearInterval(worldStreamHeartbeat);
         if (realmStreamHeartbeat) clearInterval(realmStreamHeartbeat);
+        开局流式历史更新器?.停止();
         console.error(error);
         const errorMessage = error?.message || '未知错误';
         deps.设置历史记录(prev => ([
