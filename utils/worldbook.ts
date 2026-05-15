@@ -22,6 +22,8 @@ import { 默认文章优化提示词 } from '../prompts/runtime/defaults';
 import { 核心_文章优化思维链 } from '../prompts/core/cotPolish';
 import { 剧情回忆检索COT提示词, 剧情回忆检索输出格式提示词 } from '../prompts/runtime/recall';
 import { 记忆精炼系统提示词 } from '../prompts/runtime/memoryRefine';
+import { 地图重生成系统提示词 } from '../prompts/runtime/mapRegenerate';
+import { 地图重生成COT提示词 } from '../prompts/runtime/mapRegenerateCot';
 import { 世界演变系统提示词 } from '../prompts/runtime/worldEvolution';
 import { 世界演变COT提示词 } from '../prompts/runtime/worldEvolutionCot';
 import { 变量校准COT提示词 } from '../prompts/runtime/variableCot';
@@ -148,7 +150,7 @@ export const 世界书本体槽位 = {
     开局初始化任务_禁用生存: 'builtin_slot_opening_init_task_survival_off'
 } as const;
 
-export const 内置世界书分类顺序: 世界书内置分类[] = ['常驻', '开局', '主剧情', '变量生成', '文章优化', '回忆', '世界演变'];
+export const 内置世界书分类顺序: 世界书内置分类[] = ['常驻', '开局', '主剧情', '变量生成', '文章优化', '回忆', '世界演变', '地图生成'];
 
 type 世界书本体槽位值 = typeof 世界书本体槽位[keyof typeof 世界书本体槽位];
 const 是本体槽位 = (slotId: unknown): boolean => typeof slotId === 'string' && slotId.startsWith('builtin_slot_');
@@ -676,6 +678,24 @@ export const 创建内置预设世界书 = (): 世界书结构 => {
                 类型: 'system_rule',
                 作用域: ['world_evolution'],
                 内容: 世界演变COT提示词
+            }),
+            创建内置预设条目({
+                id: 'builtin_map_regenerate_system_prompt',
+                内置槽位: 'builtin_map_regenerate_system_prompt',
+                标题: '地图生成 · 系统提示词',
+                内置分类: '地图生成',
+                类型: 'system_rule',
+                作用域: [],
+                内容: 地图重生成系统提示词
+            }),
+            创建内置预设条目({
+                id: 'builtin_map_regenerate_cot',
+                内置槽位: 'builtin_map_regenerate_cot',
+                标题: '地图生成 · COT',
+                内置分类: '地图生成',
+                类型: 'system_rule',
+                作用域: [],
+                内容: 地图重生成COT提示词
             }),
         ],
         创建时间: 1,

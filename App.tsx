@@ -11,9 +11,11 @@ import InAppConfirmModal, { ConfirmOptions } from './components/ui/InAppConfirmM
 import ReleaseNotesModal from './components/ui/ReleaseNotesModal';
 import { useGame } from './hooks/useGame';
 import { 环境时间转标准串 } from './hooks/useGame/timeUtils';
-import { 获取文生图接口配置, 获取生图词组转化器接口配置, 获取记忆精炼接口配置, 接口配置是否可用 } from './utils/apiConfig';
+import { 获取文生图接口配置, 获取生图词组转化器接口配置, 获取记忆精炼接口配置, 获取地图生成接口配置, 接口配置是否可用 } from './utils/apiConfig';
 import { 请求模型文本 } from './services/ai/chatCompletionClient';
 import { 记忆精炼系统提示词 } from './prompts/runtime/memoryRefine';
+import { 地图重生成系统提示词 } from './prompts/runtime/mapRegenerate';
+import { 地图重生成COT提示词 } from './prompts/runtime/mapRegenerateCot';
 import { 获取内置世界书槽位内容 } from './utils/worldbook';
 import { 构建字体注入样式文本, 构建UI文字CSS变量 } from './utils/visualSettings';
 import { 获取图片资源文本地址 } from './utils/imageAssets';
@@ -326,6 +328,7 @@ const App: React.FC = () => {
     const [showWorldbookManager, setShowWorldbookManager] = React.useState(false);
     const [showNovelDecompositionWorkbench, setShowNovelDecompositionWorkbench] = React.useState(false);
     const [showNovelExport, setShowNovelExport] = React.useState(false);
+    const [mapRegenerateRawText, setMapRegenerateRawText] = React.useState('');
     const [showAuctionHouse, setShowAuctionHouse] = React.useState(false);
     const [auctionHouseState, setAuctionHouseState] = React.useState<拍卖行状态>(() => 读取拍卖行状态());
     const [showMobileMusic, setShowMobileMusic] = React.useState(false);
@@ -1667,7 +1670,13 @@ const App: React.FC = () => {
             slotId: 'builtin_memory_refine_system_prompt',
             fallback: 记忆精炼系统提示词
         });
-        const userPrompt = `请精炼总结以下 ${selectedEntries.length} 条记忆，生成一份可用于后续剧情检索的历史纪要：\n\n${entriesText}`;
+        const sortedEntryTimes = selectedEntries
+            .map(item => typeof item?.记录时间 === 'string' ? item.记录时间.trim() : '')
+            .filter(Boolean);
+        const timeRangeHint = sortedEntryTimes.length >= 2
+            ? `\n时间范围：${sortedEntryTimes[0]} 至 ${sortedEntryTimes[sortedEntryTimes.length - 1]}`
+            : '';
+        const userPrompt = `请精炼总结以下 ${selectedEntries.length} 条记忆${timeRangeHint}，生成一份可用于后续剧情检索的历史纪要：\n\n${entriesText}`;
 
         try {
             const refinedText = await 请求模型文本(
@@ -1684,13 +1693,35 @@ const App: React.FC = () => {
             const minRound = sortedRounds[0];
             const maxRound = sortedRounds[sortedRounds.length - 1];
             const rawText = refinedText.trim();
-            const summaryMatch = rawText.match(/概况摘要[：:]\s*([\s\S]*?)(?=\n\s*正文[：:])/);
-            const bodyMatch = rawText.match(/正文[：:]\s*([\s\S]*)/);
-            const summaryText = summaryMatch ? summaryMatch[1].trim() : '';
-            const bodyText = bodyMatch ? bodyMatch[1].trim() : rawText;
-            const cleanSummary = summaryText || rawText.slice(0, 800);
+            // 优先匹配新格式 <<<TIME>>> / <<<SUMMARY>>> / <<<BODY>>>（兼容新旧顺序）
+            const newTimeMatch = rawText.match(/<<<TIME>>>\s*([\s\S]*?)(?=<<<SUMMARY>>>|<<<BODY>>>)/);
+            const newSummaryMatch = rawText.match(/<<<SUMMARY>>>\s*([\s\S]*?)(?=<<<TIME>>>|<<<BODY>>>)/);
+            const newBodyMatch = rawText.match(/<<<BODY>>>\s*([\s\S]*)/);
+            // 兼容旧格式 概况摘要：/ 正文：
+            const oldSummaryMatch = rawText.match(/概况摘要[：:]\s*([\s\S]*?)(?=\n\s*正文[：:])/);
+            const oldBodyMatch = rawText.match(/正文[：:]\s*([\s\S]*)/);
+            const summaryText = (newSummaryMatch ? newSummaryMatch[1].trim() : '') || (oldSummaryMatch ? oldSummaryMatch[1].trim() : '');
+            let timeRangeText = newTimeMatch ? newTimeMatch[1].trim() : '';
+            // 兜底：AI 没输出 <<<TIME>>> 时，从概况摘要首尾行自动提取时间
+            if (!timeRangeText && summaryText) {
+                const summaryLines = summaryText.split('\n').filter(line => /^\s*-/.test(line));
+                if (summaryLines.length > 0) {
+                    const timePat = /\d+:\d+:\d+:\d+:\d+/g;
+                    const firstTimes = summaryLines[0].match(timePat);
+                    const lastTimes = summaryLines[summaryLines.length - 1].match(timePat);
+                    if (firstTimes && lastTimes) {
+                        const startTime = firstTimes[0];
+                        const endTime = lastTimes[lastTimes.length - 1];
+                        timeRangeText = startTime !== endTime ? `${startTime} - ${endTime}` : startTime;
+                    }
+                }
+            }
+            const bodyText = (newBodyMatch ? newBodyMatch[1].trim() : '') || (oldBodyMatch ? oldBodyMatch[1].trim() : '') || rawText;
+            const timePrefix = timeRangeText ? `时间跨度：${timeRangeText}\n\n` : '';
+            const cleanSummary = timePrefix + (summaryText || bodyText.slice(0, 800));
+            const refinedNameSuffix = timeRangeText ? ` (${timeRangeText})` : '';
             const refinedEntry = {
-                名称: `【精炼纪要 ${minRound}-${maxRound}】`,
+                名称: `【精炼纪要 ${minRound}-${maxRound}】${refinedNameSuffix}`,
                 概括: cleanSummary,
                 原文: bodyText,
                 回合: maxRound,
@@ -1719,6 +1750,181 @@ const App: React.FC = () => {
     const stableRefineMemories = React.useCallback((rounds: number[]) =>
         handleRefineMemoriesRef.current(rounds)
     , []);
+    const handleRegenerateMap = React.useCallback(async (): Promise<boolean> => {
+        const currentEnv = state.环境;
+        const currentSocial = state.社交;
+        const currentWorld = state.世界;
+        const mapApi = 获取地图生成接口配置(apiConfigRef.current);
+        if (!接口配置是否可用(mapApi)) {
+            actions.pushNotification({ title: '解析失败', message: '地图生成接口未配置，请先在设置中配置 API。', tone: 'error' });
+            return false;
+        }
+        const locationText = [currentEnv?.大地点, currentEnv?.中地点, currentEnv?.小地点, currentEnv?.具体地点].filter(Boolean).join(' > ');
+        const npcList = (Array.isArray(currentSocial) ? currentSocial : [])
+            .map((npc: any) => npc?.姓名 || npc?.名称 || '').filter(Boolean);
+        const playerName = safeCharacter?.姓名 || '主角';
+        const npcNamesText = npcList.length > 0 ? npcList.join('、') : '暂无人';
+        const existingLayers = Array.isArray(currentWorld?.地图层级) ? currentWorld.地图层级 : [];
+        const existingLayerInfo = existingLayers.length > 0
+            ? '\n\n【已有地图层级数据（请全部保留并整合进新树）】\n' + JSON.stringify(existingLayers.map((l: any) => ({
+                名称: l?.名称 || '',
+                层级: l?.层级 || '',
+                父级ID: l?.父级ID || '',
+                描述: l?.描述 || '',
+            })), null, 2)
+            : '';
+        // 读取世界观设定
+        const worldPromptEntry = (Array.isArray(state.prompts) ? state.prompts : []).find((p: any) => p?.id === 'core_world');
+        const worldSetting = worldPromptEntry?.内容 ? `\n【世界观设定】\n${String(worldPromptEntry.内容).slice(0, 800)}` : '';
+        const worldContextLines: string[] = [];
+        existingLayers.forEach((l: any) => {
+            const desc = (l?.描述 || '').trim();
+            if (desc) worldContextLines.push(`[${l?.层级 || '?'}] ${l?.名称 || ''}: ${desc}`);
+        });
+        const worldContext = worldContextLines.length > 0
+            ? '\n【已有地点描述】\n' + worldContextLines.join('\n')
+            : '';
+        const userPrompt = `当前地点：${locationText || '未知'}
+当前主角：${playerName}
+当前在场人物：${npcNamesText}
+层级结构：寰宇(银河) → 大地点(世界) → 中地点(大洲) → 小地点(城镇) → 区地点(建筑) → 子地点(房间)${worldSetting}${worldContext}${existingLayerInfo}
+
+请根据以上信息重建完整的地点层级树。要求：
+1. 根节点必须是 层级:"寰宇" 名称:"诸天万界"。
+2. 从世界观设定中提取世界名称（如"太古界"），作为 层级:"大地点" 挂在寰宇下。如果环境变量中的大地点与世界观名不同，以世界观名为准。
+3. 必须保留已有数据中的所有地点，不删除不重命名。
+4. 中地点是大洲/区域，小地点是城镇/城池，区地点是具体建筑，子地点是房间。
+5. 检查是否有孤立节点，挂到正确父级下。
+6. 当前地点"${currentEnv?.具体地点 || currentEnv?.小地点 || '未知'}"作为区地点或子地点出现在树中。`;
+        try {
+            setMapRegenerateRawText('');
+            const cotPrompt = 获取内置世界书槽位内容({
+                books: meta.worldbooks,
+                slotId: 'builtin_map_regenerate_cot',
+                fallback: 地图重生成COT提示词
+            });
+            const systemPrompt = 获取内置世界书槽位内容({
+                books: meta.worldbooks,
+                slotId: 'builtin_map_regenerate_system_prompt',
+                fallback: 地图重生成系统提示词
+            });
+            const refinedText = await 请求模型文本(
+                mapApi,
+                [
+                    { role: 'system', content: cotPrompt },
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                {
+                    temperature: 0.7,
+                    streamOptions: {
+                        stream: true,
+                        onDelta: (delta: string) => {
+                            setMapRegenerateRawText((prev: string) => prev + delta);
+                        },
+                    },
+                }
+            );
+            if (!refinedText || refinedText.trim().length < 20) {
+                throw new Error('AI 返回内容过短');
+            }
+            setMapRegenerateRawText(refinedText);
+            let jsonStr = refinedText.trim();
+            // 去掉思考标签，只留JSON部分
+            const thinkEnd = jsonStr.lastIndexOf('</思考>');
+            if (thinkEnd >= 0) jsonStr = jsonStr.slice(thinkEnd + 6).trim();
+            const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (codeBlockMatch) jsonStr = codeBlockMatch[1].trim();
+            const parsed = JSON.parse(jsonStr);
+            const rawNodes = Array.isArray(parsed.地点树) ? parsed.地点树 : [];
+            // 兜底：AI 没返回足够节点时，用环境数据构建基础树
+            let finalNodes = rawNodes;
+            // 从世界观设定中提取世界名称作为大地点（优先于环境变量）
+            const worldPromptEntry = (Array.isArray(state.prompts) ? state.prompts : []).find((p: any) => p?.id === 'core_world');
+            const worldPromptText = worldPromptEntry?.内容 ? String(worldPromptEntry.内容) : '';
+            // 尝试从世界观文本中提取世界名称（常见模式："世界名称：xxx" 或 "xxx大陆"）
+            const worldNameMatch = worldPromptText.match(/世界名称[：:]\s*(.+)/) || worldPromptText.match(/(\S+大陆)/);
+            const worldNameFromPrompt = worldNameMatch ? worldNameMatch[1].trim() : '';
+            const 大地点名 = worldNameFromPrompt || currentEnv?.大地点 || '未知大陆';
+            const 中地点名 = currentEnv?.中地点 || '未知区域';
+            const 小地点名 = currentEnv?.小地点 || '未知城镇';
+            const 子地点名 = currentEnv?.具体地点 || '当前所在';
+            const envNodes = [
+                { 名称: '诸天万界', 层级: '寰宇', 父级ID: '', 描述: '诸天万界交汇之地' },
+                { 名称: 大地点名, 层级: '大地点', 父级ID: '诸天万界', 描述: '' },
+                ...(中地点名 !== '未知区域' ? [{ 名称: 中地点名, 层级: '中地点' as const, 父级ID: 大地点名, 描述: '' }] : []),
+                ...(小地点名 !== '未知城镇' ? [{ 名称: 小地点名, 层级: '小地点' as const, 父级ID: 中地点名, 描述: '' }] : []),
+                ...(子地点名 !== '当前所在' ? [{ 名称: 子地点名, 层级: '区地点' as const, 父级ID: 小地点名, 描述: '' }] : []),
+            ];
+            // 合并AI结果与环境基础节点（envNodes优先，避免AI标错层级）
+            const envNames = new Set(envNodes.map(n => n.名称));
+            const aiOnlyNodes = finalNodes.filter((n: any) => !envNames.has(n.名称));
+            finalNodes = [...envNodes, ...aiOnlyNodes];
+            // 第一步：收集所有节点名称，统一分配ID（DT格式替换旧layer格式）
+            const existingLayers = Array.isArray(currentWorld?.地图层级) ? currentWorld.地图层级 : [];
+            const oldNameToId = new Map<string, string>();
+            existingLayers.forEach((l: any) => {
+                const name = (l?.名称 || '').trim();
+                const id = (l?.ID || '').trim();
+                // 只保留已是 DT-xxx 格式的ID，旧的 layer-xxx 格式强制替换
+                if (name && id.startsWith('DT-')) oldNameToId.set(name, id);
+            });
+
+            let seqCounter = 0;
+            const 生成新ID = (): string => { seqCounter += 1; return `DT-${String(seqCounter).padStart(3, '0')}`; };
+
+            const allNames = new Set<string>();
+            finalNodes.forEach((n: any) => {
+                const name = (n?.名称 || '').trim();
+                if (name) allNames.add(name);
+            });
+            const nameToId = new Map<string, string>();
+            allNames.forEach(name => {
+                nameToId.set(name, oldNameToId.get(name) || 生成新ID());
+            });
+
+            // 第二步：构建新层，父级ID通过原始名称解析
+            const newLayers = finalNodes.map((n: any) => {
+                const name = (n?.名称 || '').trim();
+                const parentName = (n?.父级ID || '').trim();
+                return {
+                    ID: nameToId.get(name) || 生成新ID(),
+                    名称: name,
+                    层级: n?.层级 || '小地点',
+                    描述: n?.描述 || '',
+                    父级ID: parentName ? (nameToId.get(parentName) || oldNameToId.get(parentName) || '') : '',
+                    归属: { 大地点: '', 中地点: '', 小地点: '' },
+                };
+            });
+
+            // 第三步：全量替换——新解析的地图层级彻底替换旧数据
+            // 不再保留旧层，避免旧坐标数据残留导致层级错乱
+            // 不展开旧世界，避免深拷贝可能的问题
+            const nextWorld: any = {};
+            // 复制旧世界所有字段
+            for (const key of Object.keys(currentWorld || {})) {
+                nextWorld[key] = (currentWorld as any)[key];
+            }
+            // 覆盖地图字段
+            nextWorld.地图层级 = newLayers;
+            nextWorld.地图 = [];
+            nextWorld.建筑 = [];
+            nextWorld.地图建筑 = [];
+            nextWorld.地图道路 = [];
+            nextWorld.地图人物 = [];
+            setters.setWorld(nextWorld);
+            // 用 ref 确保保存时能拿到最新数据（setState 是异步的）
+            worldRef.current = nextWorld;
+            actions.pushNotification({ title: '解析完成', message: `已生成 ${newLayers.length} 个地点节点，请手动存档以保存地图数据。`, tone: 'success' });
+            const layerSummary = newLayers.map((l: any) => `[${l.层级}]${l.名称}`).join(' → ');
+            // 结果在解析日志中可见，不弹通知
+            return true;
+        } catch (error: any) {
+            const errorMsg = error?.message || '未知错误';
+            actions.pushNotification({ title: '地图解析失败', message: `AI 解析失败：${errorMsg}`, tone: 'error' });
+            return false;
+        }
+    }, [actions, state.世界, state.环境, state.社交, safeCharacter?.姓名]);
     const openNovelExport = React.useCallback(() => {
         closeAllPanels();
         setShowNovelExport(true);
@@ -2036,6 +2242,8 @@ const App: React.FC = () => {
     const mobileBackNavigationRef = React.useRef(handleNativeBackNavigation);
     const apiConfigRef = React.useRef(state.apiConfig);
     apiConfigRef.current = state.apiConfig;
+    const worldRef = React.useRef(state.世界);
+    worldRef.current = state.世界;
 
     React.useEffect(() => {
         mobileBackNavigationRef.current = handleNativeBackNavigation;
@@ -3234,6 +3442,8 @@ const App: React.FC = () => {
                                     playerName={safeCharacter?.姓名 || ''}
                                     debugEnabled={(state.gameConfig as any)?.启用研发诊断模式 === true}
                                     onOpenPerson={openNpcDetailFromRecord}
+                                    onRegenerateMap={handleRegenerateMap}
+                                    rawResponse={mapRegenerateRawText}
                                     onClose={() => setters.setShowMap(false)}
                                 />
                             ) : (
@@ -3244,6 +3454,8 @@ const App: React.FC = () => {
                                     playerName={safeCharacter?.姓名 || ''}
                                     debugEnabled={(state.gameConfig as any)?.启用研发诊断模式 === true}
                                     onOpenPerson={openNpcDetailFromRecord}
+                                    onRegenerateMap={handleRegenerateMap}
+                                    rawResponse={mapRegenerateRawText}
                                     onClose={() => setters.setShowMap(false)}
                                 />
                             )}

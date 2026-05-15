@@ -1,7 +1,7 @@
 import React from 'react';
 import { 世界数据结构 } from '../../../models/world';
 import { 环境信息结构 } from '../../../models/environment';
-import GridMapScene from './GridMapScene';
+import LocationBrowser from './LocationBrowser';
 
 interface Props {
     world: 世界数据结构;
@@ -11,14 +11,16 @@ interface Props {
     debugEnabled?: boolean;
     onClose: () => void;
     onOpenPerson?: (person: any) => void;
+    onRegenerateMap?: () => Promise<boolean>;
+    rawResponse?: string;
 }
 
-const MobileMapModal: React.FC<Props> = ({ world, env, socialList = [], playerName = '', debugEnabled = false, onClose, onOpenPerson }) => (
+const MobileMapModal: React.FC<Props> = ({ world, env, onClose, onRegenerateMap, rawResponse, socialList }) => (
     <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/95 p-1.5 backdrop-blur-sm md:hidden animate-fadeIn">
         <div className="relative flex h-[95vh] w-full flex-col overflow-hidden rounded-xl border border-wuxia-gold/20 bg-[#0b0907]/95 shadow-[0_0_80px_rgba(0,0,0,0.9)]">
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-wuxia-gold/10 bg-black/70 px-4">
                 <div className="min-w-0">
-                    <div className="truncate font-serif text-lg font-bold tracking-[0.22em] text-wuxia-gold">江湖网格图</div>
+                    <div className="truncate font-serif text-lg font-bold tracking-[0.22em] text-wuxia-gold">江湖舆图</div>
                     <div className="truncate text-[10px] tracking-[0.16em] text-[#bba77b]">{env?.具体地点 || env?.小地点 || '未知之境'}</div>
                 </div>
                 <button
@@ -30,14 +32,13 @@ const MobileMapModal: React.FC<Props> = ({ world, env, socialList = [], playerNa
                 </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-3 custom-scrollbar">
-                <GridMapScene
+            <div className="min-h-0 flex-1 overflow-hidden p-2">
+                <LocationBrowser
                     world={world}
                     env={env}
+                    onRegenerateMap={onRegenerateMap}
+                    rawResponse={rawResponse}
                     socialList={socialList}
-                    playerName={playerName}
-                    debugEnabled={debugEnabled}
-                    onOpenPerson={onOpenPerson}
                     compact
                 />
             </div>

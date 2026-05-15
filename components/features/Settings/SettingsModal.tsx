@@ -24,6 +24,7 @@ const LogViewer = React.lazy(() => lazyImportWithReload('settings-log-viewer', (
 const RecallModelSettings = React.lazy(() => lazyImportWithReload('settings-recall-model', () => import('./RecallModelSettings')));
 const MemorySummaryModelSettings = React.lazy(() => lazyImportWithReload('settings-memory-summary-model', () => import('./MemorySummaryModelSettings')));
 const MemoryRefineModelSettings = React.lazy(() => lazyImportWithReload('settings-memory-refine-model', () => import('./MemoryRefineModelSettings')));
+const MapModelSettings = React.lazy(() => lazyImportWithReload('settings-map-model', () => import('./MapModelSettings')));
 const PolishModelSettings = React.lazy(() => lazyImportWithReload('settings-polish-model', () => import('./PolishModelSettings')));
 const WorldEvolutionModelSettings = React.lazy(() => lazyImportWithReload('settings-world-evolution-model', () => import('./WorldEvolutionModelSettings')));
 const VariableModelSettings = React.lazy(() => lazyImportWithReload('settings-variable-model', () => import('./VariableModelSettings')));
@@ -35,7 +36,7 @@ const MusicSettings = React.lazy(() => lazyImportWithReload('settings-music', ()
 const NpcManager = React.lazy(() => lazyImportWithReload('settings-npc-manager', () => import('./NpcManager')));
 const VariableManager = React.lazy(() => lazyImportWithReload('settings-variable-manager', () => import('./VariableManager')));
 
-type SettingsTab = 'api' | 'image_generation' | 'recall' | 'memory_summary_model' | 'memory_refine_model' | 'polish' | 'world_evolution' | 'variable_model' | 'planning_model' | 'independent_api_gpt' | 'novel_decomposition' | 'novel_decomposition_runtime' | 'prompt' | 'storage' | 'theme' | 'visual' | 'world' | 'game' | 'reality' | 'tavern_preset' | 'memory' | 'history' | 'context' | 'logs' | 'music' | 'npc_management' | 'variable_manager';
+type SettingsTab = 'api' | 'image_generation' | 'recall' | 'memory_summary_model' | 'memory_refine_model' | 'map_model' | 'polish' | 'world_evolution' | 'variable_model' | 'planning_model' | 'independent_api_gpt' | 'novel_decomposition' | 'novel_decomposition_runtime' | 'prompt' | 'storage' | 'theme' | 'visual' | 'world' | 'game' | 'reality' | 'tavern_preset' | 'memory' | 'history' | 'context' | 'logs' | 'music' | 'npc_management' | 'variable_manager';
 type RuntimeStateSections = Record<'角色' | '环境' | '社交' | '世界' | '战斗' | '剧情' | '女主剧情规划' | '玩家门派' | '任务列表' | '约定列表' | '记忆系统', unknown>;
 
 type ContextSection = {
@@ -130,6 +131,7 @@ const SettingsModal: React.FC<Props> = ({
         { id: 'recall', label: '剧情回忆' },
         { id: 'memory_summary_model', label: '记忆总结' },
         { id: 'memory_refine_model', label: '记忆精炼' },
+        { id: 'map_model', label: '地图生成' },
         { id: 'polish', label: '文章优化' },
         { id: 'world_evolution', label: '世界演变' },
         { id: 'variable_model', label: '变量生成' },
@@ -158,6 +160,7 @@ const SettingsModal: React.FC<Props> = ({
         if (activeTab === 'recall') return <RecallModelSettings settings={apiConfig} onSave={onSaveApi} />;
         if (activeTab === 'memory_summary_model') return <MemorySummaryModelSettings settings={apiConfig} onSave={onSaveApi} />;
         if (activeTab === 'memory_refine_model') return <MemoryRefineModelSettings settings={apiConfig} onSave={onSaveApi} />;
+        if (activeTab === 'map_model') return <MapModelSettings settings={apiConfig} onSave={onSaveApi} />;
         if (activeTab === 'polish') return <PolishModelSettings settings={apiConfig} onSave={onSaveApi} />;
         if (activeTab === 'world_evolution') return <WorldEvolutionModelSettings settings={apiConfig} onSave={onSaveApi} />;
         if (activeTab === 'variable_model') return <VariableModelSettings settings={apiConfig} onSave={onSaveApi} />;

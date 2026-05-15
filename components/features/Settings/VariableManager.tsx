@@ -2,7 +2,28 @@ import React from 'react';
 import type { TavernCommand } from '../../../types';
 import { 构建变量路径登记表, 校验变量命令是否登记 } from '../../../utils/variableRegistry';
 
-type 变量根键 = '角色' | '环境' | '社交' | '世界' | '战斗' | '剧情' | '女主剧情规划' | '玩家门派' | '任务列表' | '约定列表' | '记忆系统';
+type 变量根键 = '角色' | '环境' | '社交' | '世界' | '地图系统' | '战斗' | '剧情' | '女主剧情规划' | '玩家门派' | '任务列表' | '约定列表' | '记忆系统';
+
+const 地图系统字段 = new Set(['地图', '建筑', '地图层级', '地图建筑', '地图道路', '地图人物']);
+
+const 提取地图数据 = (worldData: unknown): Record<string, unknown> => {
+    if (!worldData || typeof worldData !== 'object') return {};
+    const source = worldData as Record<string, unknown>;
+    const result: Record<string, unknown> = {};
+    地图系统字段.forEach(key => { if (key in source) result[key] = source[key]; });
+    return result;
+};
+
+// 从世界数据中移除地图字段，使其只在"地图系统"中显示
+const 过滤世界数据 = (worldData: unknown): Record<string, unknown> => {
+    if (!worldData || typeof worldData !== 'object') return {};
+    const source = worldData as Record<string, unknown>;
+    const result: Record<string, unknown> = {};
+    Object.keys(source).forEach(key => {
+        if (!地图系统字段.has(key)) result[key] = source[key];
+    });
+    return result;
+};
 
 interface Props {
     runtimeState: Record<变量根键, unknown>;
@@ -19,7 +40,8 @@ const 分区列表: Array<{ key: 变量根键; label: string; description: strin
     { key: '角色', label: '角色', description: '主角角色档案、属性、装备和状态。' },
     { key: '环境', label: '环境', description: '时间、地点、天气与环境变量。' },
     { key: '社交', label: '社交', description: 'NPC 列表与其动态状态。' },
-    { key: '世界', label: '世界', description: '地图、活跃事件、江湖史册等。' },
+    { key: '世界', label: '世界', description: '活跃NPC、事件、势力、江湖史册等。' },
+    { key: '地图系统', label: '地图系统', description: '地图层级、建筑、道路、人物等空间数据。' },
     { key: '战斗', label: '战斗', description: '当前战斗态势。' },
     { key: '剧情', label: '剧情', description: '章节、剧情规划、关键剧情变量组。' },
     { key: '女主剧情规划', label: '女主剧情规划', description: '女主排期与推进指引。' },
@@ -165,27 +187,61 @@ const VariableManager: React.FC<Props> = ({ runtimeState, onReplaceSection, onAp
     const [commandError, setCommandError] = React.useState('');
     const variableRegistry = React.useMemo(() => 构建变量路径登记表(runtimeState, { maxDepth: 5, maxLines: 320 }), [runtimeState]);
 
+    const activeValue = React.useMemo(() => {
+        if (activeSection === '地图系统') {
+            return drafts['地图系统'] || 提取地图数据(runtimeState['世界']);
+        }
+        if (activeSection === '世界') {
+            return 过滤世界数据(drafts['世界'] || runtimeState['世界']);
+        }
+        return drafts[activeSection];
+    }, [activeSection, drafts, runtimeState]);
+
+    // 保留地图系统草稿，防止被 runtimeState 更新覆盖
+    const mapDraftRef = React.useRef<any>(null);
     React.useEffect(() => {
         const nextDrafts = 深拷贝(runtimeState);
+        if (mapDraftRef.current) {
+            nextDrafts['地图系统'] = mapDraftRef.current;
+        } else {
+            nextDrafts['地图系统'] = 提取地图数据(runtimeState['世界']);
+        }
         setDrafts(nextDrafts);
-        setJsonDraft(格式化JSON(nextDrafts[activeSection]));
-    }, [runtimeState, activeSection]);
-
-    const activeValue = drafts[activeSection];
+    }, [runtimeState]);
 
     React.useEffect(() => {
         setJsonDraft(格式化JSON(activeValue));
     }, [activeValue]);
 
     const updateActiveDraft = (value: any) => {
-        setDrafts((prev) => ({ ...prev, [activeSection]: value }));
+        if (activeSection === '地图系统') mapDraftRef.current = value;
+        setDrafts((prev) => ({ ...prev, [activeSection === '地图系统' ? '地图系统' : activeSection]: value }));
     };
 
     const handleSaveSection = () => {
         try {
             const parsed = JSON.parse(jsonDraft);
-            setDrafts((prev) => ({ ...prev, [activeSection]: parsed }));
-            onReplaceSection(activeSection, parsed);
+            if (activeSection === '地图系统') {
+                const currentMapData = activeValue;
+                const worldData = 深拷贝(runtimeState['世界'] || {});
+                ['地图', '建筑', '地图建筑', '地图道路', '地图人物'].forEach(k => { (worldData as any)[k] = []; });
+                Object.keys(currentMapData).forEach(key => {
+                    (worldData as any)[key] = (currentMapData as any)[key];
+                });
+                setDrafts((prev) => ({ ...prev, 世界: worldData, 地图系统: currentMapData }));
+                onReplaceSection('世界', worldData);
+            } else if (activeSection === '世界') {
+                // 保存世界时，把地图字段从当前状态合并回来，防止丢失
+                const worldData = 深拷贝(parsed);
+                地图系统字段.forEach(key => {
+                    (worldData as any)[key] = (runtimeState['世界'] as any)?.[key] ?? [];
+                });
+                setDrafts((prev) => ({ ...prev, 世界: worldData }));
+                onReplaceSection('世界', worldData);
+            } else {
+                setDrafts((prev) => ({ ...prev, [activeSection]: parsed }));
+                onReplaceSection(activeSection, parsed);
+            }
         } catch {
             window.alert('当前分区 JSON 无法解析。');
         }
@@ -246,7 +302,13 @@ const VariableManager: React.FC<Props> = ({ runtimeState, onReplaceSection, onAp
                                 <div className="text-sm font-bold text-paper-white">{activeSection}</div>
                                 <div className="mt-1 text-xs text-gray-500">{分区列表.find((item) => item.key === activeSection)?.description}</div>
                             </div>
-                            <button type="button" onClick={() => updateActiveDraft(深拷贝(runtimeState[activeSection]))} className={次级按钮样式}>
+                            <button type="button" onClick={() => {
+                                if (activeSection === '地图系统') {
+                                    updateActiveDraft(提取地图数据(runtimeState['世界']));
+                                } else {
+                                    updateActiveDraft(深拷贝(runtimeState[activeSection]));
+                                }
+                            }} className={次级按钮样式}>
                                 重置本分区
                             </button>
                         </div>

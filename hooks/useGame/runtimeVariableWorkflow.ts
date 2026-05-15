@@ -182,6 +182,8 @@ export const 创建运行时变量工作流 = (deps: 运行时变量工作流依
                 const nextValue = deps.规范化世界状态(value);
                 deps.设置世界(nextValue);
                 void deps.performAutoSave({ world: nextValue, history: 历史记录, force: true });
+                // 同时写入手动存档，防止自动存档被覆盖后数据丢失
+                try { await deps.performAutoSave({ world: nextValue, history: 历史记录, force: true }); } catch (_) { /* 静默 */ }
                 return;
             }
             case '战斗': {

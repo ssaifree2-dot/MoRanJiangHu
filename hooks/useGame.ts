@@ -3428,7 +3428,8 @@ export const useGame = () => {
             setActiveTab, setCurrentTheme,
             setApiConfig, setVisualConfig, setImageManagerConfig, setPrompts,
             setCharacter: 设置角色,
-            setPlayerSect: 设置玩家门派
+            setPlayerSect: 设置玩家门派,
+            setWorld: 设置世界
         },
         actions: {
             handleSend,

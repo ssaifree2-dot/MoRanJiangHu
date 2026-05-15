@@ -16,6 +16,7 @@ interface Props {
     debugEnabled?: boolean;
     compact?: boolean;
     onOpenPerson?: (person: any) => void;
+    onRegenerateMap?: () => Promise<boolean>;
 }
 
 type 选中对象类型 =
@@ -135,6 +136,7 @@ const GridMapScene: React.FC<Props> = ({
     debugEnabled = false,
     compact = false,
     onOpenPerson,
+    onRegenerateMap,
 }) => {
     const normalizedWorld = useMemo(() => 补齐世界地图空间字段(world, { env }), [world, env]);
     const defaultScene = useMemo(() => 构建已补齐地图空间场景(normalizedWorld, env, socialList, playerName), [normalizedWorld, env, socialList, playerName]);
@@ -145,6 +147,7 @@ const GridMapScene: React.FC<Props> = ({
     const persistentPeople = Array.isArray(normalizedWorld.地图人物) ? normalizedWorld.地图人物 : [];
     const defaultLayerId = defaultScene.当前层级?.ID || layers[0]?.ID || '';
 
+    const [regenerating, setRegenerating] = useState(false);
     const [selectedLayerId, setSelectedLayerId] = useState(defaultLayerId);
     const [selectedFeatureId, setSelectedFeatureId] = useState('');
     const [showNpcDebug, setShowNpcDebug] = useState(false);
@@ -598,8 +601,23 @@ const GridMapScene: React.FC<Props> = ({
                         <div className="truncate font-serif text-2xl font-bold text-[#7a3f12]">{selectedLayer?.名称 || '未命中层级'}</div>
                         <div className="mt-1 truncate text-sm tracking-widest text-[#5f3a1e]">{env?.大地点 || '未知'} / {env?.中地点 || '未知'} / {env?.小地点 || '未知'} / {env?.具体地点 || '未知'}</div>
                     </div>
-                    <div className="rounded-full border border-[#c7a56a]/55 bg-[#fff1d6] px-3 py-1 text-xs text-[#7a3f12]">
-                        建筑 {currentLayerBuildings.length} / 道路 {currentLayerRoads.length} / 人物 {currentLayerPeopleWithFallback.length}
+                    <div className="flex items-center gap-2">
+                        <div className="rounded-full border border-[#c7a56a]/55 bg-[#fff1d6] px-3 py-1 text-xs text-[#7a3f12]">
+                            建筑 {currentLayerBuildings.length} / 道路 {currentLayerRoads.length} / 人物 {currentLayerPeopleWithFallback.length}
+                        </div>
+                        {onRegenerateMap && (
+                            <button
+                                type="button"
+                                disabled={regenerating}
+                                onClick={async () => {
+                                    setRegenerating(true);
+                                    try { await onRegenerateMap(); } finally { setRegenerating(false); }
+                                }}
+                                className="rounded-full border border-[#b45309]/50 bg-[#fff1d6] px-3 py-1 text-xs text-[#b45309] hover:bg-[#b45309] hover:text-white transition-colors disabled:opacity-50"
+                            >
+                                {regenerating ? '解析中…' : '解析地图'}
+                            </button>
+                        )}
                     </div>
                 </div>
 

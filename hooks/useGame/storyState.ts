@@ -725,7 +725,8 @@ export const 规范化世界状态 = (raw?: any): 世界数据结构 => {
         拍卖行待投放物品: Array.isArray(world?.拍卖行待投放物品) ? world.拍卖行待投放物品 : []
     };
 
-    return 补齐世界地图空间字段(normalizedWorld);
+    // 不再调用补齐——旧坐标系统已废弃，新地图系统不需要空间坐标补全
+    return normalizedWorld;
 };
 
 export const 创建开场空白战斗 = (): 战斗状态结构 => ({

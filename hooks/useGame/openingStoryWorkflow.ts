@@ -1245,6 +1245,32 @@ export const 执行开场剧情生成工作流 = async (
             });
         }
 
+        // 代码兜底：确保开局地图层级正确初始化
+        try {
+            const envNow = simulatedOpeningState.环境;
+            const existingLayers = Array.isArray((simulatedOpeningState.世界 as any)?.地图层级) ? [...(simulatedOpeningState.世界 as any).地图层级] : [];
+            const layerNames = new Set(existingLayers.map((l: any) => l?.名称));
+            const bigPlace = envNow?.大地点 || '未知大陆';
+            let seq = existingLayers.length;
+            const addLayer = (name: string, level: string, parentId: string) => {
+                if (!name || layerNames.has(name)) return;
+                seq += 1;
+                existingLayers.push({ ID: `DT-${String(seq).padStart(3, '0')}`, 名称: name, 层级: level, 父级ID: parentId, 描述: '' });
+                layerNames.add(name);
+            };
+            addLayer('诸天万界', '寰宇', '');
+            addLayer(bigPlace, '大地点', '太古界');
+            addLayer(envNow?.中地点 || '', '中地点', bigPlace);
+            addLayer(envNow?.小地点 || '', '小地点', envNow?.中地点 || bigPlace);
+            addLayer(envNow?.具体地点 || '', '区地点', envNow?.小地点 || envNow?.中地点 || bigPlace);
+            if (existingLayers.length > (Array.isArray((simulatedOpeningState.世界 as any)?.地图层级) ? (simulatedOpeningState.世界 as any).地图层级.length : 0)) {
+                simulatedOpeningState = {
+                    ...simulatedOpeningState,
+                    世界: { ...simulatedOpeningState.世界, 地图层级: existingLayers } as any,
+                };
+            }
+        } catch (_) { /* 静默 */ }
+
         const openingPlanningApi = 获取规划分析接口配置(deps.apiConfig);
         if (接口配置是否可用(openingPlanningApi)) {
             const planningStage = await 执行可重试开局阶段({

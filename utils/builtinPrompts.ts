@@ -15,7 +15,7 @@ import { 构建变量模型用户附加规则提示词, 构建变量模型用户
 
 export const 内置提示词存储键 = 'builtin_prompt_entries';
 export const 内置提示词导出版本 = 1;
-export const 内置提示词分类顺序: 内置提示词分类[] = ['常驻', '开局', '主剧情', '变量生成', '文章优化', '回忆', '世界演变'];
+export const 内置提示词分类顺序: 内置提示词分类[] = ['常驻', '开局', '主剧情', '变量生成', '文章优化', '回忆', '世界演变', '地图生成'];
 
 const 读取文本 = (value: unknown): string => (typeof value === 'string' ? value : '');
 

@@ -361,6 +361,9 @@ export interface 功能模型占位配置结构 {
     当前NPC生图配置档ID?: string;
     当前场景生图配置档ID?: string;
     当前物品生图配置档ID?: string;
+    地图生成使用模型: string;
+    地图生成API地址: string;
+    地图生成API密钥: string;
 }
 
 export interface 接口设置结构 {

@@ -812,59 +812,17 @@ export const 构建系统提示词 = ({
     const 构建地图建筑状态文本 = (payload: any) => {
         const source = payload || {};
         const env = 规范化环境信息(source?.环境);
-        const world = 规范化世界状态(source?.世界);
-        const scene = 构建地图空间场景(world, env);
-        const 当前层级链文本 = scene.当前层级链.length > 0
-            ? scene.当前层级链.map((item) => `${item.层级}:${item.名称}`).join(' > ')
-            : '未知';
-        const 当前层 = scene.当前层级;
-        const 当前层摘要 = 当前层
-            ? `- 当前层: ${当前层.名称} | 层级: ${当前层.层级} | 锚点: [${当前层.锚点坐标.x},${当前层.锚点坐标.y}] | 网格: ${当前层.网格宽度}x${当前层.网格高度}`
-            : '- 当前层: 未命中';
-        const 层级摘要 = scene.层级列表.length > 0
-            ? scene.层级列表.map((layer) => {
-                const ownership = [
-                    layer.归属?.大地点 || '未知大地点',
-                    layer.归属?.中地点 || '未知中地点',
-                    layer.归属?.小地点 || '未知小地点'
-                ].join(' > ');
-                return `- ${layer.层级}:${layer.名称} | 归属:${ownership} | 锚点:[${layer.锚点坐标.x},${layer.锚点坐标.y}] | 网格:${layer.网格宽度}x${layer.网格高度}`;
-            }).join('\n')
-            : '- 暂无层级数据';
-        const 建筑文本 = scene.当前层建筑物.length > 0
-            ? scene.当前层建筑物.map((building) => {
-                const corners = building.四角坐标.map((point) => `[${point.x},${point.y}]`).join(' ');
-                const hit = scene.命中建筑ID列表.includes(building.ID) ? ' | 当前命中' : '';
-                return `- ${building.名称}${hit} | 分类:${building.分类 || '建筑'} | 四角:${corners}\n  描述: ${building.描述 || '无描述'}`;
-            }).join('\n')
-            : '- 当前层暂无建筑面数据';
-        const 道路文本 = scene.当前层道路.length > 0
-            ? scene.当前层道路.map((road) => (
-                `- ${road.名称} | 路径:${road.路径点.map((point) => `[${point.x},${point.y}]`).join(' -> ')}`
-            )).join('\n')
-            : '- 当前层暂无道路线数据';
-        const 人物文本 = scene.当前层人物.length > 0
-            ? scene.当前层人物.map((person) => (
-                `- ${person.名称}${person.是否当前玩家 ? '（主角）' : ''} | 坐标:[${person.坐标.x},${person.坐标.y}] | 描述:${person.描述 || '无'}`
-            )).join('\n')
-            : '- 当前层暂无人物点数据';
-
+        const layers = Array.isArray(source?.世界?.地图层级) ? source.世界.地图层级 : [];
+        // 仅输出层级链，不输出旧坐标数据
+        const chain: string[] = [env.大地点, env.中地点, env.小地点, env.具体地点].filter(Boolean) as string[];
+        const 层级树 = layers.length > 0
+            ? layers.map((l: any) => `[${l.层级 || '?'}] ${l.名称 || ''}`).join(' > ')
+            : '';
         return [
-            '【地图与空间锚点】',
-            `当前地点层级链: ${当前层级链文本}`,
-            当前层摘要,
-            '',
-            '层级总览:',
-            层级摘要,
-            '',
-            '当前层建筑物（面）:',
-            建筑文本,
-            '',
-            '当前层道路（线）:',
-            道路文本,
-            '',
-            '当前层人物（点）:',
-            人物文本
+            '【地图与空间锚点（新层级系统）】',
+            `当前地点链: ${chain.join(' > ') || '未知'}`,
+            `地图层级树: ${层级树 || '暂无'}（共 ${layers.length} 个节点）`,
+            '新地图系统已启用，地点节点信息见 世界.地图层级。',
         ].join('\n');
     };
     const 构建剧情安排 = (payload: any) => {

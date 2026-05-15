@@ -472,7 +472,17 @@ export const 执行读取存档 = async (
     deps.设置角色(deps.规范化角色物品容器映射(save.角色数据));
     deps.设置环境(deps.规范化环境信息(save.环境信息 || deps.创建开场空白环境()));
     deps.设置社交(deps.规范化社交列表(save.社交 || []));
-    deps.设置世界(deps.规范化世界状态(save.世界 || deps.创建开场空白世界()));
+    const rawWorld = save.世界 || deps.创建开场空白世界();
+    // 删除旧地图坐标字段
+    ['地图', '建筑', '地图建筑', '地图道路', '地图人物'].forEach(k => { if (k in (rawWorld as any)) (rawWorld as any)[k] = []; });
+    // 检测并清除旧格式地图层级（没有寰宇节点的视为旧数据）
+    const layers = Array.isArray((rawWorld as any)?.地图层级) ? (rawWorld as any).地图层级 : [];
+    if (layers.length > 0 && !layers.some((l: any) => l?.层级 === '寰宇')) {
+        (rawWorld as any).地图层级 = [];
+    }
+    const normalizedWorld = deps.规范化世界状态(rawWorld);
+    ['地图', '建筑', '地图建筑', '地图道路', '地图人物'].forEach(k => { if (k in (normalizedWorld as any)) (normalizedWorld as any)[k] = []; });
+    deps.设置世界(normalizedWorld);
     deps.设置战斗(deps.规范化战斗状态(save.战斗 || deps.创建开场空白战斗()));
     deps.设置玩家门派(deps.规范化门派状态(save.玩家门派 || deps.创建空门派状态()));
     deps.设置任务列表(规范化任务列表自动结算(save.任务列表 || []));

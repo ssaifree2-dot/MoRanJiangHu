@@ -11,7 +11,7 @@ export type 世界书作用域 =
     | 'all';
 export type 世界书注入模式 = 'always' | 'match_any';
 export type 世界书条目形态 = 'normal' | 'timeline_outline' | 'time_injection';
-export type 世界书内置分类 = '常驻' | '开局' | '主剧情' | '变量生成' | '文章优化' | '回忆' | '世界演变';
+export type 世界书内置分类 = '常驻' | '开局' | '主剧情' | '变量生成' | '文章优化' | '回忆' | '世界演变' | '地图生成';
 export type 内置提示词分类 = 世界书内置分类;
 
 export interface 世界书条目结构 {

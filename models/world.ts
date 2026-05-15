@@ -20,7 +20,7 @@ export interface 建筑结构 {
     归属: 地点归属结构;
 }
 
-export type 地图层级类型 = '大地点' | '中地点' | '小地点' | '具体地点';
+export type 地图层级类型 = '寰宇' | '大地点' | '中地点' | '小地点' | '区地点' | '具体地点';
 
 export interface 地图坐标点结构 {
     x: number;
