@@ -1,16 +1,28 @@
 {
-  "versionCode": 150,
-  "versionName": "1.0.149",
+  "versionCode": 151,
+  "versionName": "1.0.150",
   "releaseChannel": "stable",
-  "releasePublishedAt": "2026-05-15T12:52:22.043+08:00",
+  "releasePublishedAt": "2026-05-15T18:21:16.682+08:00",
   "releaseNotes": [
-    "v1.0.149 正式发布：修复 CNB 默认普通生图工作流的模型链路不匹配问题。",
-    "普通非 NSFW 生图切换为已在线实测成功的 Z-Image Turbo 基础工作流，使用 qwen_3_4b + lumina2 + ae + z_image_turbo_bf16，避免 3584/2560 hidden size 报错。",
-    "NSFW 生图继续保留独立 mPMix_NSFW_V9_fp8 工作流，普通与 NSFW 两套链路继续分开，并都支持负面提示词。",
-    "CNB 预设工作流和模型预下载清单已同步精简，只保留两套墨色江湖工作流实际需要的模型。",
-    "网页端、APK 包和更新清单同步提升到 v1.0.149 / CODE 150。"
+    "v1.0.150 正式发布：同步修复应用内默认 NSFW ComfyUI 工作流。",
+    "NSFW 默认工作流恢复 mPMix_NSFW_V9_fp8 + Qwen-Image-2512-Lightning 4steps LoRA 主链路，和 CNB 预设保持一致。",
+    "普通非 NSFW 工作流保持 Z-Image Turbo 基础链路，不再误接 NSFW 专用 Lightning LoRA。",
+    "两套默认工作流继续保留 qwen_3_4b + lumina2 + ae.safetensors，并支持正面和负面提示词注入。",
+    "网页端、APK 包和更新清单同步提升到 v1.0.150 / CODE 151。"
   ],
   "releaseHistory": [
+    {
+      "versionCode": 151,
+      "versionName": "1.0.150",
+      "publishedAt": "2026-05-15T18:21:16.682+08:00",
+      "changes": [
+        "v1.0.150 正式发布：同步修复应用内默认 NSFW ComfyUI 工作流。",
+        "NSFW 默认工作流恢复 mPMix_NSFW_V9_fp8 + Qwen-Image-2512-Lightning 4steps LoRA 主链路，和 CNB 预设保持一致。",
+        "普通非 NSFW 工作流保持 Z-Image Turbo 基础链路，不再误接 NSFW 专用 Lightning LoRA。",
+        "两套默认工作流继续保留 qwen_3_4b + lumina2 + ae.safetensors，并支持正面和负面提示词注入。",
+        "网页端、APK 包和更新清单同步提升到 v1.0.150 / CODE 151。"
+      ]
+    },
     {
       "versionCode": 150,
       "versionName": "1.0.149",

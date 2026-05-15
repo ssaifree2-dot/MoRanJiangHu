@@ -402,13 +402,27 @@ const 默认ZImageTurboNSFWComfyUI工作流 = {
     "inputs": {
       "shift": 3,
       "model": [
-        "46",
+        "53",
         0
       ]
     },
     "class_type": "ModelSamplingAuraFlow",
     "_meta": {
       "title": "采样算法（AuraFlow）"
+    }
+  },
+  "53": {
+    "inputs": {
+      "model": [
+        "46",
+        0
+      ],
+      "lora_name": "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+      "strength_model": 1
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "Qwen Lightning 4steps LoRA"
     }
   },
   "54": {
