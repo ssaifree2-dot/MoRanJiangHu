@@ -916,7 +916,8 @@ const App: React.FC = () => {
                 物品品质: item?.品质,
                 生成时间: record?.生成时间,
                 状态: record?.状态 || 'success',
-                构图: record?.构图
+                构图: record?.构图,
+                错误信息: typeof record?.错误信息 === 'string' ? record.错误信息.trim() : ''
             }));
         });
         const auctionRecords = (Array.isArray(auctionHouseState?.拍卖品列表) ? auctionHouseState.拍卖品列表 : []).flatMap((entry: any) => {
@@ -929,7 +930,8 @@ const App: React.FC = () => {
                 物品品质: item?.品质,
                 生成时间: record?.生成时间,
                 状态: record?.状态 || 'success',
-                构图: record?.构图
+                构图: record?.构图,
+                错误信息: typeof record?.错误信息 === 'string' ? record.错误信息.trim() : ''
             }));
         });
         return [...bagRecords, ...auctionRecords];

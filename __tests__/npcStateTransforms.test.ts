@@ -117,4 +117,25 @@ describe('NPC old save compatibility', () => {
         expect(Math.max(...positiveSkills.map((item: any) => item.熟练度))).toBeLessThanOrEqual(32);
         expect(positiveSkills.some((item: any) => item.名称 !== '采集' || item.熟练度 !== 10)).toBe(true);
     });
+
+    it('drops dialogue narration fragments that were mistaken for NPC names', () => {
+        const list = 规范化社交列表([
+            {
+                id: 'npc_dialogue_fragment',
+                姓名: '她轻声细语地',
+                性别: '未知',
+                身份: '剧情对话人物',
+                对白登场: true,
+                自动补全头像: true
+            },
+            {
+                id: 'npc_su_waner',
+                姓名: '苏婉儿',
+                性别: '女',
+                身份: '贴身侍女'
+            }
+        ], { 合并同名: false });
+
+        expect(list.map((npc: any) => npc.姓名)).toEqual(['苏婉儿']);
+    });
 });

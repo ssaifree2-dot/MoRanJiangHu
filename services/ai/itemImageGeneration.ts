@@ -3,6 +3,7 @@ import type { 游戏物品 } from '../../models/item';
 import type { 当前可用接口结构 } from '../../utils/apiConfig';
 import { 获取文生图接口配置, 接口配置是否可用 } from '../../utils/apiConfig';
 import { 合并物品图片档案 } from '../../utils/itemImage';
+import { 默认NSFWComfyUI工作流JSON } from '../../data/defaultComfyWorkflow';
 import { generateImageByPrompt, persistImageAssetLocally } from './image';
 
 type 物品生图来源位置 = '背包' | '拍卖行';
@@ -27,6 +28,19 @@ export interface 物品图标生成结果 {
 const 读取文本 = (value: unknown, fallback = '') => (
     typeof value === 'string' ? value.trim() : fallback
 );
+
+const 构建物品生图接口配置 = (imageApi: 当前可用接口结构 | null): 当前可用接口结构 | null => {
+    if (!imageApi) return null;
+    if (imageApi?.图片后端类型 !== 'comfyui') return imageApi;
+    const workflow = 读取文本(imageApi.ComfyUI工作流JSON);
+    // 当前 CNB 的 NunchakuZImageDiTLoader 对部分 z_image_turbo_bf16 模型会抛 KeyError: 'weight'。
+    // 物品图标优先稳定产出，因此避开该节点，复用已验证可执行的 mPMix + Lightning 工作流。
+    if (!/NunchakuZImageDiTLoader/i.test(workflow)) return imageApi;
+    return {
+        ...imageApi,
+        ComfyUI工作流JSON: 默认NSFWComfyUI工作流JSON
+    };
+};
 
 /**
  * 仅用于写入 `视觉描述` 字段的原始文本。
@@ -225,7 +239,7 @@ export const 生成物品图标 = async (
     apiConfig: 接口设置结构,
     options?: 物品图标生成选项
 ): Promise<物品图标生成结果> => {
-    const imageApi = options?.imageApi || 获取文生图接口配置(apiConfig);
+    const imageApi = 构建物品生图接口配置(options?.imageApi || 获取文生图接口配置(apiConfig));
     if (!接口配置是否可用(imageApi)) {
         throw new Error('请先在设置的“文生图”中配置可用接口，再生成物品图。');
     }
@@ -246,7 +260,7 @@ export const 生成物品图标 = async (
         来源位置: sourceLocation
     });
     const rawResult = await generateImageByPrompt(prompt, imageApi, options?.signal, {
-        构图: '头像',
+        构图: '物品图标',
         尺寸: size,
         附加正向提示词: renderStyle === '写实道具'
             ? `single physical object, photorealistic product photo, centered product composition, neutral matte studio background, clean silhouette, realistic material${enrichedItemIsSoftGarment ? ', soft fabric garment, cloth folds, flexible drape' : ''}`

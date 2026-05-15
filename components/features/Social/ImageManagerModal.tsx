@@ -36,6 +36,7 @@ interface Props {
         生成时间?: number;
         状态?: 图片生成状态类型;
         构图?: string;
+        错误信息?: string;
     }>;
     queue: NPC生图任务记录[];
     sceneArchive: 场景图片档案;
@@ -2933,6 +2934,12 @@ const ImageManagerModal: React.FC<Props> = ({
                                             <span>{item.物品品质 || '未知品质'}</span>
                                         </div>
                                         <div className="mt-1 font-mono text-[10px] text-gray-500">{格式化时间(item.生成时间)}</div>
+                                        {item.状态 === 'failed' && item.错误信息 && (
+                                            <details className="mt-2 rounded border border-red-500/20 bg-red-950/20 px-2 py-1 text-[10px] text-red-300">
+                                                <summary className="cursor-pointer select-none text-red-200">查看失败详情</summary>
+                                                <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono leading-relaxed">{item.错误信息}</pre>
+                                            </details>
+                                        )}
                                     </div>
                                 ))}
                             </div>

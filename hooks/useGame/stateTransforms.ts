@@ -1742,6 +1742,35 @@ const 合并NPC图片档案对象 = (leftRaw: any, rightRaw: any): any | undefin
     };
 };
 
+const 噪声NPC姓名片段正则 = /(?:轻声|低声|细语|小声|柔声|温声|沉声|冷声|厉声|压低|喃喃|喃语|嘀咕|说道|说着|问道|答道|开口|补充|解释|提醒|笑着|苦笑|皱眉|抬眼|抬头|看向|望向|回头|点头|摇头|叹息|擦净|将|把|并|却|已经|刚刚)/;
+const 噪声NPC姓名收尾正则 = /(?:地|着|了|道|问|说)$/;
+
+const 是否噪声NPC姓名 = (value: unknown): boolean => {
+    const name = 规范化文本(value);
+    if (!name) return true;
+    if (name.length > 12) return true;
+    if (/[，。！？；：、,.!?;:\s\n\r]/.test(name)) return true;
+    if (/^(旁白|判定|NSFW判定|免责声明|disclaimer)$/.test(name)) return true;
+    if (/^(?:他|她|它|你|我|他们|她们|对方|那人|此人|有人|众人).{1,10}$/.test(name) && 噪声NPC姓名片段正则.test(name)) return true;
+    if (name.length >= 4 && 噪声NPC姓名收尾正则.test(name) && 噪声NPC姓名片段正则.test(name)) return true;
+    return false;
+};
+
+const 是否应丢弃NPC条目 = (rawNpc: any): boolean => {
+    if (!rawNpc || typeof rawNpc !== 'object' || Array.isArray(rawNpc)) return false;
+    const name = 取首个非空文本(rawNpc?.姓名, rawNpc?.名称, rawNpc?.name);
+    if (!是否噪声NPC姓名(name)) return false;
+    if (rawNpc?.对白登场 === true || rawNpc?.自动补全头像 === true) return true;
+    const id = 取首个非空文本(rawNpc?.id, rawNpc?.ID);
+    const hasStableId = Boolean(id && !/^npc_\d+$/.test(id));
+    const hasSubstantialProfile = Boolean(
+        取首个非空文本(rawNpc?.外貌描写, rawNpc?.身份, rawNpc?.简介, rawNpc?.境界)
+        || rawNpc?.是否主要角色 === true
+        || rawNpc?.是否队友 === true
+    );
+    return !hasStableId || !hasSubstantialProfile;
+};
+
 const 标准化单个NPC = (rawNpc: any, fallbackIndex: number): any => {
     const npc = rawNpc && typeof rawNpc === 'object' ? rawNpc : {};
     const npc其他字段 = { ...npc };
@@ -2063,7 +2092,7 @@ const 合并同名NPC列表 = (list: any[]): any[] => {
     const merged: any[] = [];
     const nameIndexMap = new Map<string, number>();
 
-    list.forEach((rawNpc, index) => {
+    list.filter((rawNpc) => !是否应丢弃NPC条目(rawNpc)).forEach((rawNpc, index) => {
         const normalized = 标准化单个NPC(rawNpc, index);
         const nameKey = 归一化键(normalized?.姓名);
         const nameMatchedIndex = nameKey ? nameIndexMap.get(nameKey) : undefined;
@@ -2087,7 +2116,8 @@ const 合并同名NPC列表 = (list: any[]): any[] => {
 
 const 规范化社交列表 = (list: any[], options?: { 合并同名?: boolean }): any[] => {
     if (!Array.isArray(list)) return [];
-    const normalized = list.map((npc, index) => 标准化单个NPC(npc, index));
+    const filtered = list.filter((npc) => !是否应丢弃NPC条目(npc));
+    const normalized = filtered.map((npc, index) => 标准化单个NPC(npc, index));
     if (options?.合并同名 === false) return normalized;
     return 合并同名NPC列表(normalized);
 };

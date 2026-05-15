@@ -4,7 +4,7 @@ import {
     用已发现ComfyUI后端替换地址,
     type 当前可用接口结构
 } from '../../utils/apiConfig';
-import type { 香闺秘档部位类型 } from '../../models/imageGeneration';
+import type { 生图构图类型, 香闺秘档部位类型 } from '../../models/imageGeneration';
 import type { PNG解析参数结构, PNG画风预设来源类型, 角色锚点结构, 图片词组序列化策略类型 } from '../../models/system';
 import { 角色图片分词COT伪装历史消息提示词 } from '../../prompts/runtime/imageTokenizerCharacterCot';
 import { 场景图片分词COT伪装历史消息提示词 } from '../../prompts/runtime/imageTokenizerSceneCot';
@@ -1807,9 +1807,17 @@ const 提取ComfyUI失败信息 = (historyPayload: any): string | null => {
     const messages = Array.isArray(status.messages) ? status.messages : [];
     const executionError = messages.find((entry: any) => Array.isArray(entry) && String(entry[0] || '').toLowerCase().includes('error'));
     if (statusText === 'error' || executionError) {
-        const detail = Array.isArray(executionError)
-            ? JSON.stringify(executionError[1] || executionError).slice(0, 800)
-            : '';
+        const payload = Array.isArray(executionError) ? (executionError[1] || executionError) : null;
+        const nodeId = typeof payload?.node_id === 'string' ? payload.node_id : '';
+        const nodeType = typeof payload?.node_type === 'string' ? payload.node_type : '';
+        const exceptionType = typeof payload?.exception_type === 'string' ? payload.exception_type : '';
+        const exceptionMessage = typeof payload?.exception_message === 'string' ? payload.exception_message.trim() : '';
+        const detailParts = [
+            nodeId || nodeType ? `节点 ${nodeId || '未知'}${nodeType ? ` (${nodeType})` : ''}` : '',
+            exceptionType || exceptionMessage ? `${exceptionType || 'Error'}${exceptionMessage ? `: ${exceptionMessage}` : ''}` : '',
+            payload ? `原始错误：${JSON.stringify(payload).slice(0, 4000)}` : ''
+        ].filter(Boolean);
+        const detail = detailParts.join('\n');
         return `ComfyUI 工作流执行失败${detail ? `：${detail}` : ''}`;
     }
     if (completed && statusText === 'success' && !提取ComfyUI图片地址(historyPayload, '')) {
@@ -3697,7 +3705,7 @@ export const generateImageByPrompt = async (
     prompt: string,
     apiConfig: 当前可用接口结构,
     signal?: AbortSignal,
-    options?: { 构图?: '头像' | '半身' | '立绘' | '场景' | '部位特写'; 场景类型?: 场景生成类型; 附加正向提示词?: string; 附加负面提示词?: string; 尺寸?: string; 跳过基础负面提示词?: boolean; PNG参数?: PNG解析参数结构 }
+    options?: { 构图?: 生图构图类型; 场景类型?: 场景生成类型; 附加正向提示词?: string; 附加负面提示词?: string; 尺寸?: string; 跳过基础负面提示词?: boolean; PNG参数?: PNG解析参数结构 }
 ): Promise<图片生成结果> => {
     const endpoint = 构建图片端点(apiConfig.baseUrl, apiConfig.图片接口路径);
     if (!endpoint) throw new Error('Missing API Base URL');
