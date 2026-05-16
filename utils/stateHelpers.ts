@@ -7,6 +7,7 @@ import {
     剧情系统结构,
     剧情规划结构,
     女主剧情规划结构,
+    男主剧情规划结构, // ✨ 新增：引入男主结构
     同人剧情规划结构,
     同人女主剧情规划结构,
     详细门派结构,
@@ -16,10 +17,12 @@ import {
 
 type 状态命令动作 = 'set' | 'add' | 'push' | 'delete' | 'sub';
 
+// ✨ 新增：在阵列中加入 '男主剧情规划'
 const 根路径列表 = [
     '同人女主剧情规划',
     '同人剧情规划',
     '女主剧情规划',
+    '男主剧情规划', 
     '剧情规划',
     '玩家门派',
     '任务列表',
@@ -44,6 +47,7 @@ type 命令结果结构 = {
     story: 剧情系统结构;
     storyPlan: 剧情规划结构;
     heroinePlan: 女主剧情规划结构 | undefined;
+    maleLeadPlan: 男主剧情规划结构 | undefined; // ✨ 新增：结果中包含男主
     fandomStoryPlan: 同人剧情规划结构 | undefined;
     fandomHeroinePlan: 同人女主剧情规划结构 | undefined;
     sect: 详细门派结构;
@@ -72,6 +76,7 @@ const 环境相对根字段 = ['天气', '环境变量', '大地点', '中地点
 const 剧情相对根字段 = ['当前章节', '下一章预告', '历史卷宗'];
 const 剧情规划相对根字段 = ['当前章目标', '当前章任务', '跨章延续事项', '待触发事件', '镜头规划', '换章规则'];
 const 女主规划相对根字段 = ['阶段推进', '女主条目', '女主互动事件', '女主镜头规划'];
+const 男主规划相对根字段 = ['阶段推进', '男主条目', '男主互动事件', '男主镜头规划']; // ✨ 新增：男主规划相对根字段
 const 同人剧情规划相对根字段 = ['当前对齐信息', '当前章目标', '当前章任务', '分歧线', '待触发事件', '镜头规划', '换组规则'];
 
 const 兼容值路径别名 = (rawPath: string): string => {
@@ -112,6 +117,10 @@ export const normalizeStateCommandKey = (rawKey: string): string => {
     }
     if (女主规划相对根字段.some((head) => key === head || key.startsWith(`${head}.`) || key.startsWith(`${head}[`))) {
         return `gameState.女主剧情规划.${key}`;
+    }
+    // ✨ 新增：拦截男主的字段
+    if (男主规划相对根字段.some((head) => key === head || key.startsWith(`${head}.`) || key.startsWith(`${head}[`))) {
+        return `gameState.男主剧情规划.${key}`;
     }
     if (同人剧情规划相对根字段.some((head) => key === head || key.startsWith(`${head}.`) || key.startsWith(`${head}[`))) {
         return `gameState.同人剧情规划.${key}`;
@@ -281,7 +290,8 @@ export const applyStateCommand = (
     rootAgreements: 约定结构[],
     key: string,
     value: any,
-    action: 状态命令动作
+    action: 状态命令动作,
+    rootMaleLeadPlan?: 男主剧情规划结构 // ✨ 新增：接收男主参数
 ): 命令结果结构 => {
     const normalizedKey = normalizeStateCommandKey(key);
     const parsed = 提取根路径(normalizedKey);
@@ -295,6 +305,7 @@ export const applyStateCommand = (
         story: rootStory,
         storyPlan: rootStoryPlan,
         heroinePlan: rootHeroinePlan,
+        maleLeadPlan: rootMaleLeadPlan, // ✨ 新增：初始化男主状态
         fandomStoryPlan: rootFandomStoryPlan,
         fandomHeroinePlan: rootFandomHeroinePlan,
         sect: rootSect,
@@ -331,6 +342,9 @@ export const applyStateCommand = (
                 break;
             case '女主剧情规划':
                 result.heroinePlan = next as 女主剧情规划结构 | undefined;
+                break;
+            case '男主剧情规划': // ✨ 新增：写回男主状态
+                result.maleLeadPlan = next as 男主剧情规划结构 | undefined;
                 break;
             case '同人剧情规划':
                 result.fandomStoryPlan = next as 同人剧情规划结构 | undefined;
@@ -370,6 +384,8 @@ export const applyStateCommand = (
                 return result.storyPlan;
             case '女主剧情规划':
                 return result.heroinePlan;
+            case '男主剧情规划': // ✨ 新增：读取当前男主状态
+                return result.maleLeadPlan;
             case '同人剧情规划':
                 return result.fandomStoryPlan;
             case '同人女主剧情规划':
