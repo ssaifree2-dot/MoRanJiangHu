@@ -14,7 +14,8 @@ import { 核心_判定思维链 } from './core/cotJudge';
 import { 核心_古代现实基本逻辑 } from './core/ancientRealism';
 import { 核心_行动选项规范 } from './core/actionOptions';
 import { 核心_时间推进法则 } from './core/timeProgress';
-
+// ✨ 新增：男主剧情规划提示词导入
+import { 核心_男主剧情规划, 核心_男主剧情规划_NTL } from './core/maleLeadPlan';
 // Stats
 import { 数值_角色属性 } from './stats/character';
 import { 数值_物品属性 } from './stats/items';
