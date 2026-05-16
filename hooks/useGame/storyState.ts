@@ -633,7 +633,7 @@ export const 规范化世界状态 = (raw?: any): 世界数据结构 => {
         进行中事件: Array.isArray(world?.进行中事件)
             ? world.进行中事件
                 .map((item: any) => ({
-                    事件名: 取文本(item?.事件名)
+                    事件名: 取文本(item?.事件名),
                     类型: 取文本(item?.类型),
                     事件说明: 取文本(item?.事件说明),
                     开始时间: 取文本(item?.开始时间),
