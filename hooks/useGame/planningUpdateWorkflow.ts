@@ -519,7 +519,12 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
         const heroinePlanCommands = heroineEnabled
             ? probe.time('过滤女主规划补丁命令', () => 过滤规划补丁命令(result.commands, activeHeroinePlanTargets))
             : [];
-        const commands = [...storyCommands, ...storyPlanCommands, ...heroinePlanCommands];
+        const maleLeadEnabled = true; // 或綁定到你的遊戲設定：规范化游戏设置(deps.gameConfig).启用男主剧情规划 === true;
+
+        const maleLeadPlanCommands = maleLeadEnabled
+            ? probe.time('过滤男主规划补丁命令', () => 过滤规划补丁命令(result.commands, ['男主剧情规划', 'gameState.男主剧情规划']))
+            : [];    
+        const commands = [...storyCommands, ...storyPlanCommands, ...heroinePlanCommands, ...maleLeadPlanCommands];
         probe.mark('规划补丁命令过滤完成', {
             effectiveCommands: commands.length,
             storyCommands: storyCommands.length,
