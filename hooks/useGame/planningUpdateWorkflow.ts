@@ -6,6 +6,7 @@ import type {
     剧情系统结构,
     剧情规划结构,
     女主剧情规划结构,
+    男主剧情规划结构, // ✨ 新增
     同人剧情规划结构,
     同人女主剧情规划结构,
     环境信息结构
@@ -47,6 +48,7 @@ type 规划更新工作流依赖 = {
     规范化剧情状态: (raw?: any, envLike?: any) => 剧情系统结构;
     规范化剧情规划状态: (raw?: any) => 剧情规划结构;
     规范化女主剧情规划状态: (raw?: any) => 女主剧情规划结构 | undefined;
+    规范化男主剧情规划状态?: (raw?: any) => 男主剧情规划结构 | undefined; // ✨ 新增
     规范化同人剧情规划状态: (raw?: any) => 同人剧情规划结构 | undefined;
     规范化同人女主剧情规划状态: (raw?: any) => 同人女主剧情规划结构 | undefined;
     深拷贝: <T>(value: T) => T;
@@ -61,12 +63,15 @@ type 规划更新工作流依赖 = {
     去重文本数组: (items: string[]) => string[];
     收集女主规划时间触发原因: (planLike?: 女主剧情规划结构, envLike?: 环境信息结构) => string[];
     收集女主正文命中原因: (planLike?: 女主剧情规划结构, latestBodyText?: string) => string[];
+    收集男主规划时间触发原因?: (planLike?: 男主剧情规划结构, envLike?: 环境信息结构) => string[]; // ✨ 新增
+    收集男主正文命中原因?: (planLike?: 男主剧情规划结构, latestBodyText?: string) => string[]; // ✨ 新增
     收集剧情规划时间触发原因: (planLike?: 剧情规划结构 | 同人剧情规划结构, envLike?: 环境信息结构) => string[];
     收集剧情正文命中原因: (storyLike?: 剧情系统结构, planLike?: 剧情规划结构 | 同人剧情规划结构, latestBodyText?: string) => string[];
     提取响应完整正文文本: (response?: GameResponse) => string;
     设置剧情: (story: 剧情系统结构) => void;
     设置剧情规划: (plan: 剧情规划结构) => void;
     设置女主剧情规划: (plan?: 女主剧情规划结构) => void;
+    设置男主剧情规划?: (plan?: 男主剧情规划结构) => void; // ✨ 新增
     设置同人剧情规划: (plan?: 同人剧情规划结构) => void;
     设置同人女主剧情规划: (plan?: 同人女主剧情规划结构) => void;
     performAutoSave: (snapshot?: any) => Promise<void>;
@@ -80,6 +85,7 @@ type 统一规划分析结果 = {
     storyCommands: TavernCommand[];
     storyPlanCommands: TavernCommand[];
     heroinePlanCommands: TavernCommand[];
+    maleLeadPlanCommands: TavernCommand[]; // ✨ 新增
 };
 
 const 过滤规划补丁命令 = (commands: TavernCommand[] | undefined, targets: string[]): TavernCommand[] => (
@@ -180,12 +186,14 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
         story: 剧情系统结构;
         storyPlan: 剧情规划结构;
         heroinePlan?: 女主剧情规划结构;
+        maleLeadPlan?: 男主剧情规划结构; // ✨ 新增
         fandomStoryPlan?: 同人剧情规划结构;
         fandomHeroinePlan?: 同人女主剧情规划结构;
     }): {
         story: 剧情系统结构;
         storyPlan: 剧情规划结构;
         heroinePlan?: 女主剧情规划结构;
+        maleLeadPlan?: 男主剧情规划结构; // ✨ 新增
         fandomStoryPlan?: 同人剧情规划结构;
         fandomHeroinePlan?: 同人女主剧情规划结构;
     } => {
@@ -200,6 +208,7 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
         let storyBuffer = deps.规范化剧情状态(params.story, envBuffer);
         let storyPlanBuffer = deps.规范化剧情规划状态(params.storyPlan);
         let heroinePlanBuffer = deps.规范化女主剧情规划状态(params.heroinePlan);
+        let maleLeadPlanBuffer = deps.规范化男主剧情规划状态 ? deps.规范化男主剧情规划状态(params.maleLeadPlan) : undefined; // ✨ 新增
         let fandomStoryPlanBuffer = deps.规范化同人剧情规划状态(params.fandomStoryPlan);
         let fandomHeroinePlanBuffer = deps.规范化同人女主剧情规划状态(params.fandomHeroinePlan);
 
@@ -220,7 +229,8 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 agreementsBuffer,
                 cmd.key,
                 cmd.value,
-                cmd.action
+                cmd.action,
+                maleLeadPlanBuffer // ✨ 新增传入 (需要在 stateHelpers.ts 中增加此参数)
             );
             charBuffer = result.char;
             envBuffer = result.env;
@@ -235,6 +245,7 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             heroinePlanBuffer = result.heroinePlan;
             fandomStoryPlanBuffer = result.fandomStoryPlan;
             fandomHeroinePlanBuffer = result.fandomHeroinePlan;
+            if (result.maleLeadPlan) maleLeadPlanBuffer = result.maleLeadPlan; // ✨ 接收更新
         });
 
         envBuffer = deps.规范化环境信息(envBuffer);
@@ -247,6 +258,7 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             story: deps.规范化剧情状态(storyBuffer, envBuffer),
             storyPlan: deps.规范化剧情规划状态(storyPlanBuffer),
             heroinePlan: deps.规范化女主剧情规划状态(heroinePlanBuffer),
+            maleLeadPlan: deps.规范化男主剧情规划状态 ? deps.规范化男主剧情规划状态(maleLeadPlanBuffer) : undefined, // ✨ 新增
             fandomStoryPlan: deps.规范化同人剧情规划状态(fandomStoryPlanBuffer),
             fandomHeroinePlan: deps.规范化同人女主剧情规划状态(fandomHeroinePlanBuffer)
         };
@@ -260,6 +272,7 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             剧情: 剧情系统结构;
             剧情规划: 剧情规划结构;
             女主剧情规划?: 女主剧情规划结构;
+            男主剧情规划?: 男主剧情规划结构; // ✨ 新增
             同人剧情规划?: 同人剧情规划结构;
             同人女主剧情规划?: 同人女主剧情规划结构;
         };
@@ -276,7 +289,8 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 commands: [],
                 storyCommands: [],
                 storyPlanCommands: [],
-                heroinePlanCommands: []
+                heroinePlanCommands: [],
+                maleLeadPlanCommands: [] // ✨ 新增
             };
         }
         if (deps.规划分析进行中Ref) {
@@ -300,7 +314,8 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 commands: [],
                 storyCommands: [],
                 storyPlanCommands: [],
-                heroinePlanCommands: []
+                heroinePlanCommands: [],
+                maleLeadPlanCommands: [] // ✨ 新增
             };
         }
 
@@ -331,12 +346,15 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 commands: [],
                 storyCommands: [],
                 storyPlanCommands: [],
-                heroinePlanCommands: []
+                heroinePlanCommands: [],
+                maleLeadPlanCommands: [] // ✨ 新增
             };
         }
 
-        const heroineEnabled = 规范化游戏设置(deps.gameConfig).启用女主剧情规划 === true;
         const normalizedGameConfig = 规范化游戏设置(deps.gameConfig);
+        const heroineEnabled = normalizedGameConfig.启用女主剧情规划 === true;
+        const maleLeadEnabled = true; // ✨ 這裡預設啟用，如果設定中有加 `启用男主剧情规划`，可以改成 normalizedGameConfig.启用男主剧情规划 === true
+        
         const 启用修炼体系 = normalizedGameConfig.启用修炼体系 !== false;
         const 独立规划分析GPT模式 = normalizedGameConfig.独立APIGPT模式?.规划分析 === true;
         const worldPrompt = (() => {
@@ -369,12 +387,19 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                     : deps.规范化女主剧情规划状态(params.state.女主剧情规划)
             )
             : undefined;
+        // ✨ 新增男主
+        const activeMaleLeadPlan = maleLeadEnabled 
+            ? (deps.规范化男主剧情规划状态 ? deps.规范化男主剧情规划状态(params.state.男主剧情规划) : undefined)
+            : undefined;
+
         const activeStoryPlanTargets = fandomEnabled
             ? ['同人剧情规划', 'gameState.同人剧情规划']
             : ['剧情规划', 'gameState.剧情规划'];
         const activeHeroinePlanTargets = fandomEnabled
             ? ['同人女主剧情规划', 'gameState.同人女主剧情规划']
             : ['女主剧情规划', 'gameState.女主剧情规划'];
+        const activeMaleLeadPlanTargets = ['男主剧情规划', 'gameState.男主剧情规划']; // ✨ 新增
+
         const alignedStoryForPlanning = deps.规范化剧情状态(params.state.剧情, params.state.环境);
         const auditFocus = deps.去重文本数组([
             ...deps.收集剧情规划时间触发原因(activeStoryPlan, params.state.环境),
@@ -384,16 +409,25 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                     ...deps.收集女主规划时间触发原因(activeHeroinePlan as 女主剧情规划结构 | undefined, params.state.环境),
                     ...deps.收集女主正文命中原因(activeHeroinePlan as 女主剧情规划结构 | undefined, latestBodyText)
                 ]
+                : []),
+            // ✨ 新增男主审计
+            ...(maleLeadEnabled && deps.收集男主规划时间触发原因 && deps.收集男主正文命中原因
+                ? [
+                    ...deps.收集男主规划时间触发原因(activeMaleLeadPlan, params.state.环境),
+                    ...deps.收集男主正文命中原因(activeMaleLeadPlan, latestBodyText)
+                ]
                 : [])
         ]);
 
         await 后台让出主线程();
+        // 如果要讓世界書支援男主，可以在 scopes 加上 'male_lead_plan'
         const planningWorldbookParams = {
             books: Array.isArray(deps.worldbooks) ? deps.worldbooks : [],
-            scopes: heroineEnabled ? ['story_plan', 'heroine_plan'] : ['story_plan'],
+            scopes: ['story_plan', ...(heroineEnabled ? ['heroine_plan'] : []), ...(maleLeadEnabled ? ['male_lead_plan'] : [])],
             environment: params.state.环境,
             social: params.state.社交,
-            world: params.state.世界,
+            世界: params.state.世界,
+            world: params.state.世界, // 兼容
             history: deps.历史记录,
             extraTexts: [params.playerInput, latestBodyText, currentPlanText, ...auditFocus]
         };
@@ -437,6 +471,11 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 : {},
             normalizedGameConfig
         );
+        // ✨ 新增男主序列化载荷
+        const planningMaleLeadPayload = 裁剪修炼体系上下文数据(
+            maleLeadEnabled ? { 男主剧情规划: activeMaleLeadPlan || {} } : {},
+            normalizedGameConfig
+        );
 
         await 后台让出主线程();
         const currentStoryJson = await probe.timeAsync('序列化剧情规划载荷(worker)', () => 执行游戏后台重计算<string>(
@@ -449,6 +488,12 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             { value: planningHeroinePayload, gameConfig: normalizedGameConfig, space: 2 },
             () => 后台分段执行(() => JSON.stringify(planningHeroinePayload, null, 2))
         ));
+        const currentMaleLeadPlanJson = await probe.timeAsync('序列化男主规划载荷(worker)', () => 执行游戏后台重计算<string>(
+            'stringifyTrimCultivation',
+            { value: planningMaleLeadPayload, gameConfig: normalizedGameConfig, space: 2 },
+            () => 后台分段执行(() => JSON.stringify(planningMaleLeadPayload, null, 2))
+        ));
+        
         const normalizedWorldPayload = deps.规范化世界状态(params.state.世界);
         const normalizedSocialPayload = deps.规范化社交列表(params.state.社交);
         const normalizedEnvPayload = deps.规范化环境信息(params.state.环境);
@@ -482,11 +527,19 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
         probe.mark('规划分析请求载荷准备完成', {
             storyJsonLength: currentStoryJson.length,
             heroineJsonLength: currentHeroinePlanJson.length,
+            maleLeadJsonLength: currentMaleLeadPlanJson.length, // ✨
             worldJsonLength: worldJson.length,
             socialJsonLength: socialJson.length,
             envJsonLength: envJson.length,
             extraPromptLength: planningExtraPrompt.length
         });
+
+        // ⚠️ 這裡要注意：你可能需要去修改 textAIService.generatePlanningAnalysis 以支援接收男主 JSON。
+        // 為保持相容性，我們先把它合併在 extraPrompt 或原本參數內，若原本 API 已經支援則更好。
+        const combinedExtraPrompt = [
+            planningExtraPrompt,
+            maleLeadEnabled ? `### 当前男主剧情规划数据：\n\`\`\`json\n${currentMaleLeadPlanJson}\n\`\`\`` : ''
+        ].filter(Boolean).join('\n\n');
 
         const result = await probe.timeAsync('规划分析模型请求总耗时', () => 执行规划分析带超时和重试((signal) => textAIService.generatePlanningAnalysis({
             playerName: (deps.角色?.姓名 || '').trim() || '未命名',
@@ -501,7 +554,7 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             heroineEnabled,
             ntlEnabled: normalizedGameConfig.剧情风格 === 'NTL后宫',
             fandomEnabled,
-            extraPrompt: planningExtraPrompt,
+            extraPrompt: combinedExtraPrompt, // ✨ 加入男主数据
             gptMode: 独立规划分析GPT模式
         }, planningApi, signal), params.onRetry), {
             timeoutMs: 规划分析请求超时毫秒,
@@ -519,18 +572,21 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
         const heroinePlanCommands = heroineEnabled
             ? probe.time('过滤女主规划补丁命令', () => 过滤规划补丁命令(result.commands, activeHeroinePlanTargets))
             : [];
-        const maleLeadEnabled = true; // 或綁定到你的遊戲設定：规范化游戏设置(deps.gameConfig).启用男主剧情规划 === true;
-
+        // ✨ 新增男主指令过滤
         const maleLeadPlanCommands = maleLeadEnabled
-            ? probe.time('过滤男主规划补丁命令', () => 过滤规划补丁命令(result.commands, ['男主剧情规划', 'gameState.男主剧情规划']))
-            : [];    
+            ? probe.time('过滤男主规划补丁命令', () => 过滤规划补丁命令(result.commands, activeMaleLeadPlanTargets))
+            : [];
+            
         const commands = [...storyCommands, ...storyPlanCommands, ...heroinePlanCommands, ...maleLeadPlanCommands];
+        
         probe.mark('规划补丁命令过滤完成', {
             effectiveCommands: commands.length,
             storyCommands: storyCommands.length,
             storyPlanCommands: storyPlanCommands.length,
-            heroinePlanCommands: heroinePlanCommands.length
+            heroinePlanCommands: heroinePlanCommands.length,
+            maleLeadPlanCommands: maleLeadPlanCommands.length // ✨
         });
+        
         if (!result.shouldUpdate || commands.length === 0) {
             probe.mark('跳过：无有效规划补丁');
             return {
@@ -540,7 +596,8 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 commands: [],
                 storyCommands: [],
                 storyPlanCommands: [],
-                heroinePlanCommands: []
+                heroinePlanCommands: [],
+                maleLeadPlanCommands: []
             };
         }
         if (params.shouldApply && !params.shouldApply()) {
@@ -552,7 +609,8 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 commands: [],
                 storyCommands: [],
                 storyPlanCommands: [],
-                heroinePlanCommands: []
+                heroinePlanCommands: [],
+                maleLeadPlanCommands: []
             };
         }
 
@@ -565,6 +623,7 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             story: alignedStoryForPlanning,
             storyPlan: params.state.剧情规划,
             heroinePlan: params.state.女主剧情规划,
+            maleLeadPlan: params.state.男主剧情规划, // ✨ 新增
             fandomStoryPlan: params.state.同人剧情规划,
             fandomHeroinePlan: params.state.同人女主剧情规划
         }), { commandCount: commands.length }));
@@ -583,7 +642,8 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
                 commands: [],
                 storyCommands: [],
                 storyPlanCommands: [],
-                heroinePlanCommands: []
+                heroinePlanCommands: [],
+                maleLeadPlanCommands: []
             };
         }
         await 后台让出主线程();
@@ -600,12 +660,16 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             if (heroineEnabled && fandomEnabled) {
                 deps.设置同人女主剧情规划(patched.fandomHeroinePlan);
             }
+            if (maleLeadEnabled && deps.设置男主剧情规划) { // ✨ 新增保存
+                deps.设置男主剧情规划(patched.maleLeadPlan);
+            }
         });
         probe.mark('调度规划分析自动存档');
         void deps.performAutoSave({
             story: syncedPatchedStory,
             storyPlan: patched.storyPlan,
             heroinePlan: !fandomEnabled && heroineEnabled ? patched.heroinePlan : undefined,
+            maleLeadPlan: maleLeadEnabled ? patched.maleLeadPlan : undefined, // ✨ 新增
             fandomStoryPlan: patched.fandomStoryPlan,
             fandomHeroinePlan: fandomEnabled && heroineEnabled ? patched.fandomHeroinePlan : undefined,
             history: deps.历史记录,
@@ -620,7 +684,8 @@ export const 创建规划更新工作流 = (deps: 规划更新工作流依赖) =
             commands,
             storyCommands,
             storyPlanCommands,
-            heroinePlanCommands
+            heroinePlanCommands,
+            maleLeadPlanCommands // ✨ 新增
         };
         } finally {
             probe.end('释放规划分析进行中标记');
