@@ -16,6 +16,7 @@ import type {
 } from '../../types';
 import { 补齐世界地图空间字段 } from '../../utils/mapSpatial';
 import { 职位等级排序 } from '../../models/sect';
+import type { 男主剧情规划结构 } from '../../models/maleLeadPlan';
 
 export type 开场命令基态 = {
     角色: 角色数据结构;
@@ -632,7 +633,7 @@ export const 规范化世界状态 = (raw?: any): 世界数据结构 => {
         进行中事件: Array.isArray(world?.进行中事件)
             ? world.进行中事件
                 .map((item: any) => ({
-                    事件名: 取文本(item?.事件名),
+                    事件名: 取文本(item?.事件名)
                     类型: 取文本(item?.类型),
                     事件说明: 取文本(item?.事件说明),
                     开始时间: 取文本(item?.开始时间),
@@ -1051,6 +1052,85 @@ export const 规范化女主剧情规划状态 = (raw?: any): 女主剧情规划
             : []
     };
 };
+
+export const 创建空男主剧情规划 = (): 男主剧情规划结构 => ({
+    阶段推进: [],
+    男主条目: [],
+    男主互动事件: [],
+    男主镜头规划: []
+});
+
+export const 规范化男主剧情规划状态 = (raw?: any): 男主剧情规划结构 | undefined => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+    const plan = raw;
+    return {
+        阶段推进: Array.isArray(plan?.阶段推进)
+            ? plan.阶段推进
+                .map((item: any) => ({
+                    阶段名: 取文本(item?.阶段名),
+                    阶段目标: 取字符串数组(item?.阶段目标),
+                    主推男主: 取字符串数组(item?.主推男主),
+                    次推男主: 取字符串数组(item?.次推男主),
+                    禁止越级对象: 取字符串数组(item?.禁止越级对象),
+                    关联剧情任务: 取字符串数组(item?.关联剧情任务),
+                    阶段完成判定: 取字符串数组(item?.阶段完成判定),
+                    切换条件: 取字符串数组(item?.切换条件)
+                }))
+                .filter((item) => item.阶段名 || item.阶段目标.length > 0)
+            : [],
+        男主条目: Array.isArray(plan?.男主条目)
+            ? plan.男主条目
+                .map((item: any) => ({
+                    男主姓名: 取文本(item?.男主姓名),
+                    类型: 取文本(item?.类型),
+                    当前关系状态: 取文本(item?.当前关系状态),
+                    当前阶段: 取文本(item?.当前阶段),
+                    已成立事实: 取字符串数组(item?.已成立事实),
+                    阶段目标: 取字符串数组(item?.阶段目标),
+                    推进方式: 取字符串数组(item?.推进方式),
+                    阻断因素: 取字符串数组(item?.阻断因素),
+                    允许突破条件: 取字符串数组(item?.允许突破条件),
+                    失败后回退: 取字符串数组(item?.失败后回退)
+                }))
+                .filter((item) => item.男主姓名)
+            : [],
+        男主互动事件: Array.isArray(plan?.男主互动事件)
+            ? plan.男主互动事件
+                .map((item: any) => ({
+                    男主姓名: 取文本(item?.男主姓名),
+                    事件名: 取文本(item?.事件名),
+                    事件说明: 取文本(item?.事件说明),
+                    计划触发时间: 取文本(item?.计划触发时间),
+                    最早触发时间: 取文本(item?.最早触发时间),
+                    最晚触发时间: 取文本(item?.最晚触发时间),
+                    前置条件: 取字符串数组(item?.前置条件),
+                    触发条件: 取字符串数组(item?.触发条件),
+                    阻断条件: 取字符串数组(item?.阻断条件),
+                    成功结果: 取字符串数组(item?.成功结果),
+                    失败结果: 取字符串数组(item?.失败结果),
+                    关联剧情任务: 取字符串数组(item?.关联剧情任务),
+                    当前状态: 取文本(item?.当前状态)
+                }))
+                .filter((item) => item.男主姓名 || item.事件名)
+            : [],
+        男主镜头规划: Array.isArray(plan?.男主镜头规划)
+            ? plan.男主镜头规划
+                .map((item: any) => ({
+                    男主姓名: 取文本(item?.男主姓名),
+                    镜头标题: 取文本(item?.镜头标题),
+                    镜头内容: 取文本(item?.镜头内容),
+                    触发时间: 取文本(item?.触发时间),
+                    触发条件: 取字符串数组(item?.触发条件),
+                    关联事件: 取字符串数组(item?.关联事件),
+                    关联剧情任务: 取字符串数组(item?.关联剧情任务),
+                    沉淀内容: 取字符串数组(item?.沉淀内容),
+                    当前状态: 取文本(item?.当前状态)
+                }))
+                .filter((item) => item.男主姓名 || item.镜头标题)
+            : []
+    };
+};
+
 
 export const 创建空同人剧情规划 = (): 同人剧情规划结构 => ({
     当前对齐信息: {
