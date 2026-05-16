@@ -11,6 +11,7 @@ export * from './models/task';
 export * from './models/story'; 
 export * from './models/storyPlan';
 export * from './models/heroinePlan';
+export * from './models/maleLeadPlan'; // <== ✨ 新增：男主剧情规划模型
 export * from './models/fandomPlanning/story';
 export * from './models/fandomPlanning/heroinePlan';
 export * from './models/battle';
